@@ -731,6 +731,9 @@ async function init() {
     showLogin();
     return;
   }
+  
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("auth-app").classList.add("hidden");
 
   const params = new URLSearchParams(location.search);
   const code = params.get("code");
