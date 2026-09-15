@@ -681,6 +681,9 @@ function showLogin() {
     err.style.display = "none";
     document.getElementById("auth-email").value = "";
     document.getElementById("auth-password").value = "";
+    document.getElementById("auth-confirm-password").value = "";
+    document.getElementById("auth-confirm-password").required = isRegister;
+    document.getElementById("auth-confirm-field").style.display = isRegister ? "flex" : "none";
   };
   
   const pwdToggle = document.getElementById("auth-password-toggle");
