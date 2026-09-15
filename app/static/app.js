@@ -98,7 +98,7 @@ function renderAuth(prefillCode) {
   `;
   document.getElementById("tab-join").onclick = () => renderJoinCard();
   document.getElementById("tab-create").onclick = () => renderCreateCard();
-  document.getElementById("auth-logout-btn").onclick = (e) => { e.preventDefault(); saveToken(null); state.token = null; location.href = "/"; };
+  document.getElementById("auth-logout-btn").onclick = (e) => { e.preventDefault(); saveToken(null); state.token = null; location.reload(); };
   if (hasCode) renderJoinCard(prefillCode);
   else renderCreateCard();
 
