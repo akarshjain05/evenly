@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import balances, models, schemas
+from . import balances, models, schemas, auth
+from fastapi.security import OAuth2PasswordRequestForm
 from .database import Base, engine, get_db
 
 Base.metadata.create_all(bind=engine)
@@ -30,18 +31,53 @@ def pick_color(index: int) -> str:
     return PALETTE[index % len(PALETTE)]
 
 
+
+@app.post("/api/auth/register")
+def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_password = auth.get_password_hash(payload.password)
+    user = models.User(email=payload.email, password_hash=hashed_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    access_token = auth.create_access_token(data={"sub": user.id})
+    return {"access_token": access_token, "token_type": "bearer", "user": {"email": user.email}}
+
+@app.post("/api/auth/login")
+def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user or not auth.verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    access_token = auth.create_access_token(data={"sub": user.id})
+    return {"access_token": access_token, "token_type": "bearer", "user": {"email": user.email}}
+
+@app.get("/api/users/me/groups")
+def get_my_groups(user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+    return [
+        {
+            "group": {"id": m.group.id, "name": m.group.name, "invite_code": m.group.invite_code},
+            "member": {"id": m.id, "name": m.name, "color": m.color}
+        }
+        for m in user.memberships
+    ]
+
+
 def get_current_member(
     group_id: str,
-    x_member_id: str = Header(...),
-    x_member_secret: str = Header(...),
+    user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ) -> models.Member:
     member = (
         db.query(models.Member)
-        .filter(models.Member.id == x_member_id, models.Member.group_id == group_id)
+        .filter(models.Member.user_id == user.id, models.Member.group_id == group_id)
         .first()
     )
-    if not member or member.secret != x_member_secret:
+    if not member:
         raise HTTPException(status_code=401, detail="Not recognized as a member of this tab")
     return member
 
@@ -51,12 +87,12 @@ def member_out(m: models.Member, net: dict) -> dict:
 
 
 @app.post("/api/groups")
-def create_group(payload: schemas.GroupCreate, db: Session = Depends(get_db)):
+def create_group(payload: schemas.GroupCreate, user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     group = models.Group(name=payload.name)
     db.add(group)
     db.flush()
 
-    member = models.Member(group_id=group.id, name=payload.your_name, color=pick_color(0))
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(0))
     db.add(member)
     db.commit()
     db.refresh(group)
@@ -77,12 +113,12 @@ def preview_group(invite_code: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/groups/by-code/{invite_code}/join")
-def join_group(invite_code: str, payload: schemas.JoinRequest, db: Session = Depends(get_db)):
+def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     group = db.query(models.Group).filter(models.Group.invite_code == invite_code).first()
     if not group:
         raise HTTPException(status_code=404, detail="No tab found for that code")
 
-    member = models.Member(group_id=group.id, name=payload.name, color=pick_color(len(group.members)))
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(len(group.members)))
     db.add(member)
     db.commit()
     db.refresh(member)

@@ -8,19 +8,41 @@ const ICONS = {
 };
 
 // ---------- Storage ----------
-function loadToken() { return localStorage.getItem("evenly_token"); }
-function saveToken(t) { if (t) localStorage.setItem("evenly_token", t); else localStorage.removeItem("evenly_token"); }
-
+function loadMemberships() {
+  try {
+    let m = localStorage.getItem("evenly_memberships");
+    if (!m) {
+      const old = localStorage.getItem("tally_memberships");
+      if (old) {
+        localStorage.setItem("evenly_memberships", old);
+        m = old;
+      }
+    }
+    return JSON.parse(m || "{}");
+  } catch {
+    return {};
+  }
+}
+function saveMemberships(m) {
+  localStorage.setItem("evenly_memberships", JSON.stringify(m));
+}
 function loadActiveGroup() {
-  return localStorage.getItem("evenly_active_group") || null;
+  let g = localStorage.getItem("evenly_active_group");
+  if (!g) {
+    const old = localStorage.getItem("tally_active_group");
+    if (old) {
+      localStorage.setItem("evenly_active_group", old);
+      g = old;
+    }
+  }
+  return g || null;
 }
 function saveActiveGroup(id) {
   localStorage.setItem("evenly_active_group", id);
 }
 
 const state = {
-  token: loadToken(),
-  memberships: {}, // Populated from server
+  memberships: loadMemberships(), // { [group_id]: {member_id, secret, name, group_name, invite_code} }
   activeGroupId: loadActiveGroup(),
   group: null,
   activity: [],
@@ -30,8 +52,10 @@ const state = {
 async function api(path, { method = "GET", body, auth = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
-    if (!state.token) throw new Error("Not logged in");
-    headers["Authorization"] = "Bearer " + state.token;
+    const m = state.memberships[state.activeGroupId];
+    if (!m) throw new Error("Not joined to this tab yet");
+    headers["X-Member-Id"] = m.member_id;
+    headers["X-Member-Secret"] = m.secret;
   }
   const res = await fetch("/api" + path, {
     method,
@@ -178,7 +202,13 @@ function renderAuth(prefillCode) {
 }
 
 function adoptMembership(data) {
-  
+  state.memberships[data.group.id] = {
+    member_id: data.member.id,
+    secret: data.member.secret,
+    name: data.member.name,
+    group_name: data.group.name,
+    invite_code: data.group.invite_code,
+  };
   saveMemberships(state.memberships);
   state.activeGroupId = data.group.id;
   saveActiveGroup(data.group.id);
@@ -635,89 +665,16 @@ function openGroupSwitcher() {
 }
 
 // ---------- Init ----------
-
-async function syncMemberships() {
-  try {
-    const data = await api("/users/me/groups", { auth: true });
-    state.memberships = {};
-    for (const row of data) {
-      state.memberships[row.group.id] = {
-        member_id: row.member.id,
-        name: row.member.name,
-        group_name: row.group.name,
-        invite_code: row.group.invite_code
-      };
-    }
-  } catch (e) {
-    if (e.message.includes("validate credentials")) {
-      saveToken(null);
-      state.token = null;
-    }
-  }
-}
-
-function showLogin() {
-  document.getElementById("app").style.display = "none";
-  document.getElementById("auth-app").style.display = "block";
-  let isRegister = false;
-  
-  const form = document.getElementById("auth-form");
-  const toggle = document.getElementById("auth-toggle");
-  const title = document.getElementById("auth-subtitle");
-  const btn = document.getElementById("auth-submit");
-  const err = document.getElementById("auth-error");
-
-  toggle.onclick = (e) => {
-    e.preventDefault();
-    isRegister = !isRegister;
-    title.textContent = isRegister ? "Create a new account" : "Sign in to your account";
-    btn.textContent = isRegister ? "Register" : "Sign In";
-    toggle.textContent = isRegister ? "Already have an account? Sign In" : "Need an account? Register";
-    err.style.display = "none";
-  };
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    btn.disabled = true;
-    err.style.display = "none";
-    const email = document.getElementById("auth-email").value;
-    const password = document.getElementById("auth-password").value;
-    const path = isRegister ? "/auth/register" : "/auth/login";
-    try {
-      const res = await api(path, { method: "POST", body: { email, password }});
-      saveToken(res.access_token);
-      state.token = res.access_token;
-      document.getElementById("auth-app").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      init(); // Re-run init now that we are logged in
-    } catch (ex) {
-      err.textContent = ex.message;
-      err.style.display = "block";
-      btn.disabled = false;
-    }
-  };
-}
-
-async function init() {
-  if (!state.token) {
-    showLogin();
-    return;
-  }
-
-  await syncMemberships();
-  if (!state.token) {
-    showLogin();
-    return;
-  }
-
+function init() {
   const params = new URLSearchParams(location.search);
   const code = params.get("code");
 
   if (code && !Object.values(state.memberships).some((m) => m.invite_code === code)) {
-    renderAuth(code); // render the join tab screen
+    renderAuth(code);
     return;
   }
   if (code) {
+    // Already a member of this group - just switch to it.
     const entry = Object.entries(state.memberships).find(([, m]) => m.invite_code === code);
     if (entry) {
       state.activeGroupId = entry[0];
@@ -729,7 +686,7 @@ async function init() {
   if (state.activeGroupId && state.memberships[state.activeGroupId]) {
     loadDashboard();
   } else {
-    renderAuth(); // Render create tab screen
+    renderAuth();
   }
 }
 

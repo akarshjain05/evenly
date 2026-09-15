@@ -28,6 +28,17 @@ class SplitType(str, enum.Enum):
     percentage = "percentage"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    memberships = relationship("Member", back_populates="user")
+
+
 class Group(Base):
     __tablename__ = "groups"
 
@@ -46,12 +57,14 @@ class Member(Base):
 
     id = Column(String, primary_key=True, default=gen_id)
     group_id = Column(String, ForeignKey("groups.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     name = Column(String, nullable=False)
     secret = Column(String, default=gen_secret)  # this member's private device token
     color = Column(String, default="#B4863A")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("Group", back_populates="members")
+    user = relationship("User", back_populates="memberships")
 
 
 class Expense(Base):

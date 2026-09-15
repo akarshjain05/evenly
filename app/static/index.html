@@ -15,6 +15,24 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<div id="auth-app" class="app" style="display:none;">
+  <div class="auth-box">
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="16" y1="6" x2="16" y2="18"/><line x1="8" y1="7" x2="8" y2="17"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+    </div>
+    <h1>Evenly</h1>
+    <p id="auth-subtitle">Sign in to your account</p>
+    <div id="auth-error" class="error-msg" style="display:none;"></div>
+    <form id="auth-form" style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
+      <input type="email" id="auth-email" placeholder="Email" required />
+      <input type="password" id="auth-password" placeholder="Password" required minlength="6" />
+      <button type="submit" class="btn-primary" id="auth-submit">Sign In</button>
+    </form>
+    <div style="text-align:center; margin-top: 16px; font-size: 14px;">
+      <a href="#" id="auth-toggle">Need an account? Register</a>
+    </div>
+  </div>
+</div>
 <div id="app" class="app"></div>
 <script src="app.js"></script>
 </body>
