@@ -6,6 +6,10 @@
       "config": {
         "includeFiles": "app/static/**"
       }
+    },
+    {
+      "src": "app/static/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
