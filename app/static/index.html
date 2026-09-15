@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#FAF9F6" />
+<meta name="theme-color" content="#FAF9F6" id="meta-theme-color" />
+<script>
+  (function() {
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if (savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.getElementById('meta-theme-color').setAttribute('content', '#1c2622');
+    }
+  })();
+</script>
 <meta name="description" content="A private running tab for a small group - split costs, see who owes who, settle up." />
 <title>Evenly — split costs with your people</title>
 <link rel="manifest" href="manifest.json" />
@@ -16,6 +25,7 @@
 </head>
 <body>
 <div id="auth-app" class="app auth-screen hidden">
+  <button class="icon-btn theme-toggle-btn" style="position: absolute; top: 16px; right: 20px; z-index: 10;" aria-label="Toggle Theme"></button>
   <div class="auth-mark" style="color: var(--brass);">
     <svg viewBox="0 0 40 40" width="40" height="40" fill="none" stroke="#C19A5B" stroke-width="3" stroke-linecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>

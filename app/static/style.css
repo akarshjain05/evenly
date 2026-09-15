@@ -15,6 +15,7 @@
   --line-paper: #D0D0D0;
   --primary: #1B4332;
   --skeleton: #EAEAEA;
+  --highlight: #fbf3e2;
   --font-display: "Fraunces", serif;
   --font-body: system-ui, -apple-system, sans-serif;
   
@@ -149,7 +150,7 @@ textarea {
 .field input,
 .field select {
   border: 1px solid var(--line-paper);
-  background: #fff;
+  background: var(--paper-dim);
   border-radius: 10px;
   padding: 12px 13px;
   font-size: 16px;
@@ -532,7 +533,7 @@ button:focus-visible {
 
 .chip {
   border: 1px solid var(--line-paper);
-  background: #fff;
+  background: var(--paper-dim);
   color: var(--ink);
   padding: 8px 13px;
   border-radius: 999px;
@@ -613,7 +614,7 @@ button:focus-visible {
 .group-list button {
   text-align: left;
   border: 1px solid var(--line-paper);
-  background: #fff;
+  background: var(--paper-dim);
   color: var(--ink);
   padding: 12px 14px;
   border-radius: 10px;
@@ -623,7 +624,7 @@ button:focus-visible {
 
 .group-list button.current {
   border-color: var(--brass);
-  background: #fbf3e2;
+  background: var(--highlight);
 }
 
 .toast {
@@ -631,8 +632,8 @@ button:focus-visible {
   left: 50%;
   bottom: calc(var(--safe-bottom) + 24px);
   transform: translateX(-50%);
-  background: #111111;
-  color: #FFFFFF;
+  background: var(--ink);
+  color: var(--paper);
   padding: 10px 16px;
   border-radius: 10px;
   font-size: 13.5px;

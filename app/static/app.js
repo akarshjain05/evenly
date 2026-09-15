@@ -6,6 +6,8 @@ const ICONS = {
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   mark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 6 8 4 8 20 5 18"/><line x1="8" y1="4" x2="18" y2="20"/><line x1="8" y1="20" x2="18" y2="4"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>',
 };
 
 // ---------- Storage ----------
@@ -80,6 +82,7 @@ function renderAuth(prefillCode) {
   const hasCode = !!prefillCode;
   root.innerHTML = `
     <div class="auth-screen">
+      <button class="icon-btn theme-toggle-btn" style="position: absolute; top: 16px; right: 20px; z-index: 10;" aria-label="Toggle Theme"></button>
       <div class="auth-mark">
         <svg viewBox="0 0 40 40" fill="none" stroke="#C19A5B" stroke-width="3" stroke-linecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
@@ -128,6 +131,7 @@ function renderAuth(prefillCode) {
         <button class="btn-primary" type="submit">Start the tab</button>
       </form>
     `;
+    updateThemeIcons();
     document.getElementById("create-form").onsubmit = async (e) => {
       e.preventDefault();
       const groupName = document.getElementById("c-group").value.trim();
@@ -303,7 +307,10 @@ function renderHub() {
   root.innerHTML = `
     <div class="topbar" style="padding: 16px 20px;">
       <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink);">Your tabs</h2>
-      <button class="icon-btn" id="logout-btn" aria-label="Log Out" style="color: var(--debit); padding: 8px;">${ICONS.logout}</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
+        <button class="icon-btn" id="logout-btn" aria-label="Log Out" style="color: var(--debit); padding: 8px;">${ICONS.logout}</button>
+      </div>
     </div>
     <div style="padding: 20px;">
       ${emptyState}
@@ -312,6 +319,7 @@ function renderHub() {
     </div>
   `;
 
+  updateThemeIcons();
   document.getElementById("logout-btn").onclick = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("memberships");
@@ -347,7 +355,10 @@ function renderDashboard() {
   root.innerHTML = `
     <div class="topbar">
       <button class="topbar-group" id="group-switch">${escapeHtml(g.name)} ${ICONS.chevron}</button>
-      <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
+        <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
+      </div>
     </div>
 
     <div class="hero">
@@ -373,6 +384,7 @@ function renderDashboard() {
     <button class="fab" id="add-fab" aria-label="Add expense">${ICONS.plus}</button>
   `;
 
+  updateThemeIcons();
   const membersRow = document.getElementById("members-row");
   membersRow.innerHTML = g.members
     .map(
@@ -847,7 +859,8 @@ function showLogin() {
       const res = await api(path, { method: "POST", body: { email, password }});
       saveToken(res.access_token);
       state.token = res.access_token;
-      init(); // Re-run init now that we are logged in
+      updateThemeIcons();
+init(); // Re-run init now that we are logged in
     } catch (ex) {
       // Revert transition
       root.innerHTML = oldRootHTML;
@@ -909,4 +922,26 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+updateThemeIcons();
 init();
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  document.getElementById('meta-theme-color').setAttribute('content', newTheme === 'dark' ? '#1c2622' : '#FAF9F6');
+  updateThemeIcons();
+}
+
+function updateThemeIcons() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = isDark ? ICONS.sun : ICONS.moon;
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => btn.innerHTML = icon);
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.theme-toggle-btn')) {
+    toggleTheme();
+  }
+});
