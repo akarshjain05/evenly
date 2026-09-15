@@ -866,7 +866,9 @@ function openAddExpenseSheet() {
     }
 
     const btn = e.target.querySelector("button[type=submit]");
+    const originalText = btn.textContent;
     btn.disabled = true;
+    btn.textContent = "Adding...";
     try {
       await api(`/groups/${g.id}/expenses`, { method: "POST", auth: true, body: payload });
       overlay.remove();
@@ -875,6 +877,7 @@ function openAddExpenseSheet() {
       err.textContent = ex.message;
       err.classList.remove("hidden");
       btn.disabled = false;
+      btn.textContent = originalText;
     }
   };
 }
