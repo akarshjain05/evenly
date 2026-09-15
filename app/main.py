@@ -42,13 +42,33 @@ app.add_middleware(
 PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
 
 
+
+from collections import defaultdict
+import time
+
+# Basic in-memory rate limiting (max 10 auth attempts per minute per IP)
+auth_attempts = defaultdict(list)
+
+def rate_limit_auth(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    
+    # Prune old attempts
+    auth_attempts[client_ip] = [t for t in auth_attempts[client_ip] if now - t < 60]
+    
+    if len(auth_attempts[client_ip]) >= 10:
+        logger.warning(f"Rate limited auth attempt from {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many attempts. Please wait a minute.")
+    
+    auth_attempts[client_ip].append(now)
+
 def pick_color() -> str:
     return random.choice(PALETTE)
 
 
 
 @app.post("/api/auth/register")
-def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+def register(payload: schemas.UserCreate, db: Session = Depends(get_db), _=Depends(rate_limit_auth)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -63,7 +83,7 @@ def register(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "user": {"email": user.email}}
 
 @app.post("/api/auth/login")
-def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(payload: schemas.UserLogin, db: Session = Depends(get_db), _=Depends(rate_limit_auth)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if not user or not auth.verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
