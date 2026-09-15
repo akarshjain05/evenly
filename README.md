@@ -11,7 +11,7 @@ Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the fron
 - The group registers for free accounts and joins the tab. 
 - Expenses can be split equally, by exact amount, or by percentage.
 - The balances screen simplifies debts down to the minimum number of payments needed to settle everyone up.
-- Because it uses a modern, secure JWT authentication system, your tabs are safely backed up to the cloud and sync effortlessly across all your devices.
+- Because it uses a strict JWT authentication system (with forced fail-fast secret validation), your tabs are safely backed up to the cloud and sync effortlessly across all your devices.
 
 ## Project structure
 
@@ -50,8 +50,8 @@ This project is configured to deploy instantly on Vercel as a serverless app, ba
 1. Go to supabase.com and sign up (no card needed).
 2. Create a new project — any region close to you is fine. Save the database password you create!
 3. Once the project is ready, click **Connect** at the top of the dashboard.
-4. Select **Direct Connection string** (URI) and copy the `postgresql://` link.
-5. Replace `[YOUR-PASSWORD]` in that link with your actual password. Keep this handy for the next step.
+4. Switch to the **Transaction Mode (Port 6543)** or Connection Pooler string. (Because Vercel is serverless, a connection pooler is required to avoid exhausting database connections).
+5. Copy the `postgresql://` URI and replace `[YOUR-PASSWORD]` with your actual password. Keep this handy for the next step.
 
 ### 2. Push this folder to GitHub
 

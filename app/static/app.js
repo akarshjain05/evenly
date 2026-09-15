@@ -65,7 +65,9 @@ function initials(name) {
   return name.trim().slice(0, 2).toUpperCase();
 }
 function timeAgo(iso) {
-  const diff = (Date.now() - new Date(iso + "Z").getTime()) / 1000;
+  // If the ISO string doesn't have a timezone indicator (Z or +/- offset), assume UTC.
+  const dateStr = (iso.endsWith("Z") || iso.includes("+") || (iso.includes("-") && iso.lastIndexOf("-") > 10)) ? iso : iso + "Z";
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
   if (diff < 60) return "just now";
   if (diff < 3600) return Math.floor(diff / 60) + "m ago";
   if (diff < 86400) return Math.floor(diff / 3600) + "h ago";

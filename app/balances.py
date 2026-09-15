@@ -2,6 +2,9 @@ import heapq
 from typing import Dict, List
 from decimal import Decimal
 
+EXACT_SPLIT_TOLERANCE = Decimal('0.02')
+PERCENTAGE_TOLERANCE = Decimal('0.5')
+
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 
@@ -91,8 +94,8 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
     elif payload.split_type == "exact":
         if not payload.splits:
             raise HTTPException(status_code=400, detail="Exact split needs an amount per person")
-        total = round(sum(s.value for s in payload.splits), 2)
-        if abs(total - payload.amount) > 0.02:
+        total = Decimal(str(round(sum(s.value for s in payload.splits), 2)))
+        if abs(total - Decimal(str(payload.amount))) > EXACT_SPLIT_TOLERANCE:
             raise HTTPException(status_code=400, detail=f"Splits add up to {total}, not {payload.amount}")
         for s in payload.splits:
             if s.member_id not in valid_ids:
@@ -102,8 +105,8 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
     elif payload.split_type == "percentage":
         if not payload.splits:
             raise HTTPException(status_code=400, detail="Percentage split needs a % per person")
-        total_pct = round(sum(s.value for s in payload.splits), 2)
-        if abs(total_pct - 100) > 0.5:
+        total_pct = Decimal(str(round(sum(s.value for s in payload.splits), 2)))
+        if abs(total_pct - Decimal("100")) > PERCENTAGE_TOLERANCE:
             raise HTTPException(status_code=400, detail=f"Percentages add up to {total_pct}%, not 100%")
         for s in payload.splits:
             if s.member_id not in valid_ids:

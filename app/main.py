@@ -76,20 +76,28 @@ def member_out(m: models.Member, net: dict) -> dict:
 
 @app.post("/api/groups", response_model=schemas.CreateJoinResponse)
 def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
-    group = models.Group(name=payload.name)
-    db.add(group)
-    db.flush()
+    for attempt in range(3):
+        try:
+            group = models.Group(name=payload.name)
+            db.add(group)
+            db.flush()
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(0))
-    db.add(member)
-    db.commit()
-    db.refresh(group)
-    db.refresh(member)
+            member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(0))
+            db.add(member)
+            db.commit()
+            db.refresh(group)
+            db.refresh(member)
+            
+            return {
+                "group": {"id": group.id, "name": group.name, "invite_code": group.invite_code},
+                "member": {"id": member.id, "name": member.name, "color": member.color},
+            }
+        except IntegrityError:
+            db.rollback()
+            if attempt == 2:
+                logger.error("Failed to generate a unique invite code after 3 attempts.")
+                raise HTTPException(status_code=500, detail="Could not create tab. Please try again.")
 
-    return {
-        "group": {"id": group.id, "name": group.name, "invite_code": group.invite_code},
-        "member": {"id": member.id, "name": member.name, "color": member.color},
-    }
 
 
 @app.get("/api/groups/by-code/{invite_code}")
