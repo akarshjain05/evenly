@@ -3,7 +3,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
 from sqlalchemy.orm import relationship
 
 from .database import Base

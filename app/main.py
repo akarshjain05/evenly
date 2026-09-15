@@ -1,4 +1,10 @@
 import os
+import random
+from sqlalchemy.exc import IntegrityError, OperationalError
+import logging
+import time
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +18,15 @@ from .database import Base, engine, get_db
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Evenly API")
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled error processing {request.method} {request.url}")
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+
 
 # Same-origin in production (this app serves its own frontend), so CORS is
 # mostly a local-dev convenience here. Auth is via a per-member secret
@@ -27,8 +42,8 @@ app.add_middleware(
 PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
 
 
-def pick_color(index: int) -> str:
-    return PALETTE[index % len(PALETTE)]
+def pick_color() -> str:
+    return random.choice(PALETTE)
 
 
 
@@ -82,7 +97,7 @@ def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.
             db.add(group)
             db.flush()
 
-            member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(0))
+            member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color())
             db.add(member)
             db.commit()
             db.refresh(group)
@@ -114,7 +129,7 @@ def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User
     if not group:
         raise HTTPException(status_code=404, detail="No tab found for that code")
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(len(group.members)))
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color())
     db.add(member)
     db.commit()
     db.refresh(member)
