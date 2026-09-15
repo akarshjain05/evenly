@@ -3,6 +3,8 @@ const ICONS = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
   arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -292,6 +294,7 @@ function showSkeleton() {
 
 
 function renderHub() {
+  renderSidebar();
   const groupIds = Object.keys(state.memberships);
   const rows = groupIds
     .map(
@@ -306,8 +309,9 @@ function renderHub() {
   const emptyState = groupIds.length === 0 ? `<p style="color: var(--on-dark-soft); margin-bottom: 24px; text-align: center; font-size: 15px;">You haven't joined any tabs yet.</p>` : "";
 
   root.innerHTML = `
-    <div class="topbar" style="padding: 16px 20px;">
-      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink);">Your tabs</h2>
+    <div class="topbar" style="padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+      <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink); flex: 1;">Your tabs</h2>
       <div style="display: flex; gap: 8px;">
         <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
         <button class="icon-btn" id="logout-btn" aria-label="Log Out" style="color: var(--debit); padding: 8px;">${ICONS.logout}</button>
@@ -345,7 +349,104 @@ function renderHub() {
   };
 }
 
+
+function renderSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+  
+  const groupIds = Object.keys(state.memberships);
+  let userName = "You";
+  if (groupIds.length > 0) {
+    userName = state.memberships[groupIds[0]].name;
+  }
+  
+  const rows = groupIds.map(id => {
+    const m = state.memberships[id];
+    const isActive = id === state.activeGroupId;
+    return `<button class="sidebar-link ${isActive ? 'active' : ''}" data-id="${id}">
+      <div class="sidebar-link-icon">${m.group_name.charAt(0).toUpperCase()}</div>
+      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(m.group_name)}</div>
+      ${isActive ? `<div style="width:6px;height:6px;border-radius:50%;background:var(--brass);margin-left:auto;"></div>` : ''}
+    </button>`;
+  }).join("");
+
+  sidebar.innerHTML = `
+    <div class="sidebar-header">
+      <div class="auth-mark" style="color: var(--brass); width: 28px; height: 28px;">
+        <svg viewBox="0 0 40 40" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+          <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
+          <line x1="22" y1="8" x2="22" y2="32"/><line x1="28" y1="8" x2="28" y2="32"/>
+          <line x1="7" y1="30" x2="31" y2="10"/>
+        </svg>
+      </div>
+      <h1 class="sidebar-title">evenly</h1>
+    </div>
+    
+    <div class="sidebar-section">Active Groups</div>
+    <div class="sidebar-nav">
+      ${rows}
+      <button class="sidebar-link" id="sidebar-new-btn" style="color: var(--primary);">
+        <div class="sidebar-link-icon" style="background: transparent; color: var(--primary);">${ICONS.plus}</div>
+        Start or join a tab
+      </button>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="sidebar-profile">
+        <div class="profile-info">
+          <div class="profile-avatar">${initials(userName)}</div>
+          <div class="profile-text">
+            <span class="profile-name">${escapeHtml(userName)}</span>
+            <span class="profile-sub">Personal settings</span>
+          </div>
+        </div>
+        <button class="profile-settings" id="sidebar-logout" aria-label="Settings / Log Out">${ICONS.settings}</button>
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll(".sidebar-link[data-id]").forEach(btn => {
+    btn.onclick = () => {
+      closeSidebar();
+      state.activeGroupId = btn.dataset.id;
+      saveActiveGroup(state.activeGroupId);
+      history.replaceState(null, "", "/");
+      loadDashboard();
+    };
+  });
+  
+  document.getElementById("sidebar-new-btn").onclick = () => {
+    closeSidebar();
+    renderAuth();
+  };
+  
+  document.getElementById("sidebar-logout").onclick = () => {
+    if (confirm("Log out?")) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("memberships");
+      localStorage.removeItem("activeGroupId");
+      state.token = null;
+      state.memberships = {};
+      state.activeGroupId = null;
+      showLogin();
+    }
+  };
+}
+
+function openSidebar() {
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("sidebar-overlay").classList.add("show");
+}
+
+function closeSidebar() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebar-overlay").classList.remove("show");
+}
+
+document.getElementById("sidebar-overlay").onclick = closeSidebar;
+
 function renderDashboard() {
+  renderSidebar();
   const g = state.group;
   const me = state.memberships[g.id];
   const myBalance = (g.members.find((m) => m.id === me.member_id) || {}).balance || 0;
@@ -355,6 +456,7 @@ function renderDashboard() {
 
   root.innerHTML = `
     <div class="topbar" style="gap: 12px;">
+      <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
       <button class="icon-btn" id="back-to-hub-btn" aria-label="Back to Hub" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>
       <button class="topbar-group" id="group-switch" style="flex: 1; padding: 0; justify-content: flex-start; text-align: left;">${escapeHtml(g.name)} ${ICONS.chevron}</button>
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
@@ -808,6 +910,7 @@ async function syncMemberships() {
 
 function showLogin() {
   document.getElementById("app").classList.add("hidden");
+  document.getElementById("app-layout").classList.add("hidden");
   document.getElementById("auth-app").classList.remove("hidden");
   let isRegister = false;
   
@@ -856,6 +959,7 @@ function showLogin() {
     
     // Transition to skeleton immediately
     document.getElementById("auth-app").classList.add("hidden");
+    document.getElementById("app-layout").classList.remove("hidden");
     const appDiv = document.getElementById("app");
     appDiv.classList.remove("hidden");
     
@@ -873,6 +977,7 @@ init(); // Re-run init now that we are logged in
       // Revert transition
       root.innerHTML = oldRootHTML;
       appDiv.classList.add("hidden");
+      document.getElementById("app-layout").classList.add("hidden");
       document.getElementById("auth-app").classList.remove("hidden");
       err.textContent = ex.message;
       err.style.display = "block";
@@ -888,6 +993,7 @@ async function init() {
   }
 
   document.getElementById("auth-app").classList.add("hidden");
+  document.getElementById("app-layout").classList.remove("hidden");
   const appDiv = document.getElementById("app");
   appDiv.classList.remove("hidden");
   showSkeleton();
@@ -898,6 +1004,7 @@ async function init() {
     return;
   }
   
+  document.getElementById("app-layout").classList.remove("hidden");
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("auth-app").classList.add("hidden");
 
