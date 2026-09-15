@@ -242,6 +242,43 @@ function showSkeleton() {
       <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
       <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
     </div>
+    
+    <div class="totals-summary" style="opacity: 0.5;">
+      <div style="width: 100px; height: 32px; background: var(--bg); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100px; height: 32px; background: var(--bg); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+    </div>
+
+    <div class="section" style="opacity: 0.5;">
+      <div style="width: 100px; height: 20px; background: var(--bg-soft); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100%; height: 60px; background: var(--bg-soft); border-radius: 14px; animation: pulse 1.5s infinite;"></div>
+    </div>
+
+    <div class="section" style="opacity: 0.5;">
+      <div style="width: 80px; height: 20px; background: var(--bg-soft); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
+      <div class="ledger">
+        <div class="ledger-row" style="border-bottom-color: var(--bg-soft);">
+          <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+               <div style="width: 60%; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 40%; height: 12px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+            </div>
+            <div style="width: 40px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+          </div>
+        </div>
+        <div class="ledger-row" style="border-bottom: none;">
+          <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+               <div style="width: 50%; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 30%; height: 12px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+            </div>
+            <div style="width: 50px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="fab" style="background: var(--bg-soft); animation: pulse 1.5s infinite; pointer-events: none; opacity: 0.5; color: transparent;">+</button>
   `;
 }
 
