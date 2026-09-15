@@ -213,7 +213,7 @@ function adoptMembership(data) {
   };
   state.activeGroupId = data.group.id;
   saveActiveGroup(data.group.id);
-  history.replaceState(null, "", "/");
+  history.pushState(null, "", "#group-" + data.group.id);
   loadDashboard();
 }
 
@@ -339,7 +339,7 @@ function renderHub() {
     btn.onclick = () => {
       state.activeGroupId = btn.dataset.id;
       saveActiveGroup(state.activeGroupId);
-      history.replaceState(null, "", "/");
+      history.pushState(null, "", "#group-" + state.activeGroupId);
       loadDashboard();
     };
   });
@@ -410,7 +410,7 @@ function renderSidebar() {
       closeSidebar();
       state.activeGroupId = btn.dataset.id;
       saveActiveGroup(state.activeGroupId);
-      history.replaceState(null, "", "/");
+      history.pushState(null, "", "#group-" + state.activeGroupId);
       loadDashboard();
     };
   });
@@ -457,7 +457,6 @@ function renderDashboard() {
   root.innerHTML = `
     <div class="topbar" style="gap: 12px;">
       <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
-      <button class="icon-btn" id="back-to-hub-btn" aria-label="Back to Hub" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>
       <button class="topbar-group" id="group-switch" style="flex: 1; padding: 0; justify-content: flex-start; text-align: left;">${escapeHtml(g.name)} ${ICONS.chevron}</button>
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
@@ -588,12 +587,6 @@ function renderDashboard() {
   document.getElementById("add-fab").onclick = openAddExpenseSheet;
   document.getElementById("invite-btn").onclick = openInviteSheet;
   document.getElementById("group-switch").onclick = openGroupSwitcher;
-  document.getElementById("back-to-hub-btn").onclick = () => {
-    state.activeGroupId = null;
-    localStorage.removeItem("activeGroupId");
-    history.replaceState(null, "", "/");
-    renderHub();
-  };
 }
 
 async function markSettled(from, to, amount) {
@@ -1020,13 +1013,27 @@ async function init() {
     if (entry) {
       state.activeGroupId = entry[0];
       saveActiveGroup(entry[0]);
-      history.replaceState(null, "", "/");
+      history.replaceState(null, "", "#hub");
     }
   }
 
+  if (location.hash.startsWith("#group-")) {
+    const hashId = location.hash.replace("#group-", "");
+    if (state.memberships[hashId]) {
+      state.activeGroupId = hashId;
+      saveActiveGroup(hashId);
+    } else {
+      state.activeGroupId = null;
+    }
+  } else if (location.hash === "#hub") {
+    state.activeGroupId = null;
+  }
+
   if (state.activeGroupId && state.memberships[state.activeGroupId]) {
+    history.replaceState(null, "", "#group-" + state.activeGroupId);
     loadDashboard();
   } else {
+    history.replaceState(null, "", "#hub");
     renderHub();
   }
 }
@@ -1039,6 +1046,23 @@ if ("serviceWorker" in navigator) {
 
 updateThemeIcons();
 init();
+
+
+window.addEventListener('popstate', (e) => {
+  if (!state.token) return; // Ignore if not logged in
+  if (location.hash.startsWith("#group-")) {
+    const id = location.hash.replace("#group-", "");
+    if (state.memberships[id]) {
+      state.activeGroupId = id;
+      saveActiveGroup(id);
+      loadDashboard();
+    }
+  } else {
+    state.activeGroupId = null;
+    localStorage.removeItem("activeGroupId");
+    renderHub();
+  }
+});
 
 function toggleTheme() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
