@@ -272,11 +272,20 @@ async function loadDashboard() {
       api(`/groups/${gId}`, { auth: true }),
       api(`/groups/${gId}/activity`, { auth: true }),
     ]);
+    
+    const isCached = !!(cache.group[gId] && cache.activity[gId]);
+    const isUnchanged = isCached && 
+      JSON.stringify(cache.group[gId]) === JSON.stringify(group) && 
+      JSON.stringify(cache.activity[gId]) === JSON.stringify(activity);
+      
     cache.group[gId] = group;
     cache.activity[gId] = activity;
     state.group = group;
     state.activity = activity;
-    renderDashboard();
+    
+    if (!isUnchanged) {
+      renderDashboard();
+    }
   } catch (ex) {
     delete state.memberships[gId];
     state.activeGroupId = null;
