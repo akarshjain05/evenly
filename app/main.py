@@ -264,4 +264,5 @@ def health():
 # Serve the PWA frontend. Registered last so the /api/* routes above always
 # take precedence over the static file catch-all.
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+if os.path.exists(STATIC_DIR):
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
