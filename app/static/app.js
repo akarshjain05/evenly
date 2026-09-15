@@ -657,8 +657,8 @@ async function syncMemberships() {
 }
 
 function showLogin() {
-  document.getElementById("app").style.display = "none";
-  document.getElementById("auth-app").style.display = "block";
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("auth-app").classList.remove("hidden");
   let isRegister = false;
   
   const form = document.getElementById("auth-form");
@@ -687,8 +687,8 @@ function showLogin() {
       const res = await api(path, { method: "POST", body: { email, password }});
       saveToken(res.access_token);
       state.token = res.access_token;
-      document.getElementById("auth-app").style.display = "none";
-      document.getElementById("app").style.display = "block";
+      document.getElementById("auth-app").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
       init(); // Re-run init now that we are logged in
     } catch (ex) {
       err.textContent = ex.message;

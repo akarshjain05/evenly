@@ -15,12 +15,12 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div id="auth-app" class="app auth-screen" style="display:none; margin: 0 auto; max-width: 440px;">
+<div id="auth-app" class="app auth-screen hidden">
   <div class="auth-mark" style="color: var(--brass);">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 6 8 4 8 20 5 18"></polyline><line x1="8" y1="4" x2="18" y2="20"></line><line x1="8" y1="20" x2="18" y2="4"></line></svg>
   </div>
   <h1 class="auth-title">Evenly</h1>
-  <p class="auth-sub" id="auth-subtitle">Sign in to your account</p>
+  <p class="auth-sub" id="auth-subtitle" style="margin-top: 0;">Sign in to your account</p>
   
   <form id="auth-form" class="auth-card">
     <div id="auth-error" class="error-msg" style="display:none; text-align: center;"></div>
@@ -39,7 +39,7 @@
     <a href="#" id="auth-toggle" style="color: var(--on-dark-soft); text-decoration: none;">Need an account? Register</a>
   </div>
 </div>
-<div id="app"  class="app"></div>
+<div id="app" class="app hidden"></div>
 <script src="app.js"></script>
 </body>
 </html>
