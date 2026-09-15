@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+tally.db
+.venv/
+venv/
