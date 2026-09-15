@@ -1,4 +1,4 @@
-const CACHE_NAME = "evenly-shell-v3";
+const CACHE_NAME = "evenly-shell-v4";
 const SHELL_FILES = ["/", "/style.css", "/app.js", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
