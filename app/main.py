@@ -15,7 +15,7 @@ from . import balances, models, schemas, auth, deps
 from fastapi.security import OAuth2PasswordRequestForm
 from .database import Base, engine, get_db
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)  # Removed in favor of Alembic migrations
 
 app = FastAPI(title="Evenly API")
 
