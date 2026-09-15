@@ -2,8 +2,9 @@ import heapq
 from typing import Dict, List
 
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
-from . import models
+from . import models, schemas
 
 
 def compute_net_balances(db: Session, group_id: str) -> Dict[str, float]:
@@ -68,3 +69,46 @@ def simplify_debts(net: Dict[str, float]) -> List[dict]:
             heapq.heappush(debtors, (-remaining_debt, debtor_id))
 
     return transactions
+
+def process_expense_splits(db: Session, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate):
+    valid_ids = {m.id for m in db.query(models.Member).filter(models.Member.group_id == group_id).all()}
+    if payload.paid_by not in valid_ids:
+        raise HTTPException(status_code=400, detail="Payer is not in this tab")
+
+    splits = []
+    
+    if payload.split_type == "equal":
+        participants = [p for p in (payload.participant_ids or list(valid_ids)) if p in valid_ids]
+        if not participants:
+            raise HTTPException(status_code=400, detail="Pick at least one person to split with")
+        share = round(payload.amount / len(participants), 2)
+        remainder = round(payload.amount - share * len(participants), 2)
+        for i, pid in enumerate(participants):
+            amt = share + (remainder if i == 0 else 0)
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=round(amt, 2)))
+
+    elif payload.split_type == "exact":
+        if not payload.splits:
+            raise HTTPException(status_code=400, detail="Exact split needs an amount per person")
+        total = round(sum(s.value for s in payload.splits), 2)
+        if abs(total - payload.amount) > 0.02:
+            raise HTTPException(status_code=400, detail=f"Splits add up to {total}, not {payload.amount}")
+        for s in payload.splits:
+            if s.member_id not in valid_ids:
+                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=round(s.value, 2)))
+
+    elif payload.split_type == "percentage":
+        if not payload.splits:
+            raise HTTPException(status_code=400, detail="Percentage split needs a % per person")
+        total_pct = round(sum(s.value for s in payload.splits), 2)
+        if abs(total_pct - 100) > 0.5:
+            raise HTTPException(status_code=400, detail=f"Percentages add up to {total_pct}%, not 100%")
+        for s in payload.splits:
+            if s.member_id not in valid_ids:
+                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
+            amt = round(payload.amount * s.value / 100, 2)
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
+
+    for split in splits:
+        db.add(split)

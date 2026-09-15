@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from . import balances, models, schemas, auth
+from . import balances, models, schemas, auth, deps
 from fastapi.security import OAuth2PasswordRequestForm
 from .database import Base, engine, get_db
 
@@ -57,7 +57,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "user": {"email": user.email}}
 
 @app.get("/api/users/me/groups")
-def get_my_groups(user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def get_my_groups(user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     return [
         {
             "group": {"id": m.group.id, "name": m.group.name, "invite_code": m.group.invite_code},
@@ -67,19 +67,7 @@ def get_my_groups(user: models.User = Depends(auth.get_current_user), db: Sessio
     ]
 
 
-def get_current_member(
-    group_id: str,
-    user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-) -> models.Member:
-    member = (
-        db.query(models.Member)
-        .filter(models.Member.user_id == user.id, models.Member.group_id == group_id)
-        .first()
-    )
-    if not member:
-        raise HTTPException(status_code=401, detail="Not recognized as a member of this tab")
-    return member
+
 
 
 def member_out(m: models.Member, net: dict) -> dict:
@@ -87,7 +75,7 @@ def member_out(m: models.Member, net: dict) -> dict:
 
 
 @app.post("/api/groups")
-def create_group(payload: schemas.GroupCreate, user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     group = models.Group(name=payload.name)
     db.add(group)
     db.flush()
@@ -113,7 +101,7 @@ def preview_group(invite_code: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/groups/by-code/{invite_code}/join")
-def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     group = db.query(models.Group).filter(models.Group.invite_code == invite_code).first()
     if not group:
         raise HTTPException(status_code=404, detail="No tab found for that code")
@@ -130,7 +118,7 @@ def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User
 
 
 @app.get("/api/groups/{group_id}")
-def get_group(group_id: str, member: models.Member = Depends(get_current_member), db: Session = Depends(get_db)):
+def get_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
@@ -153,7 +141,7 @@ def get_group(group_id: str, member: models.Member = Depends(get_current_member)
 
 
 @app.get("/api/groups/{group_id}/activity")
-def get_activity(group_id: str, member: models.Member = Depends(get_current_member), db: Session = Depends(get_db)):
+def get_activity(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     name_lookup = {m.id: m.name for m in members}
 
@@ -196,13 +184,9 @@ def get_activity(group_id: str, member: models.Member = Depends(get_current_memb
 def add_expense(
     group_id: str,
     payload: schemas.ExpenseCreate,
-    member: models.Member = Depends(get_current_member),
+    member: models.Member = Depends(deps.get_current_member),
     db: Session = Depends(get_db),
 ):
-    valid_ids = {m.id for m in db.query(models.Member).filter(models.Member.group_id == group_id).all()}
-    if payload.paid_by not in valid_ids:
-        raise HTTPException(status_code=400, detail="Payer is not in this tab")
-
     expense = models.Expense(
         group_id=group_id,
         description=payload.description,
@@ -213,43 +197,8 @@ def add_expense(
     db.add(expense)
     db.flush()
 
-    splits: list[models.ExpenseSplit] = []
-
-    if payload.split_type == "equal":
-        participants = [p for p in (payload.participant_ids or list(valid_ids)) if p in valid_ids]
-        if not participants:
-            raise HTTPException(status_code=400, detail="Pick at least one person to split with")
-        share = round(payload.amount / len(participants), 2)
-        remainder = round(payload.amount - share * len(participants), 2)
-        for i, pid in enumerate(participants):
-            amt = share + (remainder if i == 0 else 0)
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=round(amt, 2)))
-
-    elif payload.split_type == "exact":
-        if not payload.splits:
-            raise HTTPException(status_code=400, detail="Exact split needs an amount per person")
-        total = round(sum(s.value for s in payload.splits), 2)
-        if abs(total - payload.amount) > 0.02:
-            raise HTTPException(status_code=400, detail=f"Splits add up to {total}, not {payload.amount}")
-        for s in payload.splits:
-            if s.member_id not in valid_ids:
-                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=round(s.value, 2)))
-
-    elif payload.split_type == "percentage":
-        if not payload.splits:
-            raise HTTPException(status_code=400, detail="Percentage split needs a % per person")
-        total_pct = round(sum(s.value for s in payload.splits), 2)
-        if abs(total_pct - 100) > 0.5:
-            raise HTTPException(status_code=400, detail=f"Percentages add up to {total_pct}%, not 100%")
-        for s in payload.splits:
-            if s.member_id not in valid_ids:
-                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            amt = round(payload.amount * s.value / 100, 2)
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
-
-    for split in splits:
-        db.add(split)
+    balances.process_expense_splits(db, group_id, expense, payload)
+    
     db.commit()
     return {"ok": True, "expense_id": expense.id}
 
@@ -258,7 +207,7 @@ def add_expense(
 def delete_expense(
     group_id: str,
     expense_id: str,
-    member: models.Member = Depends(get_current_member),
+    member: models.Member = Depends(deps.get_current_member),
     db: Session = Depends(get_db),
 ):
     expense = (
@@ -277,7 +226,7 @@ def delete_expense(
 def add_settlement(
     group_id: str,
     payload: schemas.SettlementCreate,
-    member: models.Member = Depends(get_current_member),
+    member: models.Member = Depends(deps.get_current_member),
     db: Session = Depends(get_db),
 ):
     valid_ids = {m.id for m in db.query(models.Member).filter(models.Member.group_id == group_id).all()}
