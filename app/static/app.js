@@ -81,7 +81,7 @@ function renderAuth(prefillCode) {
   root.innerHTML = `
     <div class="auth-screen">
       <div class="auth-mark">
-        <svg viewBox="0 0 40 40" fill="none" stroke="#B4863A" stroke-width="3" stroke-linecap="round">
+        <svg viewBox="0 0 40 40" fill="none" stroke="#C19A5B" stroke-width="3" stroke-linecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
           <line x1="22" y1="8" x2="22" y2="32"/><line x1="28" y1="8" x2="28" y2="32"/>
           <line x1="7" y1="30" x2="31" y2="10"/>
@@ -233,55 +233,55 @@ async function loadDashboard() {
 function showSkeleton() {
   root.innerHTML = `
     <div class="topbar">
-      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 80px; height: 24px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 24px; height: 24px; background: var(--skeleton); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
     </div>
     <div class="hero">
-      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
-      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
+      <div style="width: 120px; height: 60px; background: var(--skeleton); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
+      <div style="width: 150px; height: 16px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
     </div>
     <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--skeleton); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--skeleton); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--skeleton); animation: pulse 1.5s infinite;"></div>
     </div>
     
     <div class="totals-summary" style="opacity: 0.5;">
-      <div style="width: 100px; height: 32px; background: var(--bg); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-      <div style="width: 100px; height: 32px; background: var(--bg); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100px; height: 32px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100px; height: 32px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
     </div>
 
     <div class="section" style="opacity: 0.5;">
-      <div style="width: 100px; height: 20px; background: var(--bg-soft); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
-      <div style="width: 100%; height: 60px; background: var(--bg-soft); border-radius: 14px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100px; height: 20px; background: var(--skeleton); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 100%; height: 60px; background: var(--skeleton); border-radius: 14px; animation: pulse 1.5s infinite;"></div>
     </div>
 
     <div class="section" style="opacity: 0.5;">
-      <div style="width: 80px; height: 20px; background: var(--bg-soft); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 80px; height: 20px; background: var(--skeleton); border-radius: 4px; margin-bottom: 16px; animation: pulse 1.5s infinite;"></div>
       <div class="ledger">
-        <div class="ledger-row" style="border-bottom-color: var(--bg-soft);">
+        <div class="ledger-row" style="border-bottom-color: var(--skeleton);">
           <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--skeleton); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-               <div style="width: 60%; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-               <div style="width: 40%; height: 12px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 60%; height: 16px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 40%; height: 12px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
             </div>
-            <div style="width: 40px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+            <div style="width: 40px; height: 16px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
           </div>
         </div>
         <div class="ledger-row" style="border-bottom: none;">
           <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--skeleton); animation: pulse 1.5s infinite; flex-shrink: 0;"></div>
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-               <div style="width: 50%; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-               <div style="width: 30%; height: 12px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 50%; height: 16px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+               <div style="width: 30%; height: 12px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
             </div>
-            <div style="width: 50px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+            <div style="width: 50px; height: 16px; background: var(--skeleton); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
           </div>
         </div>
       </div>
     </div>
-    <button class="fab" style="background: var(--bg-soft); animation: pulse 1.5s infinite; pointer-events: none; opacity: 0.5; color: transparent;">+</button>
+    <button class="fab" style="background: var(--skeleton); animation: pulse 1.5s infinite; pointer-events: none; opacity: 0.5; color: transparent;">+</button>
   `;
 }
 
@@ -291,7 +291,7 @@ function renderHub() {
   const rows = groupIds
     .map(
       (id) =>
-        `<button class="group-hub-card" data-id="${id}" style="width: 100%; padding: 16px 20px; margin-bottom: 12px; background: var(--bg-soft); border: none; border-radius: var(--radius); color: var(--paper); font-size: 16px; font-weight: 500; text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        `<button class="group-hub-card" data-id="${id}" style="width: 100%; padding: 16px 20px; margin-bottom: 12px; background: var(--skeleton); border: 1px solid var(--line-dark); border-radius: var(--radius); color: var(--ink); font-size: 16px; font-weight: 500; text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
           ${escapeHtml(state.memberships[id].group_name)}
           <span style="color: var(--on-dark-soft); display: flex; transform: rotate(-90deg);">${ICONS.chevron}</span>
         </button>`
@@ -302,7 +302,7 @@ function renderHub() {
 
   root.innerHTML = `
     <div class="topbar" style="padding: 16px 20px;">
-      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--paper);">Your tabs</h2>
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink);">Your tabs</h2>
       <button class="icon-btn" id="logout-btn" aria-label="Log Out" style="color: var(--debit); padding: 8px;">${ICONS.logout}</button>
     </div>
     <div style="padding: 20px;">

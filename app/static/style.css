@@ -1,21 +1,23 @@
 :root {
-  --bg: #1c2622;
-  --bg-soft: #232f2a;
-  --paper: #ede3c8;
-  --paper-dim: #e2d7b8;
-  --ink: #20281f;
-  --ink-soft: #5c6357;
-  --on-dark: #f2ead8;
-  --on-dark-soft: #a7ada0;
-  --brass: #b4863a;
-  --brass-deep: #8f6a2c;
-  --debit: #c25b46;
-  --credit: #6fa377;
-  --line-dark: rgba(242, 234, 216, 0.14);
-  --line-paper: rgba(32, 40, 31, 0.14);
+  --bg: #FAF9F6;
+  --bg-soft: #FFFFFF;
+  --paper: #FFFFFF;
+  --paper-dim: #F5F5F5;
+  --ink: #111111;
+  --ink-soft: #666666;
+  --on-dark: #111111;
+  --on-dark-soft: #666666;
+  --brass: #C19A5B;
+  --brass-deep: #A37F45;
+  --debit: #C19A5B; 
+  --credit: #2D6A4F;
+  --line-dark: #EAEAEA;
+  --line-paper: #D0D0D0;
+  --primary: #1B4332;
+  --skeleton: #EAEAEA;
   --font-display: "Fraunces", serif;
-  --font-body: "IBM Plex Sans", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-body: system-ui, -apple-system, sans-serif;
+  
   --radius: 14px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -119,8 +121,8 @@ textarea {
 }
 
 .auth-toggle button.active {
-  background: var(--brass);
-  color: #1c1608;
+  background: var(--primary);
+  color: #FFFFFF;
 }
 
 .auth-card {
@@ -163,8 +165,8 @@ button:focus-visible {
 
 .btn-primary {
   border: none;
-  background: var(--brass);
-  color: #1c1608;
+  background: var(--primary);
+  color: #FFFFFF;
   font-weight: 600;
   font-size: 15px;
   padding: 13px 16px;
@@ -173,7 +175,7 @@ button:focus-visible {
 }
 
 .btn-primary:active {
-  background: var(--brass-deep);
+  background: #112F22;
 }
 
 .btn-primary:disabled {
@@ -193,7 +195,7 @@ button:focus-visible {
 }
 
 .form-error {
-  color: var(--debit);
+  color: #c81e1e;
   font-size: 13px;
   margin: 0;
 }
@@ -246,7 +248,11 @@ button:focus-visible {
 }
 
 .hero {
-  padding: 22px 20px 6px;
+  padding: 24px 20px;
+  margin: 0 20px 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line-dark);
+  border-radius: 12px;
   text-align: center;
 }
 
@@ -295,6 +301,10 @@ button:focus-visible {
   gap: 6px;
   flex-shrink: 0;
   width: 60px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line-dark);
+  border-radius: 12px;
+  padding: 12px 0;
 }
 
 .member-avatar {
@@ -319,7 +329,8 @@ button:focus-visible {
 }
 
 .member-balance {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
   font-size: 11px;
 }
 
@@ -353,6 +364,7 @@ button:focus-visible {
   justify-content: space-between;
   background: var(--bg-soft);
   border-radius: 10px;
+  border: 1px solid var(--line-dark);
   padding: 12px 14px;
   gap: 10px;
 }
@@ -363,7 +375,8 @@ button:focus-visible {
 }
 
 .settle-text .amt {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
   color: var(--brass);
 }
 
@@ -395,8 +408,14 @@ button:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--line-dark);
+  padding: 16px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line-dark);
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+.ledger-row:last-child {
+  margin-bottom: 0;
 }
 
 .ledger-row:last-child {
@@ -419,7 +438,8 @@ button:focus-visible {
 }
 
 .ledger-amt {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
   font-size: 14.5px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -448,8 +468,8 @@ button:focus-visible {
   height: 56px;
   border-radius: 50%;
   border: none;
-  background: var(--brass);
-  color: #1c1608;
+  background: var(--primary);
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -546,7 +566,8 @@ button:focus-visible {
   padding: 9px 10px;
   font-size: 15px;
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
 }
 
 .split-total {
@@ -570,7 +591,8 @@ button:focus-visible {
 }
 
 .share-code {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
   font-size: 20px;
   letter-spacing: 2px;
 }
@@ -609,8 +631,8 @@ button:focus-visible {
   left: 50%;
   bottom: calc(var(--safe-bottom) + 24px);
   transform: translateX(-50%);
-  background: var(--on-dark);
-  color: var(--ink);
+  background: #111111;
+  color: #FFFFFF;
   padding: 10px 16px;
   border-radius: 10px;
   font-size: 13.5px;
@@ -634,6 +656,7 @@ button:focus-visible {
   margin: 0 20px 24px;
   background: var(--bg-soft);
   border-radius: var(--radius);
+  border: 1px solid var(--line-dark);
 }
 
 .total-box {
@@ -652,7 +675,8 @@ button:focus-visible {
 
 .total-val {
   font-size: 17px;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 500;
   color: var(--on-dark);
 }
 
