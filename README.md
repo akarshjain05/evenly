@@ -1,29 +1,17 @@
 # Evenly
 
-A private running tab for one group of people — no accounts, no ads, no
-per-user fees. Split expenses, see who owes who (simplified to the fewest
-possible payments), and mark things settled. Installs to a phone home
-screen as a PWA.
+A private running tab for a small group — no ads, no per-user fees. Split expenses, see who owes who (simplified to the fewest possible payments), and mark things settled. Installs to a phone home screen as a PWA.
 
-Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the
-frontend (no build step, no framework tooling to fight with).
+Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the frontend (no build step, no framework tooling to fight with).
 
 ## How it works, in short
 
-- Anyone can start a tab, which gives them a 6-character invite code.
+- Anyone can create an account and start a tab, which generates a 6-character invite code.
 - They share the code (or a link containing it) with their group.
-- Each person "joins" with just their name — no email, no password. The
-  browser remembers who they are via a private token saved in
-  `localStorage`, the same way IRONLOG/e-BoE-style personal tools do.
+- The group registers for free accounts and joins the tab. 
 - Expenses can be split equally, by exact amount, or by percentage.
-- The balances screen simplifies debts down to the minimum number of
-  payments needed to settle everyone up (e.g. instead of 6 separate
-  IOUs among 3 people, it might tell you just 2 payments to make).
-
-This is intentionally light on "security theater" — it's built for a
-closed group of people who trust each other, not the public internet.
-Anyone with the invite code can join, so treat the code like you'd treat
-a shared Wi-Fi password.
+- The balances screen simplifies debts down to the minimum number of payments needed to settle everyone up.
+- Because it uses a modern, secure JWT authentication system, your tabs are safely backed up to the cloud and sync effortlessly across all your devices.
 
 ## Project structure
 
@@ -34,6 +22,7 @@ evenly/
 │   ├── database.py      # DB connection (SQLite locally, Postgres in prod)
 │   ├── models.py        # SQLAlchemy tables
 │   ├── schemas.py       # Request/response validation
+│   ├── auth.py          # Secure JWT auth and password hashing
 │   ├── balances.py      # Balance math + debt simplification
 │   └── static/          # The whole frontend (HTML/CSS/JS/PWA files)
 ├── requirements.txt
@@ -74,8 +63,6 @@ git commit -m "Evenly: private expense splitter"
 gh repo create evenly --source=. --public --push
 ```
 
-(No `gh` CLI? Create an empty repo on GitHub first, then `git remote add origin <url>` and `git push -u origin main`.)
-
 ### 3. Deploy on Vercel
 
 1. Go to vercel.com and sign up with your GitHub account.
@@ -84,7 +71,10 @@ gh repo create evenly --source=. --public --push
 4. Add a new variable:
    - **Key:** `DATABASE_URL`
    - **Value:** *(your Supabase connection string from Step 1)*
-5. Click **Deploy**.
+5. Add a second variable:
+   - **Key:** `JWT_SECRET_KEY`
+   - **Value:** *(any long, random string to secure user sessions)*
+6. Click **Deploy**.
 
 Vercel will build and deploy the app in about a minute. You'll get a URL like `https://evenly-xyz.vercel.app` — that's the app, live, for your group.
 
@@ -96,7 +86,7 @@ Vercel will build and deploy the app in about a minute. You'll get a URL like `h
 ## Inviting your group
 
 Open the app, tap the share icon, and send the code or link. Opening the
-link pre-fills the code; the person just types their name to join.
+link pre-fills the code; the person just signs in to join.
 
 ## Adding it to a phone home screen
 
@@ -113,7 +103,4 @@ Once installed it opens full-screen, no browser bar, like a normal app.
   you need — it's one line.
 - **Deleting an expense:** any member can delete any expense (again,
   built for a trusted group, not strangers).
-- **Losing your "login":** since identity lives in the browser's
-  `localStorage`, clearing site data or switching browsers/devices logs
-  you out — you'd rejoin with the same invite code. There's no password
-  to reset because there was never a password.
+- **Syncing across devices:** your account identity is securely tied to your email and password. Log in from any phone or computer and your tabs will instantly sync from the cloud.
