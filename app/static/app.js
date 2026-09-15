@@ -85,16 +85,20 @@ function renderAuth(prefillCode) {
         </svg>
       </div>
       <h1 class="auth-title">Evenly</h1>
-      <p class="auth-sub">A running tab for your people —<br/>no accounts, no ads, just the ledger.</p>
+      <p class="auth-sub">A running tab for your people.</p>
       <div class="auth-toggle">
         <button id="tab-join" class="${hasCode ? "active" : ""}">Join with a code</button>
         <button id="tab-create" class="${hasCode ? "" : "active"}">Start a tab</button>
+      </div>
+      <div style="text-align: center; margin-top: -10px; margin-bottom: 10px;">
+        <a href="#" id="auth-logout-btn" style="color: var(--on-dark-soft); text-decoration: none; font-size: 14px;">Not you? Log Out</a>
       </div>
       <div id="auth-card"></div>
     </div>
   `;
   document.getElementById("tab-join").onclick = () => renderJoinCard();
   document.getElementById("tab-create").onclick = () => renderCreateCard();
+  document.getElementById("auth-logout-btn").onclick = (e) => { e.preventDefault(); saveToken(null); state.token = null; location.href = "/"; };
   if (hasCode) renderJoinCard(prefillCode);
   else renderCreateCard();
 
