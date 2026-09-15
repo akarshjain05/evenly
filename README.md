@@ -52,13 +52,19 @@ Open `http://127.0.0.1:8000`. No database setup needed — it creates a
 `evenly.db` SQLite file next to the app automatically. Delete that file
 any time to wipe all data and start fresh.
 
-## Shipping it — Render (hosting) + Neon (database)
+## Shipping it — Vercel (hosting) + Supabase (database)
 
-Render's own free Postgres deletes itself after 30 days, so we don't use
-it. Neon's free Postgres has no expiry date, so the database lives there
-instead, and Render just runs the app. Total cost: **$0**.
+This project is configured to deploy instantly on Vercel as a serverless app, backed by a free Supabase Postgres database. Total cost: **$0**.
 
-### 1. Push this folder to GitHub
+### 1. Create a free Postgres database on Supabase
+
+1. Go to supabase.com and sign up (no card needed).
+2. Create a new project — any region close to you is fine. Save the database password you create!
+3. Once the project is ready, click **Connect** at the top of the dashboard.
+4. Select **Direct Connection string** (URI) and copy the `postgresql://` link.
+5. Replace `[YOUR-PASSWORD]` in that link with your actual password. Keep this handy for the next step.
+
+### 2. Push this folder to GitHub
 
 ```bash
 cd evenly
@@ -68,51 +74,24 @@ git commit -m "Evenly: private expense splitter"
 gh repo create evenly --source=. --public --push
 ```
 
-(No `gh` CLI? Create an empty repo on GitHub first, then `git remote add
-origin <url>` and `git push -u origin main`.)
+(No `gh` CLI? Create an empty repo on GitHub first, then `git remote add origin <url>` and `git push -u origin main`.)
 
-### 2. Create a free Postgres database on Neon
+### 3. Deploy on Vercel
 
-1. Go to neon.tech and sign up (no card needed).
-2. Create a project — any region close to you is fine.
-3. Open **Connection Details** and copy the full connection string. It
-   looks like `postgresql://user:password@ep-xxxx.neon.tech/dbname?sslmode=require`.
-4. Keep this tab open, you'll paste it into Render next.
+1. Go to vercel.com and sign up with your GitHub account.
+2. Click **Add New... > Project** and import your newly pushed `evenly` repository.
+3. Open the **Environment Variables** section.
+4. Add a new variable:
+   - **Key:** `DATABASE_URL`
+   - **Value:** *(your Supabase connection string from Step 1)*
+5. Click **Deploy**.
 
-### 3. Create the web service on Render
-
-1. Go to render.com and sign up, then **New + → Web Service**.
-2. Connect the GitHub repo you just pushed.
-3. Set:
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Under **Environment**, add two variables:
-   - `DATABASE_URL` → the Neon connection string from step 2
-   - `PYTHON_VERSION` → `3.12.3`
-     (Render sometimes defaults to a newer Python that doesn't have
-     pre-built wheels for some of these packages yet — pinning this
-     avoids a build failing for that reason.)
-5. Choose the **Free** instance type and click **Create Web Service**.
-
-Render will build and deploy. You'll get a URL like
-`https://evenly-xyz.onrender.com` — that's the app, live, for your group.
+Vercel will build and deploy the app in about a minute. You'll get a URL like `https://evenly-xyz.vercel.app` — that's the app, live, for your group.
 
 ### What "free" actually means here
 
-- **Render free web service:** 750 instance-hours/month, which easily
-  covers one app running full-time. It spins down after 15 minutes with
-  no traffic and takes 30-60 seconds to wake back up on the next
-  request — so the first open after a quiet spell feels a bit slow,
-  then it's normal. Fine for a friend group, not something you'd want
-  for a paying customer-facing product.
-- **Neon free Postgres:** permanent, no card, no expiry — 0.5 GB storage
-  and 100 compute-hours/month per project, with compute pausing after 5
-  minutes idle (it un-pauses itself on the next query, no action
-  needed). Way more than a small group's expense log will ever use.
-
-If this group ever gets big enough to outgrow either limit, that's a
-nice problem to have and each has a paid tier to upgrade into without
-changing any code.
+- **Vercel Hobby Tier:** Completely free for personal use. Because Vercel is "serverless", your app wakes up instantly (1-2 seconds) rather than taking 60 seconds like traditional free-tier hosts (e.g. Render).
+- **Supabase Free Tier:** A permanent, fully-featured Postgres database with 500MB of storage. It automatically pauses after 1 week of inactivity (unlike Neon's 5 minutes), and wakes up the moment someone opens your app.
 
 ## Inviting your group
 
