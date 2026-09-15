@@ -3,6 +3,7 @@ const ICONS = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>',
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   mark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 6 8 4 8 20 5 18"/><line x1="8" y1="4" x2="18" y2="20"/><line x1="8" y1="20" x2="18" y2="4"/></svg>',
 };
@@ -93,7 +94,9 @@ function renderAuth(prefillCode) {
         <button id="tab-create" class="${hasCode ? "" : "active"}">Start a tab</button>
       </div>
       <div style="text-align: center; margin-top: -10px; margin-bottom: 10px;">
-        <a href="#" id="auth-logout-btn" style="color: var(--on-dark-soft); text-decoration: none; font-size: 14px;">Not you? Log Out</a>
+        <a href="#" id="auth-logout-btn" style="color: var(--on-dark-soft); text-decoration: none; font-size: 14px;">
+          ${Object.keys(state.memberships).length > 0 ? "← Back to your tabs" : "Not you? Log Out"}
+        </a>
       </div>
       <div id="auth-card"></div>
     </div>
@@ -280,6 +283,57 @@ function showSkeleton() {
     </div>
     <button class="fab" style="background: var(--bg-soft); animation: pulse 1.5s infinite; pointer-events: none; opacity: 0.5; color: transparent;">+</button>
   `;
+}
+
+
+function renderHub() {
+  const groupIds = Object.keys(state.memberships);
+  const rows = groupIds
+    .map(
+      (id) =>
+        `<button class="group-hub-card" data-id="${id}" style="width: 100%; padding: 16px 20px; margin-bottom: 12px; background: var(--bg-soft); border: none; border-radius: var(--radius); color: var(--paper); font-size: 16px; font-weight: 500; text-align: left; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+          ${escapeHtml(state.memberships[id].group_name)}
+          <span style="color: var(--on-dark-soft); display: flex; transform: rotate(-90deg);">${ICONS.chevron}</span>
+        </button>`
+    )
+    .join("");
+
+  const emptyState = groupIds.length === 0 ? `<p style="color: var(--on-dark-soft); margin-bottom: 24px; text-align: center; font-size: 15px;">You haven't joined any tabs yet.</p>` : "";
+
+  root.innerHTML = `
+    <div class="topbar" style="padding: 16px 20px;">
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--paper);">Your tabs</h2>
+      <button class="icon-btn" id="logout-btn" aria-label="Log Out" style="color: var(--debit); padding: 8px;">${ICONS.logout}</button>
+    </div>
+    <div style="padding: 20px;">
+      ${emptyState}
+      <div style="margin-bottom: 24px;">${rows}</div>
+      <button class="btn-primary" id="hub-new-btn" style="width: 100%;">Join or start a tab</button>
+    </div>
+  `;
+
+  document.getElementById("logout-btn").onclick = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("memberships");
+    localStorage.removeItem("activeGroupId");
+    state.token = null;
+    state.memberships = {};
+    state.activeGroupId = null;
+    showLogin();
+  };
+
+  document.querySelectorAll(".group-hub-card").forEach(btn => {
+    btn.onclick = () => {
+      state.activeGroupId = btn.dataset.id;
+      saveActiveGroup(state.activeGroupId);
+      history.replaceState(null, "", "/");
+      loadDashboard();
+    };
+  });
+
+  document.getElementById("hub-new-btn").onclick = () => {
+    renderAuth();
+  };
 }
 
 function renderDashboard() {
@@ -845,7 +899,7 @@ async function init() {
   if (state.activeGroupId && state.memberships[state.activeGroupId]) {
     loadDashboard();
   } else {
-    renderAuth(); // Render create tab screen
+    renderHub();
   }
 }
 
