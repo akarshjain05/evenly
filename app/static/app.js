@@ -2,6 +2,7 @@
 const ICONS = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>',
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -353,9 +354,10 @@ function renderDashboard() {
   const multiGroup = Object.keys(state.memberships).length > 1;
 
   root.innerHTML = `
-    <div class="topbar">
-      <button class="topbar-group" id="group-switch">${escapeHtml(g.name)} ${ICONS.chevron}</button>
-      <div style="display: flex; gap: 8px;">
+    <div class="topbar" style="gap: 12px;">
+      <button class="icon-btn" id="back-to-hub-btn" aria-label="Back to Hub" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>
+      <button class="topbar-group" id="group-switch" style="flex: 1; padding: 0; justify-content: flex-start; text-align: left;">${escapeHtml(g.name)} ${ICONS.chevron}</button>
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
         <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
       </div>
@@ -484,6 +486,12 @@ function renderDashboard() {
   document.getElementById("add-fab").onclick = openAddExpenseSheet;
   document.getElementById("invite-btn").onclick = openInviteSheet;
   document.getElementById("group-switch").onclick = openGroupSwitcher;
+  document.getElementById("back-to-hub-btn").onclick = () => {
+    state.activeGroupId = null;
+    localStorage.removeItem("activeGroupId");
+    history.replaceState(null, "", "/");
+    renderHub();
+  };
 }
 
 async function markSettled(from, to, amount) {
