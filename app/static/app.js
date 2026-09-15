@@ -24,6 +24,8 @@ function saveActiveGroup(id) {
   localStorage.setItem("evenly_active_group", id);
 }
 
+const cache = { group: {}, activity: {} };
+
 const state = {
   token: loadToken(),
   memberships: {}, // Populated from server
@@ -255,23 +257,35 @@ function adoptMembership(data) {
 
 // ---------- Dashboard ----------
 async function loadDashboard() {
-  showSkeleton();
+  const gId = state.activeGroupId;
+  
+  if (cache.group[gId] && cache.activity[gId]) {
+    state.group = cache.group[gId];
+    state.activity = cache.activity[gId];
+    renderDashboard();
+  } else {
+    showSkeleton();
+  }
+  
   try {
     const [group, activity] = await Promise.all([
-      api(`/groups/${state.activeGroupId}`, { auth: true }),
-      api(`/groups/${state.activeGroupId}/activity`, { auth: true }),
+      api(`/groups/${gId}`, { auth: true }),
+      api(`/groups/${gId}/activity`, { auth: true }),
     ]);
+    cache.group[gId] = group;
+    cache.activity[gId] = activity;
     state.group = group;
     state.activity = activity;
     renderDashboard();
   } catch (ex) {
-    // Membership likely stale/invalid - drop it and go back to auth.
-    delete state.memberships[state.activeGroupId];
+    delete state.memberships[gId];
     state.activeGroupId = null;
     renderAuth();
     toast(ex.message);
   }
 }
+
+function clearGroupCache(gId) { delete cache.group[gId]; delete cache.activity[gId]; }
 
 function showSkeleton() {
   root.innerHTML = `
@@ -708,6 +722,7 @@ function renderGroupSettings() {
     btn.textContent = "Saving...";
     btn.disabled = true;
     try {
+      clearGroupCache(state.activeGroupId);
       await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: document.getElementById("g-name-input").value.trim() }});
       overlay.remove();
       loadDashboard();
@@ -726,6 +741,7 @@ function renderGroupSettings() {
       btn.textContent = "Deleting...";
       btn.disabled = true;
       try {
+        clearGroupCache(state.activeGroupId);
         await api(`/groups/${state.activeGroupId}`, { method: "DELETE", auth: true });
         delete state.memberships[state.activeGroupId];
         state.activeGroupId = null;
@@ -839,7 +855,8 @@ function openAddExpenseSheet(expToEdit = null) {
   const exactValues = {};
   const pctValues = {};
   
-  if (expToEdit) {
+  clearGroupCache(g.id);
+      if (expToEdit) {
     if (expToEdit.split_type === "exact") {
       expToEdit.splits.forEach(s => exactValues[s.member_id] = s.share_amount);
     } else if (expToEdit.split_type === "percentage") {
@@ -939,13 +956,15 @@ function openAddExpenseSheet(expToEdit = null) {
     };
   });
 
-  if (expToEdit) {
+  clearGroupCache(g.id);
+      if (expToEdit) {
     const delBtn = overlay.querySelector("#delete-expense-btn");
     delBtn.onclick = async () => {
       if (confirm("Delete this expense?")) {
         delBtn.textContent = "Deleting...";
         delBtn.disabled = true;
         try {
+          clearGroupCache(g.id);
           await api(`/groups/${g.id}/expenses/${expToEdit.id}`, { method: "DELETE", auth: true });
           overlay.remove();
           loadDashboard();
@@ -979,6 +998,7 @@ function openAddExpenseSheet(expToEdit = null) {
     btn.disabled = true;
     btn.textContent = "Saving...";
     try {
+      clearGroupCache(g.id);
       if (expToEdit) {
         await api(`/groups/${g.id}/expenses/${expToEdit.id}`, { method: "PUT", auth: true, body: payload });
       } else {
@@ -1189,12 +1209,25 @@ async function init() {
   document.getElementById("app-layout").classList.remove("hidden");
   const appDiv = document.getElementById("app");
   appDiv.classList.remove("hidden");
-  showSkeleton();
-
-  await syncMemberships();
-  if (!state.token) {
-    showLogin();
-    return;
+  
+  // Non-blocking sync if we already have some memberships cached
+  const hasMemberships = Object.keys(state.memberships).length > 0;
+  if (!hasMemberships) {
+    showSkeleton();
+    await syncMemberships();
+    if (!state.token) {
+      showLogin();
+      return;
+    }
+  } else {
+    syncMemberships().then(() => {
+       if (!state.token) {
+         showLogin();
+         return;
+       }
+       // Optionally re-render sidebar if memberships changed, but let's keep it simple
+       renderSidebar();
+    });
   }
   
   document.getElementById("app-layout").classList.remove("hidden");
