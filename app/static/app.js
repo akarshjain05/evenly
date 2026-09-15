@@ -132,7 +132,7 @@ function renderAuth(prefillCode) {
       err.classList.add("hidden");
       btn.disabled = true;
       try {
-        const data = await api("/groups", { method: "POST", body: { name: groupName, your_name: yourName } });
+        const data = await api("/groups", { method: "POST", auth: true, body: { name: groupName, your_name: yourName } });
         adoptMembership(data);
       } catch (ex) {
         err.textContent = ex.message;
@@ -169,6 +169,7 @@ function renderAuth(prefillCode) {
       try {
         const data = await api(`/groups/by-code/${encodeURIComponent(inviteCode)}/join`, {
           method: "POST",
+          auth: true,
           body: { name: yourName },
         });
         adoptMembership(data);
