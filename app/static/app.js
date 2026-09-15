@@ -10,7 +10,15 @@ const ICONS = {
 // ---------- Storage ----------
 function loadMemberships() {
   try {
-    return JSON.parse(localStorage.getItem("evenly_memberships") || "{}");
+    let m = localStorage.getItem("evenly_memberships");
+    if (!m) {
+      const old = localStorage.getItem("tally_memberships");
+      if (old) {
+        localStorage.setItem("evenly_memberships", old);
+        m = old;
+      }
+    }
+    return JSON.parse(m || "{}");
   } catch {
     return {};
   }
@@ -19,7 +27,15 @@ function saveMemberships(m) {
   localStorage.setItem("evenly_memberships", JSON.stringify(m));
 }
 function loadActiveGroup() {
-  return localStorage.getItem("evenly_active_group") || null;
+  let g = localStorage.getItem("evenly_active_group");
+  if (!g) {
+    const old = localStorage.getItem("tally_active_group");
+    if (old) {
+      localStorage.setItem("evenly_active_group", old);
+      g = old;
+    }
+  }
+  return g || null;
 }
 function saveActiveGroup(id) {
   localStorage.setItem("evenly_active_group", id);
@@ -231,7 +247,7 @@ function renderDashboard() {
 
   root.innerHTML = `
     <div class="topbar">
-      <button class="topbar-group" id="group-switch">${escapeHtml(g.name)} ${multiGroup ? ICONS.chevron : ""}</button>
+      <button class="topbar-group" id="group-switch">${escapeHtml(g.name)} ${ICONS.chevron}</button>
       <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
     </div>
 
@@ -241,6 +257,8 @@ function renderDashboard() {
     </div>
 
     <div class="members-row" id="members-row"></div>
+    
+    <div class="totals-summary" id="totals-summary"></div>
 
     <div class="section">
       <h2 class="section-title">Settle up</h2>
@@ -269,6 +287,29 @@ function renderDashboard() {
     .join("");
 
   const settleList = document.getElementById("settle-list");
+  
+  const totalGroupExpenses = state.activity
+    .filter(a => a.type === "expense")
+    .reduce((sum, a) => sum + a.amount, 0);
+
+  const myTotalShare = state.activity
+    .filter(a => a.type === "expense")
+    .reduce((sum, a) => {
+      const mySplit = a.splits.find(s => s.member_id === me.member_id);
+      return sum + (mySplit ? mySplit.share_amount : 0);
+    }, 0);
+
+  document.getElementById("totals-summary").innerHTML = `
+    <div class="total-box">
+      <span class="total-label">Group total</span>
+      <span class="total-val">${fmt(totalGroupExpenses)}</span>
+    </div>
+    <div class="total-box">
+      <span class="total-label">Your share</span>
+      <span class="total-val">${fmt(myTotalShare)}</span>
+    </div>
+  `;
+
   if (g.simplified_debts.length === 0) {
     settleList.innerHTML = `<p class="empty-note">Everyone's settled up. Nothing owed either way.</p>`;
   } else {
@@ -331,7 +372,7 @@ function renderDashboard() {
 
   document.getElementById("add-fab").onclick = openAddExpenseSheet;
   document.getElementById("invite-btn").onclick = openInviteSheet;
-  if (multiGroup) document.getElementById("group-switch").onclick = openGroupSwitcher;
+  document.getElementById("group-switch").onclick = openGroupSwitcher;
 }
 
 async function markSettled(from, to, amount) {

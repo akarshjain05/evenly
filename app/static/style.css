@@ -563,7 +563,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-soft);
+  background: var(--paper-dim);
   border-radius: 10px;
   padding: 14px;
   gap: 12px;
@@ -576,7 +576,7 @@ button:focus-visible {
 }
 
 .share-hint {
-  color: var(--on-dark-soft);
+  color: var(--ink-soft);
   font-size: 13px;
   line-height: 1.5;
   margin: 10px 0 0;
@@ -624,4 +624,34 @@ button:focus-visible {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ---------- Totals Summary ---------- */
+.totals-summary {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px 20px;
+  margin: 0 20px 24px;
+  background: var(--bg-soft);
+  border-radius: var(--radius);
+}
+
+.total-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.total-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--on-dark-soft);
+}
+
+.total-val {
+  font-size: 17px;
+  font-family: var(--font-mono);
+  color: var(--on-dark);
 }
