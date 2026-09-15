@@ -131,7 +131,7 @@ function renderAuth(prefillCode) {
       if (history.length > 2) {
         history.back();
       } else {
-        history.pushState(null, "", "#hub");
+        history.pushState(null, "", "/");
         renderHub();
       }
     };
@@ -249,7 +249,7 @@ function adoptMembership(data) {
   };
   state.activeGroupId = data.group.id;
   saveActiveGroup(data.group.id);
-  history.pushState(null, "", "#group-" + data.group.id);
+  history.pushState(null, "", "/group-" + data.group.id);
   loadDashboard();
 }
 
@@ -375,13 +375,13 @@ function renderHub() {
     btn.onclick = () => {
       state.activeGroupId = btn.dataset.id;
       saveActiveGroup(state.activeGroupId);
-      history.pushState(null, "", "#group-" + state.activeGroupId);
+      history.pushState(null, "", "/group-" + state.activeGroupId);
       loadDashboard();
     };
   });
 
   document.getElementById("hub-new-btn").onclick = () => {
-    history.pushState(null, "", "#new");
+    history.pushState(null, "", "/new");
     renderAuth();
   };
 }
@@ -447,20 +447,20 @@ function renderSidebar() {
       closeSidebar();
       state.activeGroupId = btn.dataset.id;
       saveActiveGroup(state.activeGroupId);
-      history.pushState(null, "", "#group-" + state.activeGroupId);
+      history.pushState(null, "", "/group-" + state.activeGroupId);
       loadDashboard();
     };
   });
   
   document.getElementById("sidebar-new-btn").onclick = () => {
     closeSidebar();
-    history.pushState(null, "", "#new");
+    history.pushState(null, "", "/new");
     renderAuth();
   };
   
   document.getElementById("sidebar-settings-btn").onclick = () => {
     closeSidebar();
-    history.pushState(null, "", "#settings");
+    history.pushState(null, "", "/settings");
     renderSettings();
   };
 }
@@ -498,7 +498,7 @@ function renderSettings() {
      if (history.length > 2) {
        history.back();
      } else {
-       history.pushState(null, "", "#hub");
+       history.pushState(null, "", "/");
        renderHub();
      }
   };
@@ -1097,31 +1097,32 @@ async function init() {
     if (entry) {
       state.activeGroupId = entry[0];
       saveActiveGroup(entry[0]);
-      history.replaceState(null, "", "#hub");
+      history.replaceState(null, "", "/");
     }
   }
 
-  if (location.hash.startsWith("#group-")) {
-    const hashId = location.hash.replace("#group-", "");
-    if (state.memberships[hashId]) {
-      state.activeGroupId = hashId;
-      saveActiveGroup(hashId);
+  const path = location.pathname;
+  if (path.startsWith("/group-")) {
+    const pathId = path.replace("/group-", "");
+    if (state.memberships[pathId]) {
+      state.activeGroupId = pathId;
+      saveActiveGroup(pathId);
     } else {
       state.activeGroupId = null;
     }
-  } else if (location.hash === "#hub") {
+  } else if (path === "/" && !state.activeGroupId) {
     state.activeGroupId = null;
   }
 
-  if (location.hash === "#settings") {
+  if (path === "/settings") {
     renderSettings();
-  } else if (location.hash === "#new") {
+  } else if (path === "/new") {
     renderAuth();
   } else if (state.activeGroupId && state.memberships[state.activeGroupId]) {
-    history.replaceState(null, "", "#group-" + state.activeGroupId);
+    history.replaceState(null, "", "/group-" + state.activeGroupId);
     loadDashboard();
   } else {
-    history.replaceState(null, "", "#hub");
+    history.replaceState(null, "", "/");
     renderHub();
   }
 }
@@ -1137,17 +1138,18 @@ init();
 
 
 window.addEventListener('popstate', (e) => {
-  if (!state.token) return; // Ignore if not logged in
-  if (location.hash.startsWith("#group-")) {
-    const id = location.hash.replace("#group-", "");
+  if (!state.token) return;
+  const path = location.pathname;
+  if (path.startsWith("/group-")) {
+    const id = path.replace("/group-", "");
     if (state.memberships[id]) {
       state.activeGroupId = id;
       saveActiveGroup(id);
       loadDashboard();
     }
-  } else if (location.hash === "#settings") {
+  } else if (path === "/settings") {
     renderSettings();
-  } else if (location.hash === "#new") {
+  } else if (path === "/new") {
     renderAuth();
   } else {
     state.activeGroupId = null;

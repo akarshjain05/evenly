@@ -304,7 +304,18 @@ def health():
     return {"status": "ok"}
 
 
+
+from fastapi.responses import FileResponse
+import os
+
+@app.get("/group-{group_id}", include_in_schema=False)
+@app.get("/settings", include_in_schema=False)
+@app.get("/new", include_in_schema=False)
+def serve_spa():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
 # Serve the PWA frontend. Registered last so the /api/* routes above always
+
 # take precedence over the static file catch-all.
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
