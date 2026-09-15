@@ -18,9 +18,6 @@ def gen_invite_code() -> str:
     return secrets.token_hex(3)
 
 
-def gen_secret() -> str:
-    return secrets.token_hex(16)
-
 
 class SplitType(str, enum.Enum):
     equal = "equal"
@@ -59,7 +56,6 @@ class Member(Base):
     group_id = Column(String, ForeignKey("groups.id"), nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     name = Column(String, nullable=False)
-    secret = Column(String, default=gen_secret)  # this member's private device token
     color = Column(String, default="#B4863A")
     created_at = Column(DateTime, default=datetime.utcnow)
 

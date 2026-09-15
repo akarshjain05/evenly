@@ -56,7 +56,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     access_token = auth.create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer", "user": {"email": user.email}}
 
-@app.get("/api/users/me/groups")
+@app.get("/api/users/me/groups", response_model=list[schemas.MembershipResponse])
 def get_my_groups(user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     return [
         {
@@ -74,7 +74,7 @@ def member_out(m: models.Member, net: dict) -> dict:
     return {"id": m.id, "name": m.name, "color": m.color, "balance": net.get(m.id, 0.0)}
 
 
-@app.post("/api/groups")
+@app.post("/api/groups", response_model=schemas.CreateJoinResponse)
 def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     group = models.Group(name=payload.name)
     db.add(group)
@@ -88,7 +88,7 @@ def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.
 
     return {
         "group": {"id": group.id, "name": group.name, "invite_code": group.invite_code},
-        "member": {"id": member.id, "name": member.name, "secret": member.secret, "color": member.color},
+        "member": {"id": member.id, "name": member.name, "color": member.color},
     }
 
 
@@ -100,7 +100,7 @@ def preview_group(invite_code: str, db: Session = Depends(get_db)):
     return {"id": group.id, "name": group.name, "member_count": len(group.members)}
 
 
-@app.post("/api/groups/by-code/{invite_code}/join")
+@app.post("/api/groups/by-code/{invite_code}/join", response_model=schemas.CreateJoinResponse)
 def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     group = db.query(models.Group).filter(models.Group.invite_code == invite_code).first()
     if not group:
@@ -113,11 +113,11 @@ def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User
 
     return {
         "group": {"id": group.id, "name": group.name, "invite_code": group.invite_code},
-        "member": {"id": member.id, "name": member.name, "secret": member.secret, "color": member.color},
+        "member": {"id": member.id, "name": member.name, "color": member.color},
     }
 
 
-@app.get("/api/groups/{group_id}")
+@app.get("/api/groups/{group_id}", response_model=schemas.GroupDetailResponse)
 def get_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if not group:
@@ -140,7 +140,7 @@ def get_group(group_id: str, member: models.Member = Depends(deps.get_current_me
     }
 
 
-@app.get("/api/groups/{group_id}/activity")
+@app.get("/api/groups/{group_id}/activity", response_model=list[schemas.ActivityResponse])
 def get_activity(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     name_lookup = {m.id: m.name for m in members}
@@ -180,7 +180,7 @@ def get_activity(group_id: str, member: models.Member = Depends(deps.get_current
     return items
 
 
-@app.post("/api/groups/{group_id}/expenses")
+@app.post("/api/groups/{group_id}/expenses", response_model=schemas.ExpenseResponse)
 def add_expense(
     group_id: str,
     payload: schemas.ExpenseCreate,
@@ -203,7 +203,7 @@ def add_expense(
     return {"ok": True, "expense_id": expense.id}
 
 
-@app.delete("/api/groups/{group_id}/expenses/{expense_id}")
+@app.delete("/api/groups/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
 def delete_expense(
     group_id: str,
     expense_id: str,
@@ -222,7 +222,7 @@ def delete_expense(
     return {"ok": True}
 
 
-@app.post("/api/groups/{group_id}/settlements")
+@app.post("/api/groups/{group_id}/settlements", response_model=schemas.BasicResponse)
 def add_settlement(
     group_id: str,
     payload: schemas.SettlementCreate,
