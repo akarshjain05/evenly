@@ -133,13 +133,22 @@ function renderAuth(prefillCode) {
       const err = document.getElementById("create-error");
       err.classList.add("hidden");
       btn.disabled = true;
+      const prevHTML = root.innerHTML;
+      showSkeleton();
       try {
         const data = await api("/groups", { method: "POST", auth: true, body: { name: groupName, your_name: yourName } });
         adoptMembership(data);
       } catch (ex) {
-        err.textContent = ex.message;
-        err.classList.remove("hidden");
-        btn.disabled = false;
+        root.innerHTML = prevHTML;
+        // re-bind form because it was destroyed
+        renderAuth();
+        // and show error
+        setTimeout(() => {
+           document.getElementById("tab-create").click();
+           const newErr = document.getElementById("create-error");
+           newErr.textContent = ex.message;
+           newErr.classList.remove("hidden");
+        }, 0);
       }
     };
   }
@@ -200,21 +209,7 @@ function adoptMembership(data) {
 
 // ---------- Dashboard ----------
 async function loadDashboard() {
-  root.innerHTML = `
-    <div class="topbar">
-      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-    </div>
-    <div class="hero">
-      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
-      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
-    </div>
-    <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-    </div>
-  `;
+  showSkeleton();
   try {
     const [group, activity] = await Promise.all([
       api(`/groups/${state.activeGroupId}`, { auth: true }),
@@ -230,6 +225,24 @@ async function loadDashboard() {
     renderAuth();
     toast(ex.message);
   }
+}
+
+function showSkeleton() {
+  root.innerHTML = `
+    <div class="topbar">
+      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+    </div>
+    <div class="hero">
+      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
+      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
+    </div>
+    <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+    </div>
+  `;
 }
 
 function renderDashboard() {
@@ -729,14 +742,26 @@ function showLogin() {
     const email = document.getElementById("auth-email").value;
     const password = document.getElementById("auth-password").value;
     const path = isRegister ? "/auth/register" : "/auth/login";
+    
+    // Transition to skeleton immediately
+    document.getElementById("auth-app").classList.add("hidden");
+    const appDiv = document.getElementById("app");
+    appDiv.classList.remove("hidden");
+    
+    // Temporarily replace appDiv with skeleton
+    const oldRootHTML = root.innerHTML;
+    showSkeleton();
+
     try {
       const res = await api(path, { method: "POST", body: { email, password }});
       saveToken(res.access_token);
       state.token = res.access_token;
-      document.getElementById("auth-app").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
       init(); // Re-run init now that we are logged in
     } catch (ex) {
+      // Revert transition
+      root.innerHTML = oldRootHTML;
+      appDiv.classList.add("hidden");
+      document.getElementById("auth-app").classList.remove("hidden");
       err.textContent = ex.message;
       err.style.display = "block";
       btn.disabled = false;
@@ -753,21 +778,7 @@ async function init() {
   document.getElementById("auth-app").classList.add("hidden");
   const appDiv = document.getElementById("app");
   appDiv.classList.remove("hidden");
-  appDiv.innerHTML = `
-    <div class="topbar">
-      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
-      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-    </div>
-    <div class="hero">
-      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
-      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
-    </div>
-    <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
-    </div>
-  `;
+  showSkeleton();
 
   await syncMemberships();
   if (!state.token) {
