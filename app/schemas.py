@@ -20,6 +20,10 @@ class GroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=60)
     your_name: str = Field(..., min_length=1, max_length=40)
 
+class GroupUpdate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=60)
+
+
 
 class JoinRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=40)
@@ -79,6 +83,11 @@ class GroupDetailResponse(BaseModel):
     members: List[MemberBalances]
     simplified_debts: List[SimplifiedDebt]
 
+class SplitInfo(BaseModel):
+    member_id: str
+    name: str
+    share_amount: float
+
 class ActivityResponse(BaseModel):
     id: str
     type: str
@@ -88,6 +97,11 @@ class ActivityResponse(BaseModel):
     created_at: datetime
     from_name: Optional[str] = None
     to_name: Optional[str] = None
+    from_member: Optional[str] = None
+    to_member: Optional[str] = None
+    paid_by: Optional[str] = None
+    split_type: Optional[str] = None
+    splits: Optional[List[SplitInfo]] = None
 
 class BasicResponse(BaseModel):
     ok: bool

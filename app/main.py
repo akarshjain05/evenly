@@ -183,6 +183,24 @@ def get_group(group_id: str, member: models.Member = Depends(deps.get_current_me
     }
 
 
+@app.put("/api/groups/{group_id}", response_model=schemas.BasicResponse)
+def update_group(group_id: str, payload: schemas.GroupUpdate, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Tab not found")
+    group.name = payload.name
+    db.commit()
+    return {"ok": True}
+
+@app.delete("/api/groups/{group_id}", response_model=schemas.BasicResponse)
+def delete_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Tab not found")
+    db.delete(group)
+    db.commit()
+    return {"ok": True}
+
 @app.get("/api/groups/{group_id}/activity", response_model=list[schemas.ActivityResponse])
 def get_activity(
     group_id: str, 
@@ -211,6 +229,7 @@ def get_activity(
                 "amount": e.amount,
                 "paid_by": e.paid_by,
                 "paid_by_name": name_lookup.get(e.paid_by, "?"),
+                "split_type": e.split_type.value if hasattr(e.split_type, 'value') else str(e.split_type),
                 "created_at": e.created_at,
                 "splits": [
                     {"member_id": s.member_id, "name": name_lookup.get(s.member_id, "?"), "share_amount": s.share_amount}
@@ -260,6 +279,33 @@ def add_expense(
     db.commit()
     return {"ok": True, "expense_id": expense.id}
 
+
+@app.put("/api/groups/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
+def update_expense(
+    group_id: str,
+    expense_id: str,
+    payload: schemas.ExpenseCreate,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db),
+):
+    expense = db.query(models.Expense).filter(models.Expense.id == expense_id, models.Expense.group_id == group_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+        
+    # Delete old splits
+    db.query(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id).delete()
+    
+    # Update fields
+    expense.description = payload.description
+    expense.amount = payload.amount
+    expense.paid_by = payload.paid_by
+    expense.split_type = payload.split_type
+    
+    # Recreate splits
+    balances.process_expense_splits(db, group_id, expense, payload)
+    
+    db.commit()
+    return {"ok": True}
 
 @app.delete("/api/groups/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
 def delete_expense(

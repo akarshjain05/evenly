@@ -543,7 +543,8 @@ function renderDashboard() {
       <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
       <button class="topbar-group" id="group-switch" style="flex: 1; padding: 0; justify-content: flex-start; text-align: left;">${escapeHtml(g.name)} ${ICONS.chevron}</button>
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
-        <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme"></button>
+        <button class="icon-btn" id="group-settings-btn" aria-label="Tab settings">${ICONS.settings}</button>
+        <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="width:38px; height:38px;"></button>
         <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
       </div>
     </div>
@@ -673,6 +674,74 @@ function renderDashboard() {
   document.getElementById("group-switch").onclick = openGroupSwitcher;
 }
 
+
+function renderGroupSettings() {
+  const overlay = document.createElement("div");
+  overlay.className = "sheet-overlay";
+  overlay.innerHTML = `
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 style="margin-top:0; margin-bottom: 20px; font-family: var(--font-display); font-size: 20px;">Tab Settings</h3>
+      <form id="group-edit-form">
+        <div class="field">
+          <label>Tab Name</label>
+          <input id="g-name-input" value="${escapeHtml(state.group.name)}" required maxlength="60" />
+        </div>
+        <button type="submit" class="btn-primary" style="margin-bottom: 12px; margin-top: 10px;">Save Changes</button>
+      </form>
+      <hr style="border: 0; border-top: 1px solid var(--line-dark); margin: 24px 0;">
+      <h3 style="margin-top:0; margin-bottom: 16px; font-family: var(--font-display); font-size: 18px; color: var(--debit);">Danger Zone</h3>
+      <button id="group-delete-btn" class="btn-secondary" style="width: 100%; color: var(--debit); border-color: rgba(194, 91, 70, 0.4);">Delete Tab</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  // Need custom click handler to handle overlay dismiss but not if dragging? Just standard:
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+  
+  overlay.querySelector("#group-edit-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button");
+    const originalText = btn.textContent;
+    btn.textContent = "Saving...";
+    btn.disabled = true;
+    try {
+      await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: document.getElementById("g-name-input").value.trim() }});
+      overlay.remove();
+      loadDashboard();
+      renderSidebar(); // Update sidebar name
+    } catch (ex) {
+      alert(ex.message);
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  };
+
+  overlay.querySelector("#group-delete-btn").onclick = async () => {
+    if (confirm("Are you sure you want to permanently delete this tab and all its expenses? This cannot be undone.")) {
+      const btn = overlay.querySelector("#group-delete-btn");
+      const originalText = btn.textContent;
+      btn.textContent = "Deleting...";
+      btn.disabled = true;
+      try {
+        await api(`/groups/${state.activeGroupId}`, { method: "DELETE", auth: true });
+        delete state.memberships[state.activeGroupId];
+        state.activeGroupId = null;
+        localStorage.removeItem("activeGroupId");
+        overlay.remove();
+        history.replaceState(null, "", "/");
+        renderHub();
+      } catch (ex) {
+        alert(ex.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+  };
+}
+
 async function markSettled(from, to, amount) {
   try {
     await api(`/groups/${state.group.id}/settlements`, {
@@ -694,23 +763,27 @@ function escapeHtml(s) {
 }
 
 // ---------- Add expense sheet ----------
-function openAddExpenseSheet() {
+function openAddExpenseSheet(expToEdit = null) {
   const g = state.group;
   const me = state.memberships[g.id];
   const overlay = document.createElement("div");
   overlay.className = "sheet-overlay";
+  
+  const title = expToEdit ? "Edit expense" : "Add an expense";
+  const btnText = expToEdit ? "Save changes" : "Add to the tab";
+  
   overlay.innerHTML = `
     <div class="sheet">
       <div class="sheet-handle"></div>
-      <h2 class="sheet-title">Add an expense</h2>
+      <h2 class="sheet-title">${title}</h2>
       <form id="expense-form" style="display:flex;flex-direction:column;gap:16px;">
         <div class="field">
           <label for="e-desc">What was it for</label>
-          <input id="e-desc" placeholder="Groceries, cab, movie tickets…" required maxlength="120" />
+          <input id="e-desc" placeholder="Groceries, cab, movie tickets…" required maxlength="120" value="${expToEdit ? escapeHtml(expToEdit.description) : ''}" />
         </div>
         <div class="field">
           <label for="e-amount">Amount</label>
-          <input id="e-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+          <input id="e-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required value="${expToEdit ? expToEdit.amount : ''}" />
         </div>
         <div class="field">
           <label>Paid by</label>
@@ -726,7 +799,8 @@ function openAddExpenseSheet() {
         </div>
         <div class="field" id="split-detail"></div>
         <p class="form-error hidden" id="expense-error"></p>
-        <button class="btn-primary" type="submit">Add to the tab</button>
+        <button class="btn-primary" type="submit">${btnText}</button>
+        ${expToEdit ? `<button type="button" class="btn-secondary" id="delete-expense-btn" style="color: var(--debit); border-color: rgba(194, 91, 70, 0.4);">Delete Expense</button>` : ''}
       </form>
     </div>
   `;
@@ -736,10 +810,12 @@ function openAddExpenseSheet() {
   };
 
   const paidByChips = overlay.querySelector("#paid-by-chips");
+  let paidBy = expToEdit ? expToEdit.paid_by : me.member_id;
+  
   paidByChips.innerHTML = g.members
-    .map((m) => `<button type="button" class="chip${m.id === me.member_id ? " selected" : ""}" data-id="${m.id}">${m.id === me.member_id ? "You" : escapeHtml(m.name)}</button>`)
+    .map((m) => `<button type="button" class="chip${m.id === paidBy ? " selected" : ""}" data-id="${m.id}">${m.id === me.member_id ? "You" : escapeHtml(m.name)}</button>`)
     .join("");
-  let paidBy = me.member_id;
+    
   paidByChips.querySelectorAll(".chip").forEach((chip) => {
     chip.onclick = () => {
       paidByChips.querySelectorAll(".chip").forEach((c) => c.classList.remove("selected"));
@@ -748,14 +824,28 @@ function openAddExpenseSheet() {
     };
   });
 
-  let splitType = "equal";
+  let splitType = expToEdit ? expToEdit.split_type : "equal";
   const splitTypeChips = overlay.querySelector("#split-type-chips");
+  
+  // Update split type chips to reflect current type
+  splitTypeChips.querySelectorAll(".chip").forEach(c => {
+    c.classList.toggle("selected", c.dataset.type === splitType);
+  });
+  
   const splitDetail = overlay.querySelector("#split-detail");
   const amountInput = overlay.querySelector("#e-amount");
 
-  let participantIds = new Set(g.members.map((m) => m.id));
+  let participantIds = new Set(expToEdit && expToEdit.split_type === "equal" ? expToEdit.splits.map(s => s.member_id) : g.members.map((m) => m.id));
   const exactValues = {};
   const pctValues = {};
+  
+  if (expToEdit) {
+    if (expToEdit.split_type === "exact") {
+      expToEdit.splits.forEach(s => exactValues[s.member_id] = s.share_amount);
+    } else if (expToEdit.split_type === "percentage") {
+      expToEdit.splits.forEach(s => pctValues[s.member_id] = s.share_amount);
+    }
+  }
 
   function renderSplitDetail() {
     const amount = parseFloat(amountInput.value) || 0;
@@ -849,6 +939,25 @@ function openAddExpenseSheet() {
     };
   });
 
+  if (expToEdit) {
+    const delBtn = overlay.querySelector("#delete-expense-btn");
+    delBtn.onclick = async () => {
+      if (confirm("Delete this expense?")) {
+        delBtn.textContent = "Deleting...";
+        delBtn.disabled = true;
+        try {
+          await api(`/groups/${g.id}/expenses/${expToEdit.id}`, { method: "DELETE", auth: true });
+          overlay.remove();
+          loadDashboard();
+        } catch (ex) {
+          alert(ex.message);
+          delBtn.disabled = false;
+          delBtn.textContent = "Delete Expense";
+        }
+      }
+    };
+  }
+
   overlay.querySelector("#expense-form").onsubmit = async (e) => {
     e.preventDefault();
     const err = overlay.querySelector("#expense-error");
@@ -868,9 +977,13 @@ function openAddExpenseSheet() {
     const btn = e.target.querySelector("button[type=submit]");
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = "Adding...";
+    btn.textContent = "Saving...";
     try {
-      await api(`/groups/${g.id}/expenses`, { method: "POST", auth: true, body: payload });
+      if (expToEdit) {
+        await api(`/groups/${g.id}/expenses/${expToEdit.id}`, { method: "PUT", auth: true, body: payload });
+      } else {
+        await api(`/groups/${g.id}/expenses`, { method: "POST", auth: true, body: payload });
+      }
       overlay.remove();
       loadDashboard();
     } catch (ex) {
