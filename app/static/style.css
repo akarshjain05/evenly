@@ -656,14 +656,4 @@ button:focus-visible {
   color: var(--on-dark);
 }
 
-.auth-box {
-    background: var(--paper);
-    padding: 24px;
-    border-radius: 12px;
-    border: 1px solid var(--paper-dim);
-    max-width: 340px;
-    margin: 60px auto;
-}
-.auth-box h1 { text-align: center; margin-bottom: 4px; }
-.auth-box p { text-align: center; color: var(--ink-soft); margin-bottom: 16px; }
-.error-msg { background: #fde8e8; color: #c81e1e; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+.error-msg { background: #fde8e8; color: #c81e1e; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 4px; }
