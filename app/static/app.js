@@ -183,8 +183,13 @@ function renderAuth(prefillCode) {
 }
 
 function adoptMembership(data) {
-  
-  saveMemberships(state.memberships);
+  state.memberships[data.group.id] = { 
+    group_name: data.group.name, 
+    invite_code: data.group.invite_code, 
+    member_id: data.member.id, 
+    name: data.member.name, 
+    color: data.member.color 
+  };
   state.activeGroupId = data.group.id;
   saveActiveGroup(data.group.id);
   history.replaceState(null, "", "/");
@@ -205,7 +210,6 @@ async function loadDashboard() {
   } catch (ex) {
     // Membership likely stale/invalid - drop it and go back to auth.
     delete state.memberships[state.activeGroupId];
-    saveMemberships(state.memberships);
     state.activeGroupId = null;
     renderAuth();
     toast(ex.message);
