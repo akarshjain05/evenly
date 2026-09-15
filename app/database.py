@@ -8,9 +8,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./evenly.db")
 
 # Some providers (Render, Heroku-style) hand out "postgres://" URLs, but
-# SQLAlchemy's psycopg2 driver wants "postgresql://". Normalize it.
+# SQLAlchemy wants "postgresql://". Also, for Vercel compatibility, we
+# force the use of pg8000 (a pure Python driver) instead of psycopg2.
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+pg8000://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
