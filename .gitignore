@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
 .env
-tally.db
+*.db
 .venv/
 venv/
