@@ -82,34 +82,70 @@ function timeAgo(iso) {
 
 // ---------- Auth screen (create or join) ----------
 function renderAuth(prefillCode) {
+  renderSidebar(); // Update sidebar state
   const hasCode = !!prefillCode;
+  const hasTabs = Object.keys(state.memberships).length > 0;
+  
   root.innerHTML = `
-    <div class="auth-screen">
-      <button class="icon-btn theme-toggle-btn" style="position: absolute; top: 16px; right: 20px; z-index: 10;" aria-label="Toggle Theme"></button>
-      <div class="auth-mark">
-        <svg viewBox="0 0 40 40" fill="none" stroke="#C19A5B" stroke-width="3" stroke-linecap="round">
+    <div class="topbar" style="gap: 12px; padding: 16px 20px; display: flex; align-items: center;">
+      <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
+      ${hasTabs ? `<button class="icon-btn" id="new-back-btn" aria-label="Back" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>` : ''}
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink); flex: 1;">${hasTabs ? 'New Tab' : 'Welcome'}</h2>
+      <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="flex-shrink: 0; width: 38px; height: 38px;"></button>
+    </div>
+    
+    <div class="section" style="padding: 20px; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; min-height: 60vh; justify-content: center;">
+      ${!hasTabs ? `
+      <div class="auth-mark" style="margin: 0 auto; width: 40px; height: 40px; color: var(--brass);">
+        <svg viewBox="0 0 40 40" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
           <line x1="22" y1="8" x2="22" y2="32"/><line x1="28" y1="8" x2="28" y2="32"/>
           <line x1="7" y1="30" x2="31" y2="10"/>
         </svg>
       </div>
-      <h1 class="auth-title">Evenly</h1>
-      <p class="auth-sub">A running tab for your people.</p>
+      <div style="text-align: center; margin-bottom: 8px;">
+        <h1 style="font-family: var(--font-display); font-size: 32px; margin: 0 0 8px; color: var(--ink);">Evenly</h1>
+        <p style="color: var(--on-dark-soft); margin: 0; font-size: 15px;">A running tab for your people.</p>
+      </div>
+      ` : ''}
+
       <div class="auth-toggle">
         <button id="tab-join" class="${hasCode ? "active" : ""}">Join with a code</button>
         <button id="tab-create" class="${hasCode ? "" : "active"}">Start a tab</button>
       </div>
-      <div style="text-align: center; margin-top: -10px; margin-bottom: 10px;">
-        <a href="#" id="auth-logout-btn" style="color: var(--on-dark-soft); text-decoration: none; font-size: 14px;">
-          ${Object.keys(state.memberships).length > 0 ? "← Back to your tabs" : "Not you? Log Out"}
-        </a>
-      </div>
+      
       <div id="auth-card"></div>
+      
+      ${!hasTabs ? `
+      <div style="text-align: center; margin-top: 16px;">
+        <a href="#" id="auth-logout-btn" style="color: var(--on-dark-soft); text-decoration: none; font-size: 14px;">Not you? Log Out</a>
+      </div>
+      ` : ''}
     </div>
   `;
+  
+  updateThemeIcons();
+  
+  if (hasTabs) {
+    document.getElementById("new-back-btn").onclick = () => {
+      if (history.length > 2) {
+        history.back();
+      } else {
+        history.pushState(null, "", "#hub");
+        renderHub();
+      }
+    };
+  } else {
+    document.getElementById("auth-logout-btn").onclick = (e) => { 
+      e.preventDefault(); 
+      saveToken(null); 
+      state.token = null; 
+      location.reload(); 
+    };
+  }
+  
   document.getElementById("tab-join").onclick = () => renderJoinCard();
   document.getElementById("tab-create").onclick = () => renderCreateCard();
-  document.getElementById("auth-logout-btn").onclick = (e) => { e.preventDefault(); saveToken(null); state.token = null; location.reload(); };
   if (hasCode) renderJoinCard(prefillCode);
   else renderCreateCard();
 
@@ -345,6 +381,7 @@ function renderHub() {
   });
 
   document.getElementById("hub-new-btn").onclick = () => {
+    history.pushState(null, "", "#new");
     renderAuth();
   };
 }
@@ -417,6 +454,7 @@ function renderSidebar() {
   
   document.getElementById("sidebar-new-btn").onclick = () => {
     closeSidebar();
+    history.pushState(null, "", "#new");
     renderAuth();
   };
   
@@ -1077,6 +1115,8 @@ async function init() {
 
   if (location.hash === "#settings") {
     renderSettings();
+  } else if (location.hash === "#new") {
+    renderAuth();
   } else if (state.activeGroupId && state.memberships[state.activeGroupId]) {
     history.replaceState(null, "", "#group-" + state.activeGroupId);
     loadDashboard();
@@ -1107,6 +1147,8 @@ window.addEventListener('popstate', (e) => {
     }
   } else if (location.hash === "#settings") {
     renderSettings();
+  } else if (location.hash === "#new") {
+    renderAuth();
   } else {
     state.activeGroupId = null;
     localStorage.removeItem("activeGroupId");
