@@ -657,3 +657,9 @@ button:focus-visible {
 }
 
 .error-msg { background: #fde8e8; color: #c81e1e; padding: 10px; border-radius: 6px; font-size: 14px; margin-bottom: 4px; }
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}

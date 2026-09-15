@@ -200,7 +200,21 @@ function adoptMembership(data) {
 
 // ---------- Dashboard ----------
 async function loadDashboard() {
-  root.innerHTML = `<div class="hero"><p class="hero-label">Loading your tab…</p></div>`;
+  root.innerHTML = `
+    <div class="topbar">
+      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+    </div>
+    <div class="hero">
+      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
+      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
+    </div>
+    <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+    </div>
+  `;
   try {
     const [group, activity] = await Promise.all([
       api(`/groups/${state.activeGroupId}`, { auth: true }),
@@ -621,8 +635,9 @@ function openGroupSwitcher() {
       <div class="sheet-handle"></div>
       <h2 class="sheet-title">Your tabs</h2>
       <div class="group-list">${rows}</div>
-      <div style="margin-top:14px;">
+      <div style="margin-top:14px; display: flex; flex-direction: column; gap: 8px;">
         <button class="btn-secondary" id="new-tab-btn" style="width:100%;">Start or join another tab</button>
+        <button class="btn-secondary" id="logout-btn" style="width:100%; border-color: rgba(194, 91, 70, 0.4); color: var(--debit);">Log out</button>
       </div>
     </div>
   `;
@@ -734,6 +749,25 @@ async function init() {
     showLogin();
     return;
   }
+
+  document.getElementById("auth-app").classList.add("hidden");
+  const appDiv = document.getElementById("app");
+  appDiv.classList.remove("hidden");
+  appDiv.innerHTML = `
+    <div class="topbar">
+      <div style="width: 80px; height: 24px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite;"></div>
+      <div style="width: 24px; height: 24px; background: var(--bg-soft); border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+    </div>
+    <div class="hero">
+      <div style="width: 120px; height: 60px; background: var(--bg-soft); border-radius: 8px; animation: pulse 1.5s infinite; margin: 0 auto;"></div>
+      <div style="width: 150px; height: 16px; background: var(--bg-soft); border-radius: 4px; animation: pulse 1.5s infinite; margin: 16px auto 0;"></div>
+    </div>
+    <div class="members-row" style="opacity: 0.5; display: flex; justify-content: center; gap: 16px;">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--bg-soft); animation: pulse 1.5s infinite;"></div>
+    </div>
+  `;
 
   await syncMemberships();
   if (!state.token) {
