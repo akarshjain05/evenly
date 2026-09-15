@@ -11,6 +11,7 @@ const ICONS = {
   mark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 6 8 4 8 20 5 18"/><line x1="8" y1="4" x2="18" y2="20"/><line x1="8" y1="20" x2="18" y2="4"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
 };
 
 // ---------- Storage ----------
@@ -566,7 +567,6 @@ function renderDashboard() {
       <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
       <button class="topbar-group" id="group-switch" style="flex: 1; padding: 0; justify-content: flex-start; text-align: left;">${escapeHtml(g.name)} ${ICONS.chevron}</button>
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
-        <button class="icon-btn" id="group-settings-btn" aria-label="Tab settings">${ICONS.settings}</button>
         <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="width:38px; height:38px;"></button>
         <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
       </div>
@@ -698,7 +698,7 @@ function renderDashboard() {
 }
 
 
-function renderGroupSettings() {
+function renderGroupSettings(onClose = null) {
   const overlay = document.createElement("div");
   overlay.className = "sheet-overlay";
   overlay.innerHTML = `
@@ -708,7 +708,7 @@ function renderGroupSettings() {
       <form id="group-edit-form">
         <div class="field">
           <label>Tab Name</label>
-          <input id="g-name-input" value="${escapeHtml(state.group.name)}" required maxlength="60" />
+          <input id="g-name-input" value="${escapeHtml(state.memberships[state.activeGroupId].group_name)}" required maxlength="60" />
         </div>
         <button type="submit" class="btn-primary" style="margin-bottom: 12px; margin-top: 10px;">Save Changes</button>
       </form>
@@ -721,7 +721,10 @@ function renderGroupSettings() {
   
   // Need custom click handler to handle overlay dismiss but not if dragging? Just standard:
   overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+       overlay.remove();
+       if (onClose) onClose();
+    }
   };
   
   overlay.querySelector("#group-edit-form").onsubmit = async (e) => {
@@ -732,7 +735,10 @@ function renderGroupSettings() {
     btn.disabled = true;
     try {
       clearGroupCache(state.activeGroupId);
-      await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: document.getElementById("g-name-input").value.trim() }});
+      const newName = document.getElementById("g-name-input").value.trim();
+      await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: newName }});
+      state.memberships[state.activeGroupId].group_name = newName;
+      localStorage.setItem("memberships", JSON.stringify(state.memberships));
       overlay.remove();
       loadDashboard();
       renderSidebar(); // Update sidebar name
@@ -831,7 +837,10 @@ function openAddExpenseSheet(expToEdit = null) {
   `;
   document.body.appendChild(overlay);
   overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+       overlay.remove();
+       if (onClose) onClose();
+    }
   };
 
   const paidByChips = overlay.querySelector("#paid-by-chips");
@@ -1050,7 +1059,10 @@ function openInviteSheet() {
   `;
   document.body.appendChild(overlay);
   overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+       overlay.remove();
+       if (onClose) onClose();
+    }
   };
   overlay.querySelector("#copy-code").onclick = () => copyText(g.invite_code);
   overlay.querySelector("#copy-link").onclick = () => copyText(link);
@@ -1091,7 +1103,10 @@ function openGroupSwitcher() {
   `;
   document.body.appendChild(overlay);
   overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) {
+       overlay.remove();
+       if (onClose) onClose();
+    }
   };
   overlay.querySelectorAll(".group-list button").forEach((btn) => {
     btn.onclick = () => {
