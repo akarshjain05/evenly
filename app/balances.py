@@ -1,7 +1,8 @@
 import heapq
 from typing import Dict, List
+from decimal import Decimal
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 
 from . import models, schemas
@@ -13,22 +14,22 @@ def compute_net_balances(db: Session, group_id: str) -> Dict[str, float]:
     Negative net = this person owes money overall.
     """
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
-    net = {m.id: 0.0 for m in members}
+    net = {m.id: Decimal('0.0') for m in members}
 
-    expenses = db.query(models.Expense).filter(models.Expense.group_id == group_id).all()
+    expenses = db.query(models.Expense).options(selectinload(models.Expense.splits)).filter(models.Expense.group_id == group_id).all()
     for expense in expenses:
-        net[expense.paid_by] = net.get(expense.paid_by, 0.0) + expense.amount
+        net[expense.paid_by] = net.get(expense.paid_by, Decimal('0.0')) + expense.amount
         for split in expense.splits:
-            net[split.member_id] = net.get(split.member_id, 0.0) - split.share_amount
+            net[split.member_id] = net.get(split.member_id, Decimal('0.0')) - split.share_amount
 
     settlements = db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all()
     for s in settlements:
         # from_member paid to_member, so from_member's debt shrinks (net moves up)
         # and to_member has now been paid back (net moves down).
-        net[s.from_member] = net.get(s.from_member, 0.0) + s.amount
-        net[s.to_member] = net.get(s.to_member, 0.0) - s.amount
+        net[s.from_member] = net.get(s.from_member, Decimal('0.0')) + s.amount
+        net[s.to_member] = net.get(s.to_member, Decimal('0.0')) - s.amount
 
-    return {member_id: round(amount, 2) for member_id, amount in net.items()}
+    return {member_id: float(round(amount, 2)) for member_id, amount in net.items()}
 
 
 def simplify_debts(net: Dict[str, float]) -> List[dict]:
@@ -43,9 +44,9 @@ def simplify_debts(net: Dict[str, float]) -> List[dict]:
     debtors: List[tuple] = []  # min-heap on negative amount: (amount, member_id), amount < 0
 
     for member_id, amount in net.items():
-        if amount > 0.01:
+        if amount > Decimal('0.01'):
             heapq.heappush(creditors, (-amount, member_id))
-        elif amount < -0.01:
+        elif amount < Decimal('-0.01'):
             heapq.heappush(debtors, (amount, member_id))
 
     transactions: List[dict] = []
@@ -57,15 +58,15 @@ def simplify_debts(net: Dict[str, float]) -> List[dict]:
         debt_amt = -neg_debt
 
         pay = round(min(credit_amt, debt_amt), 2)
-        if pay > 0.01:
+        if pay > Decimal('0.01'):
             transactions.append({"from_member": debtor_id, "to_member": creditor_id, "amount": pay})
 
         remaining_credit = round(credit_amt - pay, 2)
         remaining_debt = round(debt_amt - pay, 2)
 
-        if remaining_credit > 0.01:
+        if remaining_credit > Decimal('0.01'):
             heapq.heappush(creditors, (-remaining_credit, creditor_id))
-        if remaining_debt > 0.01:
+        if remaining_debt > Decimal('0.01'):
             heapq.heappush(debtors, (-remaining_debt, debtor_id))
 
     return transactions

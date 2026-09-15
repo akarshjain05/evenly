@@ -3,7 +3,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Float, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -53,8 +53,8 @@ class Member(Base):
     __tablename__ = "members"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False)
-    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String, nullable=False)
     color = Column(String, default="#B4863A")
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -67,10 +67,10 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False)
+    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
     description = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
-    paid_by = Column(String, ForeignKey("members.id"), nullable=False)
+    amount = Column(Numeric, nullable=False)
+    paid_by = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     split_type = Column(SAEnum(SplitType), default=SplitType.equal)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -82,9 +82,9 @@ class ExpenseSplit(Base):
     __tablename__ = "expense_splits"
 
     id = Column(String, primary_key=True, default=gen_id)
-    expense_id = Column(String, ForeignKey("expenses.id"), nullable=False)
-    member_id = Column(String, ForeignKey("members.id"), nullable=False)
-    share_amount = Column(Float, nullable=False)
+    expense_id = Column(String, ForeignKey("expenses.id"), index=True, nullable=False)
+    member_id = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    share_amount = Column(Numeric, nullable=False)
 
     expense = relationship("Expense", back_populates="splits")
 
@@ -93,10 +93,10 @@ class Settlement(Base):
     __tablename__ = "settlements"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False)
-    from_member = Column(String, ForeignKey("members.id"), nullable=False)
-    to_member = Column(String, ForeignKey("members.id"), nullable=False)
-    amount = Column(Float, nullable=False)
+    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
+    from_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    to_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    amount = Column(Numeric, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("Group", back_populates="settlements")

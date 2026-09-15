@@ -3,7 +3,7 @@ import os
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from . import balances, models, schemas, auth, deps
 from fastapi.security import OAuth2PasswordRequestForm
@@ -141,12 +141,25 @@ def get_group(group_id: str, member: models.Member = Depends(deps.get_current_me
 
 
 @app.get("/api/groups/{group_id}/activity", response_model=list[schemas.ActivityResponse])
-def get_activity(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
+def get_activity(
+    group_id: str, 
+    limit: int = 50, 
+    offset: int = 0, 
+    member: models.Member = Depends(deps.get_current_member), 
+    db: Session = Depends(get_db)
+):
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     name_lookup = {m.id: m.name for m in members}
 
     items = []
-    for e in db.query(models.Expense).filter(models.Expense.group_id == group_id).all():
+    # Eagerly load splits to prevent N+1 queries
+    expenses = (
+        db.query(models.Expense)
+        .options(selectinload(models.Expense.splits))
+        .filter(models.Expense.group_id == group_id)
+        .all()
+    )
+    for e in expenses:
         items.append(
             {
                 "type": "expense",
@@ -155,7 +168,7 @@ def get_activity(group_id: str, member: models.Member = Depends(deps.get_current
                 "amount": e.amount,
                 "paid_by": e.paid_by,
                 "paid_by_name": name_lookup.get(e.paid_by, "?"),
-                "created_at": e.created_at.isoformat(),
+                "created_at": e.created_at,
                 "splits": [
                     {"member_id": s.member_id, "name": name_lookup.get(s.member_id, "?"), "share_amount": s.share_amount}
                     for s in e.splits
@@ -172,12 +185,14 @@ def get_activity(group_id: str, member: models.Member = Depends(deps.get_current
                 "to_member": s.to_member,
                 "to_name": name_lookup.get(s.to_member, "?"),
                 "amount": s.amount,
-                "created_at": s.created_at.isoformat(),
+                "created_at": s.created_at,
+                "description": "Settlement",
+                "paid_by_name": name_lookup.get(s.from_member, "?"),
             }
         )
 
     items.sort(key=lambda x: x["created_at"], reverse=True)
-    return items
+    return items[offset : offset + limit]
 
 
 @app.post("/api/groups/{group_id}/expenses", response_model=schemas.ExpenseResponse)
