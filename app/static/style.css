@@ -23,6 +23,26 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+[data-theme="dark"] {
+  --bg: #1c2622;
+  --bg-soft: #232f2a;
+  --paper: #232f2a;
+  --paper-dim: #1c2622;
+  --ink: #f2ead8;
+  --ink-soft: #a7ada0;
+  --on-dark: #f2ead8;
+  --on-dark-soft: #a7ada0;
+  --brass: #b4863a;
+  --brass-deep: #8f6a2c;
+  --debit: #dca052;
+  --credit: #6fa377;
+  --line-dark: rgba(242, 234, 216, 0.14);
+  --line-paper: rgba(242, 234, 216, 0.14);
+  --primary: #3b6151;
+  --skeleton: rgba(242, 234, 216, 0.08);
+  --highlight: rgba(180, 134, 58, 0.15);
+}
+
 
 * {
   box-sizing: border-box;
