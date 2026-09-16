@@ -27,9 +27,17 @@ function saveActiveGroup(id) {
 
 const cache = { group: {}, activity: {} };
 
+function loadMemberships() {
+  try {
+    return JSON.parse(localStorage.getItem("evenly_memberships") || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
 const state = {
   token: loadToken(),
-  memberships: {}, // Populated from server
+  memberships: loadMemberships(), // Populated from local cache, then updated from server
   activeGroupId: loadActiveGroup(),
   group: null,
   activity: [],
@@ -386,9 +394,10 @@ function renderHub() {
 
   updateThemeIcons();
   document.getElementById("logout-btn").onclick = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("memberships");
-    localStorage.removeItem("activeGroupId");
+    saveToken(null);
+    localStorage.removeItem("evenly_memberships");
+    saveActiveGroup(null);
+    localStorage.removeItem("evenly_active_group"); // Just in case saveActiveGroup(null) saves "null" as string
     state.token = null;
     state.memberships = {};
     state.activeGroupId = null;
@@ -540,9 +549,10 @@ function renderSettings() {
   
   document.getElementById("settings-logout-btn").onclick = () => {
     if (confirm("Are you sure you want to log out?")) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("memberships");
-      localStorage.removeItem("activeGroupId");
+      saveToken(null);
+      localStorage.removeItem("evenly_memberships");
+      saveActiveGroup(null);
+      localStorage.removeItem("evenly_active_group");
       state.token = null;
       state.memberships = {};
       state.activeGroupId = null;
@@ -749,7 +759,7 @@ function renderGroupSettings(onClose = null) {
       const newName = document.getElementById("g-name-input").value.trim();
       await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: newName }});
       state.memberships[state.activeGroupId].group_name = newName;
-      localStorage.setItem("memberships", JSON.stringify(state.memberships));
+      localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
       overlay.remove();
       loadDashboard();
       renderSidebar(); // Update sidebar name
@@ -1148,6 +1158,7 @@ async function syncMemberships() {
         invite_code: row.group.invite_code
       };
     }
+    localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
   } catch (e) {
     if (e.message.includes("validate credentials")) {
       saveToken(null);
