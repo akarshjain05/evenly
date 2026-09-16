@@ -517,7 +517,6 @@ function renderSettings() {
   appDiv.innerHTML = `
     <div class="topbar" style="gap: 12px; padding: 16px 20px; display: flex; align-items: center;">
       <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
-      <button class="icon-btn" id="settings-back-btn" aria-label="Back" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>
       <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink); flex: 1;">Settings</h2>
     </div>
     <div class="section" style="padding: 20px;">
@@ -538,14 +537,7 @@ function renderSettings() {
   
   updateThemeIcons();
   
-  document.getElementById("settings-back-btn").onclick = () => {
-     if (history.length > 2) {
-       history.back();
-     } else {
-       history.pushState(null, "", "/");
-       renderHub();
-     }
-  };
+
   
   document.getElementById("settings-logout-btn").onclick = () => {
     if (confirm("Are you sure you want to log out?")) {
