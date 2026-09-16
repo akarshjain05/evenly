@@ -4,18 +4,31 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import logging
-import time
 import os
 import asyncio
 
 from app.database import Base, engine, get_db, SessionLocal
 from app.routers import auth, users, groups, notifications
+from app import rate_limiter
+
+async def _cleanup_rate_limiter():
+    """Periodically prune the in-memory rate-limit store.
+    Only needed when Redis is NOT configured (Redis uses key TTLs instead)."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            rate_limiter.cleanup_memory()
+        except Exception:
+            logger.error("Rate limiter cleanup failed", exc_info=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(cleanup_rate_limiter())
+    task = None
+    if not rate_limiter._use_redis:
+        task = asyncio.create_task(_cleanup_rate_limiter())
     yield
-    task.cancel()
+    if task is not None:
+        task.cancel()
 
 app = FastAPI(title="Evenly API", lifespan=lifespan)
 
@@ -33,26 +46,11 @@ origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.st
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
-
-async def cleanup_rate_limiter():
-    while True:
-        await asyncio.sleep(300)
-        try:
-            now = time.time()
-            for ip in list(auth.auth_attempts.keys()):
-                valid_attempts = [t for t in auth.auth_attempts[ip] if now - t < 60]
-                if valid_attempts:
-                    auth.auth_attempts[ip] = valid_attempts
-                else:
-                    del auth.auth_attempts[ip]
-        except Exception:
-            logger.error("Rate limiter cleanup failed", exc_info=True)
 
 app.include_router(auth.router)
 app.include_router(users.router)
