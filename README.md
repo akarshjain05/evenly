@@ -1,6 +1,16 @@
 # Evenly
 
-A private running tab for a small group — no ads, no per-user fees. Split expenses, see who owes who (simplified to the fewest possible payments), and mark things settled. Installs to a phone home screen as a PWA.
+Evenly is a private, real-time expense splitting app designed for small groups, roommates, and travel companions. It provides a seamless way to track shared costs, split expenses exactly how you need them, and mathematically minimize debts using a built-in settlement simplification engine. 
+
+Say goodbye to ads, per-user subscription fees, and bloated interfaces. Evenly is built to be fast, secure, and fully owned by you. It can be installed directly to your phone's home screen as a native-feeling Progressive Web App (PWA).
+
+### Key Features
+- **Secure Accounts & Sync:** Robust JWT-based authentication ensures your data is safely backed up to the cloud and instantly synced across all your devices.
+- **Advanced Debt Simplification:** The core financial engine automatically calculates the absolute fewest number of payments required to settle all debts in the group.
+- **Flexible Splitting:** Split expenses equally, by exact amounts, or by custom percentages.
+- **Export & Ownership:** Your data is yours. Export any tab's ledger to CSV at any time.
+- **Push Notifications:** Real-time Web Push Notifications keep everyone in the loop when expenses are added or settled.
+- **PWA Ready:** Install it on iOS or Android and it runs full-screen, without a browser bar, just like a native app.
 
 Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the frontend (no build step, no framework tooling to fight with).
 
@@ -11,7 +21,7 @@ Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the fron
 - The group registers for free accounts and joins the tab. 
 - Expenses can be split equally, by exact amount, or by percentage.
 - The balances screen simplifies debts down to the minimum number of payments needed to settle everyone up.
-- Because it uses a strict JWT authentication system (with forced fail-fast secret validation), your tabs are safely backed up to the cloud and sync effortlessly across all your devices.
+- Because it uses a secure JWT authentication system, your data is safely backed up to the cloud and syncs effortlessly across all your devices.
 
 ## Project structure
 
