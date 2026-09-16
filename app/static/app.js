@@ -100,7 +100,6 @@ function renderAuth(prefillCode) {
   root.innerHTML = `
     <div class="topbar" style="gap: 12px; padding: 16px 20px; display: flex; align-items: center;">
       <button class="icon-btn menu-btn" aria-label="Menu" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;" onclick="openSidebar()">${ICONS.menu}</button>
-      ${hasTabs ? `<button class="icon-btn" id="new-back-btn" aria-label="Back" style="flex-shrink: 0; background: transparent; padding: 0; width: 28px; justify-content: flex-start;">${ICONS.arrowLeft}</button>` : ''}
       <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0; color: var(--ink); flex: 1;">${hasTabs ? 'New Tab' : 'Welcome'}</h2>
       <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="flex-shrink: 0; width: 38px; height: 38px;"></button>
     </div>
