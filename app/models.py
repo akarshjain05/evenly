@@ -1,7 +1,7 @@
 import enum
 import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, Boolean, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
 from sqlalchemy.orm import relationship
@@ -31,7 +31,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=gen_id)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     memberships = relationship("Member", back_populates="user")
 
@@ -42,7 +42,7 @@ class Group(Base):
     id = Column(String, primary_key=True, default=gen_id)
     name = Column(String, nullable=False)
     invite_code = Column(String, unique=True, index=True, default=gen_invite_code)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     members = relationship("Member", back_populates="group", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="group", cascade="all, delete-orphan")
@@ -58,7 +58,7 @@ class Member(Base):
     name = Column(String, nullable=False)
     color = Column(String, default="#B4863A")
     is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     group = relationship("Group", back_populates="members")
     user = relationship("User", back_populates="memberships")
@@ -74,7 +74,7 @@ class Expense(Base):
     paid_by = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     split_type = Column(SAEnum(SplitType), default=SplitType.equal)
     category = Column(String, default="General")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     group = relationship("Group", back_populates="expenses")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
@@ -99,7 +99,7 @@ class Settlement(Base):
     from_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     to_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     amount = Column(Numeric, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     group = relationship("Group", back_populates="settlements")
 
@@ -111,5 +111,5 @@ class PushSubscription(Base):
     endpoint = Column(String, nullable=False)
     p256dh = Column(String, nullable=False)
     auth = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
