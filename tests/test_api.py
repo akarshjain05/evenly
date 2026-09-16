@@ -76,3 +76,80 @@ def test_auth_and_group_flow():
 def test_invalid_token():
     res = client.get("/api/users/me/groups", headers={"Authorization": "Bearer invalidtoken"})
     assert res.status_code == 401
+
+def test_unauthorized_expense_delete():
+    # Setup test
+    res1 = client.post("/api/auth/register", json={"email": "alice2@example.com", "password": "password123"})
+    token1 = res1.json()["access_token"]
+    h1 = {"Authorization": f"Bearer {token1}"}
+    
+    group_data = client.post("/api/groups", json={"name": "Test Delete", "your_name": "Alice"}, headers=h1).json()
+    group_id = group_data["group"]["id"]
+    alice_id = group_data["member"]["id"]
+    
+    res2 = client.post("/api/auth/register", json={"email": "bob2@example.com", "password": "password123"})
+    token2 = res2.json()["access_token"]
+    h2 = {"Authorization": f"Bearer {token2}"}
+    
+    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2)
+    
+    # Alice adds an expense
+    client.post(f"/api/groups/{group_id}/expenses", json={
+        "description": "Lunch",
+        "amount": 20.0,
+        "paid_by": alice_id,
+        "split_type": "equal",
+        "participant_ids": [alice_id]
+    }, headers=h1)
+    
+    # Get expense ID
+    expenses = client.get(f"/api/groups/{group_id}/activity", headers=h1).json()
+    expense_id = expenses[0]["id"]
+    
+    # Bob tries to delete Alice's expense (Bob is not admin and didn't pay)
+    del_res = client.delete(f"/api/groups/{group_id}/expenses/{expense_id}", headers=h2)
+    assert del_res.status_code == 403
+
+def test_leave_group_with_balance():
+    # Setup
+    res1 = client.post("/api/auth/register", json={"email": "alice3@example.com", "password": "password123"})
+    token1 = res1.json()["access_token"]
+    h1 = {"Authorization": f"Bearer {token1}"}
+    
+    group_data = client.post("/api/groups", json={"name": "Test Leave", "your_name": "Alice"}, headers=h1).json()
+    group_id = group_data["group"]["id"]
+    alice_id = group_data["member"]["id"]
+    
+    res2 = client.post("/api/auth/register", json={"email": "bob3@example.com", "password": "password123"})
+    token2 = res2.json()["access_token"]
+    h2 = {"Authorization": f"Bearer {token2}"}
+    
+    bob_join = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2).json()
+    bob_id = bob_join["member"]["id"]
+    
+    # Alice adds expense split with Bob (so Bob owes Alice)
+    client.post(f"/api/groups/{group_id}/expenses", json={
+        "description": "Tickets",
+        "amount": 50.0,
+        "paid_by": alice_id,
+        "split_type": "equal",
+        "participant_ids": [alice_id, bob_id]
+    }, headers=h1)
+    
+    # Bob tries to leave the group
+    leave_res = client.delete(f"/api/groups/{group_id}/members/{bob_id}", headers=h2)
+    assert leave_res.status_code == 400
+    assert "unsettled balance" in leave_res.json()["detail"]
+
+def test_csv_export():
+    res1 = client.post("/api/auth/register", json={"email": "alice4@example.com", "password": "password123"})
+    token1 = res1.json()["access_token"]
+    h1 = {"Authorization": f"Bearer {token1}"}
+    group_data = client.post("/api/groups", json={"name": "Export Test", "your_name": "Alice"}, headers=h1).json()
+    group_id = group_data["group"]["id"]
+    
+    export_res = client.get(f"/api/groups/{group_id}/export/csv", headers=h1)
+    assert export_res.status_code == 200
+    assert "text/csv" in export_res.headers["content-type"]
+    assert "Date,Type,Category,Description,Amount,Paid By,Details" in export_res.text
+
