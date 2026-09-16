@@ -136,16 +136,7 @@ function renderAuth(prefillCode) {
   
   updateThemeIcons();
   
-  if (hasTabs) {
-    document.getElementById("new-back-btn").onclick = () => {
-      if (history.length > 2) {
-        history.back();
-      } else {
-        history.pushState(null, "", "/");
-        renderHub();
-      }
-    };
-  } else {
+  if (!hasTabs) {
     document.getElementById("auth-logout-btn").onclick = (e) => { 
       e.preventDefault(); 
       saveToken(null); 
