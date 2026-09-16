@@ -279,6 +279,14 @@ def add_settlement(
         
     return {"ok": True}
 
+@router.delete("/{group_id}/members/me", response_model=schemas.BasicResponse)
+def leave_group(
+    group_id: str,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db),
+):
+    return remove_member(group_id, member.id, member, db)
+
 @router.delete("/{group_id}/members/{target_member_id}", response_model=schemas.BasicResponse)
 def remove_member(
     group_id: str,

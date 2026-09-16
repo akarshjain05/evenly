@@ -958,7 +958,7 @@ function renderGroupSettings(onClose = null) {
     overlay.querySelector("#group-leave-btn").onclick = async () => {
       if (!await customConfirm("Are you sure you want to leave this tab?")) return;
       try {
-        await api(`/groups/${state.activeGroupId}/members/${myMemberId}`, { method: "DELETE", auth: true });
+        await api(`/groups/${state.activeGroupId}/members/me`, { method: "DELETE", auth: true });
         delete state.memberships[state.activeGroupId];
         localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
         clearGroupCache(state.activeGroupId);
