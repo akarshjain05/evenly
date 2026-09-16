@@ -6,7 +6,18 @@ import time
 from fastapi.responses import JSONResponse
 from fastapi import Request
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+
+from fastapi import BackgroundTasks
+from fastapi.responses import StreamingResponse
+import io
+import csv
+import json
+import base64
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
+from pywebpush import webpush, WebPushException
+
+from fastapi import Depends, FastAPI, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, selectinload
@@ -368,6 +379,7 @@ def add_expense(
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
     if other_user_ids:
+        group = db.query(models.Group).filter(models.Group.id == group_id).first()
         background_tasks.add_task(send_web_push, db, other_user_ids, group.name, f"{member.name} added an expense: {payload.description} for {payload.amount}")
 
     return {"ok": True, "expense_id": expense.id}
