@@ -432,7 +432,7 @@ function renderSidebar() {
   }).join("");
 
   sidebar.innerHTML = `
-    <div class="sidebar-header">
+    <div class="sidebar-header" id="sidebar-logo" style="cursor: pointer;">
       <div class="auth-mark" style="color: var(--brass); width: 28px; height: 28px;">
         <svg viewBox="0 0 40 40" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
@@ -481,6 +481,17 @@ function renderSidebar() {
     history.pushState(null, "", "/new");
     renderAuth();
   };
+
+  const logoBtn = document.getElementById("sidebar-logo");
+  if (logoBtn) {
+    logoBtn.onclick = () => {
+      closeSidebar();
+      state.activeGroupId = null;
+      localStorage.removeItem("activeGroupId");
+      history.pushState(null, "", "/");
+      renderHub();
+    };
+  }
   
   document.getElementById("sidebar-settings-btn").onclick = () => {
     closeSidebar();
@@ -1283,8 +1294,9 @@ async function init() {
     } else {
       state.activeGroupId = null;
     }
-  } else if (path === "/" && !state.activeGroupId) {
+  } else if (path === "/") {
     state.activeGroupId = null;
+    localStorage.removeItem("activeGroupId");
   }
 
   if (path === "/settings") {
