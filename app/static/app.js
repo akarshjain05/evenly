@@ -505,7 +505,7 @@ function renderSidebar() {
     logoBtn.onclick = () => {
       closeSidebar();
       state.activeGroupId = null;
-      localStorage.removeItem("activeGroupId");
+      localStorage.removeItem("evenly_active_group");
       history.pushState(null, "", "/");
       renderHub();
     };
@@ -807,6 +807,8 @@ function renderDashboard() {
   document.getElementById("add-fab").onclick = () => openAddExpenseSheet(null);
   document.getElementById("invite-btn").onclick = openInviteSheet;
   document.getElementById("group-switch").onclick = openGroupSwitcher;
+  const settingsBtn = document.getElementById("group-settings-btn");
+  if (settingsBtn) settingsBtn.onclick = () => renderGroupSettings();
 }
 
 
@@ -913,7 +915,7 @@ async function renderGroupSettings(onClose = null) {
           localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
           if (state.group && state.group.id === state.activeGroupId) {
              state.group.name = newName;
-             document.getElementById("group-title").textContent = newName;
+             loadDashboard();
           }
           overlay.remove();
           renderSidebar();
@@ -1342,6 +1344,20 @@ function openGroupSwitcher() {
     overlay.remove();
     state.activeGroupId = null;
     renderAuth();
+  };
+  overlay.querySelector("#logout-btn").onclick = () => {
+    if (confirm("Are you sure you want to log out?")) {
+      saveToken(null);
+      localStorage.removeItem("evenly_memberships");
+      saveActiveGroup(null);
+      localStorage.removeItem("evenly_active_group");
+      state.token = null;
+      state.memberships = {};
+      state.activeGroupId = null;
+      overlay.remove();
+      history.replaceState(null, "", "/");
+      showLogin();
+    }
   };
 }
 
