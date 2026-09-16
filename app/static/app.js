@@ -812,15 +812,9 @@ function renderDashboard() {
 }
 
 
-async function renderGroupSettings(onClose = null) {
+function renderGroupSettings(onClose = null) {
   const overlay = document.createElement("div");
   overlay.className = "sheet-overlay";
-  overlay.innerHTML = `
-    <div class="sheet" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div style="text-align: center; padding: 40px 0; color: var(--ink-soft);">Loading...</div>
-    </div>
-  `;
   document.body.appendChild(overlay);
   
   overlay.onclick = (e) => {
@@ -831,7 +825,8 @@ async function renderGroupSettings(onClose = null) {
   };
 
   try {
-    const groupData = await api("/groups/" + state.activeGroupId, { auth: true });
+    const groupData = state.group;
+    if (!groupData) throw new Error("Group data not loaded.");
     const myMemberId = state.memberships[state.activeGroupId].member_id;
     const myMember = groupData.members.find(m => m.id === myMemberId);
     const isAdmin = myMember && myMember.is_admin;
