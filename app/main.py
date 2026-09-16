@@ -380,7 +380,7 @@ def add_expense(
     other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
     if other_user_ids:
         group = db.query(models.Group).filter(models.Group.id == group_id).first()
-        background_tasks.add_task(send_web_push, db, other_user_ids, group.name, f"{member.name} added an expense: {payload.description} for {payload.amount}")
+        background_tasks.add_task(send_web_push, other_user_ids, group.name, f"{member.name} added an expense: {payload.description} for {payload.amount}")
 
     return {"ok": True, "expense_id": expense.id}
 
@@ -458,7 +458,7 @@ def add_settlement(
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
     if other_user_ids:
-        background_tasks.add_task(send_web_push, db, other_user_ids, group.name, f"{member.name} recorded a settlement of {payload.amount}")
+        background_tasks.add_task(send_web_push, other_user_ids, group.name, f"{member.name} recorded a settlement of {payload.amount}")
         
     return {"ok": True}
 
@@ -567,23 +567,28 @@ def get_vapid_private(db: Session):
     row = db.execute(text("SELECT value FROM system_config WHERE key='vapid_private'")).fetchone()
     return row[0] if row else None
 
-def send_web_push(db: Session, user_ids: list, title: str, body: str):
-    vapid_priv = get_vapid_private(db)
-    if not vapid_priv: return
-    
-    subs = db.query(models.PushSubscription).filter(models.PushSubscription.user_id.in_(user_ids)).all()
-    for sub in subs:
-        try:
-            webpush(
-                subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
-                data=json.dumps({"title": title, "body": body}),
-                vapid_private_key=vapid_priv,
-                vapid_claims={"sub": "mailto:admin@evenly.app"}
-            )
-        except WebPushException as e:
-            if e.response and e.response.status_code in [404, 410]:
-                db.delete(sub)
-                db.commit()
+def send_web_push(user_ids: list, title: str, body: str):
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        vapid_priv = get_vapid_private(db)
+        if not vapid_priv: return
+        
+        subs = db.query(models.PushSubscription).filter(models.PushSubscription.user_id.in_(user_ids)).all()
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
+                    data=json.dumps({"title": title, "body": body}),
+                    vapid_private_key=vapid_priv,
+                    vapid_claims={"sub": "mailto:admin@evenly.app"}
+                )
+            except WebPushException as e:
+                if e.response and e.response.status_code in [404, 410]:
+                    db.delete(sub)
+                    db.commit()
+    finally:
+        db.close()
 
 @app.get("/api/notifications/vapid-public")
 def get_vapid_public(db: Session = Depends(get_db)):
