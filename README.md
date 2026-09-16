@@ -1,5 +1,7 @@
 # Evenly
 
+[**Live Demo**](https://evenly-eight.vercel.app)
+
 Evenly is a private, real-time expense splitting app designed for small groups, roommates, and travel companions. It provides a seamless way to track shared costs, split expenses exactly how you need them, and mathematically minimize debts using a built-in settlement simplification engine. 
 
 Say goodbye to ads, per-user subscription fees, and bloated interfaces. Evenly is built to be fast, secure, and fully owned by you. It can be installed directly to your phone's home screen as a native-feeling Progressive Web App (PWA).
