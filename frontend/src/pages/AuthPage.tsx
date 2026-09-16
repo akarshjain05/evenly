@@ -53,14 +53,30 @@ export default function AuthPage() {
       <div className="flex bg-bg-soft rounded-full p-1 gap-1 mx-auto w-full max-w-[240px] border border-line-dark shadow-sm">
         <button 
           type="button"
-          onClick={() => setIsLogin(true)}
+          onClick={() => {
+            if (!isLogin) {
+              setIsLogin(true);
+              setEmail('');
+              setPassword('');
+              setConfirmPassword('');
+              setError('');
+            }
+          }}
           className={`flex-1 py-2.5 rounded-full text-[14px] font-medium transition-colors ${isLogin ? 'bg-primary text-white' : 'text-on-dark-soft bg-transparent'}`}
         >
           Sign In
         </button>
         <button 
           type="button"
-          onClick={() => setIsLogin(false)}
+          onClick={() => {
+            if (isLogin) {
+              setIsLogin(false);
+              setEmail('');
+              setPassword('');
+              setConfirmPassword('');
+              setError('');
+            }
+          }}
           className={`flex-1 py-2.5 rounded-full text-[14px] font-medium transition-colors ${!isLogin ? 'bg-primary text-white' : 'text-on-dark-soft bg-transparent'}`}
         >
           Register

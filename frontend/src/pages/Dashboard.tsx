@@ -70,7 +70,12 @@ export default function Dashboard() {
         </form>
         
         <div className="mt-6 text-center">
-          <button type="button" onClick={() => { setIsJoin(!isJoin); setError(''); }} className="text-on-dark-soft text-[14px] hover:text-ink transition-colors">
+          <button type="button" onClick={() => { 
+            setIsJoin(!isJoin); 
+            setError(''); 
+            setGroupName('');
+            setInviteCode('');
+          }} className="text-on-dark-soft text-[14px] hover:text-ink transition-colors">
             {isJoin ? 'Want to create a new tab instead?' : 'Have an invite code?'}
           </button>
         </div>
