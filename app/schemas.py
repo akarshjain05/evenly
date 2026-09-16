@@ -111,3 +111,9 @@ class BasicResponse(BaseModel):
 
 class ExpenseResponse(BasicResponse):
     expense_id: str
+
+
+class PushSubscriptionCreate(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str

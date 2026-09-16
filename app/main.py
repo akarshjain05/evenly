@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import text
 
 from . import balances, models, schemas, auth, deps
 from fastapi.security import OAuth2PasswordRequestForm
@@ -18,6 +19,84 @@ from .database import Base, engine, get_db
 # Base.metadata.create_all(bind=engine)  # Removed in favor of Alembic migrations
 
 app = FastAPI(title="Evenly API")
+
+from sqlalchemy import text
+@app.on_event("startup")
+def setup_database_schema():
+    db = SessionLocal()
+    try:
+        # 1. is_admin in members
+        try:
+            db.execute(text("SELECT is_admin FROM members LIMIT 1"))
+        except Exception:
+            db.rollback()
+            try:
+                db.execute(text("ALTER TABLE members ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
+                db.commit()
+                print("Added is_admin to members table")
+            except Exception as e:
+                db.rollback()
+                print("Failed to add is_admin:", e)
+
+        # 2. category in expenses
+        try:
+            db.execute(text("SELECT category FROM expenses LIMIT 1"))
+        except Exception:
+            db.rollback()
+            try:
+                db.execute(text("ALTER TABLE expenses ADD COLUMN category VARCHAR DEFAULT 'General'"))
+                db.commit()
+                print("Added category to expenses table")
+            except Exception as e:
+                db.rollback()
+                print("Failed to add category:", e)
+
+        # 3. push_subscriptions
+        try:
+            db.execute(text("CREATE TABLE IF NOT EXISTS push_subscriptions (id VARCHAR PRIMARY KEY, user_id VARCHAR NOT NULL, endpoint VARCHAR NOT NULL, p256dh VARCHAR NOT NULL, auth VARCHAR NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print("Failed to setup push_subscriptions table:", e)
+
+        # 4. system_config
+        try:
+            db.execute(text("CREATE TABLE IF NOT EXISTS system_config (key VARCHAR PRIMARY KEY, value VARCHAR NOT NULL)"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print("Failed to setup system_config table:", e)
+
+        # 5. VAPID Keys
+        try:
+            priv = db.execute(text("SELECT value FROM system_config WHERE key='vapid_private'")).fetchone()
+            if not priv:
+                from cryptography.hazmat.primitives.asymmetric import ec
+                from cryptography.hazmat.primitives import serialization
+                import base64
+                private_key = ec.generate_private_key(ec.SECP256R1())
+                priv_bytes = private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption()
+                )
+                pub_bytes = private_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.X962,
+                    format=serialization.PublicFormat.UncompressedPoint
+                )
+                pub_b64 = base64.urlsafe_b64encode(pub_bytes).decode('utf-8').rstrip('=')
+                
+                db.execute(text("INSERT INTO system_config (key, value) VALUES ('vapid_private', :val)"), {"val": priv_bytes.decode('utf-8')})
+                db.execute(text("INSERT INTO system_config (key, value) VALUES ('vapid_public', :val)"), {"val": pub_b64})
+                db.commit()
+                print("Generated new VAPID keys")
+        except Exception as e:
+            db.rollback()
+            print("Failed to setup VAPID keys:", e)
+            
+    finally:
+        db.close()
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -266,6 +345,7 @@ def get_activity(
 def add_expense(
     group_id: str,
     payload: schemas.ExpenseCreate,
+    background_tasks: BackgroundTasks,
     member: models.Member = Depends(deps.get_current_member),
     db: Session = Depends(get_db),
 ):
@@ -283,6 +363,13 @@ def add_expense(
     balances.process_expense_splits(db, group_id, expense, payload)
     
     db.commit()
+    
+    # Send push
+    members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+    if other_user_ids:
+        background_tasks.add_task(send_web_push, db, other_user_ids, group.name, f"{member.name} added an expense: {payload.description} for {payload.amount}")
+
     return {"ok": True, "expense_id": expense.id}
 
 
@@ -341,6 +428,7 @@ def delete_expense(
 def add_settlement(
     group_id: str,
     payload: schemas.SettlementCreate,
+    background_tasks: BackgroundTasks,
     member: models.Member = Depends(deps.get_current_member),
     db: Session = Depends(get_db),
 ):
@@ -353,6 +441,13 @@ def add_settlement(
     )
     db.add(settlement)
     db.commit()
+    
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+    if other_user_ids:
+        background_tasks.add_task(send_web_push, db, other_user_ids, group.name, f"{member.name} recorded a settlement of {payload.amount}")
+        
     return {"ok": True}
 
 
@@ -440,3 +535,95 @@ def delete_settlement(
     db.delete(settlement)
     db.commit()
     return {"ok": True}
+
+
+@app.post("/api/notifications/subscribe", response_model=schemas.BasicResponse)
+def subscribe_push(
+    payload: schemas.PushSubscriptionCreate,
+    user: models.User = Depends(deps.get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Check if already exists
+    sub = db.query(models.PushSubscription).filter_by(user_id=user.id, endpoint=payload.endpoint).first()
+    if not sub:
+        sub = models.PushSubscription(user_id=user.id, endpoint=payload.endpoint, p256dh=payload.p256dh, auth=payload.auth)
+        db.add(sub)
+        db.commit()
+    return {"ok": True}
+
+def get_vapid_private(db: Session):
+    row = db.execute(text("SELECT value FROM system_config WHERE key='vapid_private'")).fetchone()
+    return row[0] if row else None
+
+def send_web_push(db: Session, user_ids: list, title: str, body: str):
+    vapid_priv = get_vapid_private(db)
+    if not vapid_priv: return
+    
+    subs = db.query(models.PushSubscription).filter(models.PushSubscription.user_id.in_(user_ids)).all()
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
+                data=json.dumps({"title": title, "body": body}),
+                vapid_private_key=vapid_priv,
+                vapid_claims={"sub": "mailto:admin@evenly.app"}
+            )
+        except WebPushException as e:
+            if e.response and e.response.status_code in [404, 410]:
+                db.delete(sub)
+                db.commit()
+
+@app.get("/api/notifications/vapid-public")
+def get_vapid_public(db: Session = Depends(get_db)):
+    row = db.execute(text("SELECT value FROM system_config WHERE key='vapid_public'")).fetchone()
+    return {"public_key": row[0] if row else None}
+
+@app.get("/api/groups/{group_id}/export/csv")
+def export_csv(
+    group_id: str,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
+    name_lookup = {m.id: m.name for m in members}
+
+    expenses = db.query(models.Expense).filter(models.Expense.group_id == group_id).all()
+    settlements = db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all()
+
+    items = []
+    for e in expenses:
+        items.append({
+            "Date": e.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Type": "Expense",
+            "Category": e.category or "General",
+            "Description": e.description,
+            "Amount": f"{e.amount:.2f}",
+            "Paid By": name_lookup.get(e.paid_by, "?"),
+            "Details": f"Split: {e.split_type}"
+        })
+    for s in settlements:
+        items.append({
+            "Date": s.created_at.strftime("%Y-%m-%d %H:%M"),
+            "Type": "Settlement",
+            "Category": "-",
+            "Description": "Settlement",
+            "Amount": f"{s.amount:.2f}",
+            "Paid By": name_lookup.get(s.from_member, "?"),
+            "Details": f"Paid to: {name_lookup.get(s.to_member, '?')}"
+        })
+
+    items.sort(key=lambda x: x["Date"])
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["Date", "Type", "Category", "Description", "Amount", "Paid By", "Details"])
+    writer.writeheader()
+    writer.writerows(items)
+    output.seek(0)
+
+    filename = f"{group.name.replace(' ', '_')}_export.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

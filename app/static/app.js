@@ -512,6 +512,10 @@ function renderSettings() {
     <div class="section" style="padding: 20px;">
       <div style="background: var(--bg-soft); border: 1px solid var(--line-dark); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
          <h3 style="margin: 0 0 16px; font-size: 16px; color: var(--ink);">Preferences</h3>
+         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+           <span style="font-size: 15px; color: var(--ink); font-weight: 500;">Push Notifications</span>
+           <button id="push-toggle-btn" class="btn-primary" style="padding: 8px 16px; font-size: 14px; border-radius: 20px;">Enable</button>
+         </div>
          <div style="display: flex; justify-content: space-between; align-items: center;">
            <span style="font-size: 15px; color: var(--ink); font-weight: 500;">Dark Mode</span>
            <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="border: 1px solid var(--line-dark); width: 44px; height: 44px;"></button>
@@ -529,6 +533,58 @@ function renderSettings() {
   
 
   
+  
+  document.getElementById("push-toggle-btn").onclick = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error("Push notifications not supported in this browser.");
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+         throw new Error("Notification permission denied.");
+      }
+      
+      const btn = document.getElementById("push-toggle-btn");
+      btn.textContent = "Loading...";
+      btn.disabled = true;
+
+      const reg = await navigator.serviceWorker.ready;
+      const vapidRes = await fetch("/api/notifications/vapid-public");
+      const vapidData = await vapidRes.json();
+      
+      function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+        const rawData = window.atob(base64);
+        return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
+      }
+      
+      const sub = await reg.pushManager.subscribe({
+         userVisibleOnly: true,
+         applicationServerKey: urlBase64ToUint8Array(vapidData.public_key)
+      });
+      
+      const p256dh = btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const auth = btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth')))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      
+      await api("/notifications/subscribe", {
+        method: "POST", auth: true,
+        body: {
+          endpoint: sub.endpoint,
+          p256dh: p256dh,
+          auth: auth
+        }
+      });
+      
+      toast("Notifications enabled!");
+      btn.textContent = "Enabled";
+    } catch(e) {
+      alert(e.message);
+      document.getElementById("push-toggle-btn").textContent = "Enable";
+      document.getElementById("push-toggle-btn").disabled = false;
+    }
+  };
+
   document.getElementById("settings-logout-btn").onclick = () => {
     if (confirm("Are you sure you want to log out?")) {
       saveToken(null);
@@ -733,79 +789,178 @@ function renderDashboard() {
 }
 
 
-function renderGroupSettings(onClose = null) {
+async function renderGroupSettings(onClose = null) {
   const overlay = document.createElement("div");
   overlay.className = "sheet-overlay";
   overlay.innerHTML = `
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
-      <h3 style="margin-top:0; margin-bottom: 20px; font-family: var(--font-display); font-size: 20px;">Tab Settings</h3>
-      <form id="group-edit-form">
-        <div class="field">
-          <label>Tab Name</label>
-          <input id="g-name-input" value="${escapeHtml(state.memberships[state.activeGroupId].group_name)}" required maxlength="60" />
-        </div>
-        <button type="submit" class="btn-primary" style="margin-bottom: 12px; margin-top: 10px;">Save Changes</button>
-      </form>
-      <hr style="border: 0; border-top: 1px solid var(--line-dark); margin: 24px 0;">
-      <h3 style="margin-top:0; margin-bottom: 16px; font-family: var(--font-display); font-size: 18px; color: var(--debit);">Danger Zone</h3>
-      <button id="group-delete-btn" class="btn-secondary" style="width: 100%; color: var(--debit); border-color: rgba(194, 91, 70, 0.4);">Delete Tab</button>
+      <div style="text-align: center; padding: 40px 0; color: var(--ink-soft);">Loading...</div>
     </div>
   `;
   document.body.appendChild(overlay);
   
-  // Need custom click handler to handle overlay dismiss but not if dragging? Just standard:
   overlay.onclick = (e) => {
     if (e.target === overlay) {
        overlay.remove();
        if (onClose) onClose();
     }
   };
-  
-  overlay.querySelector("#group-edit-form").onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector("button");
-    const originalText = btn.textContent;
-    btn.textContent = "Saving...";
-    btn.disabled = true;
-    try {
-      clearGroupCache(state.activeGroupId);
-      const newName = document.getElementById("g-name-input").value.trim();
-      await api(`/groups/${state.activeGroupId}`, { method: "PUT", auth: true, body: { name: newName }});
-      state.memberships[state.activeGroupId].group_name = newName;
-      localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
-      overlay.remove();
-      loadDashboard();
-      renderSidebar(); // Update sidebar name
-    } catch (ex) {
-      alert(ex.message);
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  };
 
-  overlay.querySelector("#group-delete-btn").onclick = async () => {
-    if (confirm("Are you sure you want to permanently delete this tab and all its expenses? This cannot be undone.")) {
-      const btn = overlay.querySelector("#group-delete-btn");
-      const originalText = btn.textContent;
-      btn.textContent = "Deleting...";
-      btn.disabled = true;
+  try {
+    const groupData = await api("/groups/" + state.activeGroupId, { auth: true });
+    const myMemberId = state.memberships[state.activeGroupId].member_id;
+    const myMember = groupData.members.find(m => m.id === myMemberId);
+    const isAdmin = myMember && myMember.is_admin;
+
+    let membersHtml = `<div style="margin-bottom: 24px;">
+      <h3 style="margin-top:0; margin-bottom: 12px; font-size: 16px; font-family: var(--font-display);">Members</h3>
+      <div style="display:flex; flex-direction:column; gap: 8px;">`;
+    
+    groupData.members.forEach(m => {
+        const isMe = m.id === myMemberId;
+        const removeBtn = (isAdmin && !isMe) ? `<button class="remove-btn" data-id="${m.id}" style="color: var(--debit); background: transparent; border: none; font-size: 14px; font-weight: 500; cursor: pointer; padding: 4px;">Remove</button>` : '';
+        const youTag = isMe ? `<span style="font-size:12px; color:var(--ink-soft); margin-left:8px;">(You)</span>` : '';
+        const adminTag = m.is_admin ? `<span style="font-size:12px; color:var(--primary); margin-left:8px;">(Creator)</span>` : '';
+        membersHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-soft); border: 1px solid var(--line-dark); border-radius: 8px;">
+            <div style="font-weight:500;">${escapeHtml(m.name)}${youTag}${adminTag}</div>
+            ${removeBtn}
+          </div>
+        `;
+    });
+    membersHtml += `</div></div>`;
+
+    overlay.innerHTML = `
+      <div class="sheet" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <h3 style="margin-top:0; margin-bottom: 20px; font-family: var(--font-display); font-size: 20px;">Tab Settings</h3>
+        
+        ${isAdmin ? `
+        <form id="group-edit-form">
+          <div class="field">
+            <label>Tab Name</label>
+            <input id="g-name-input" value="${escapeHtml(state.memberships[state.activeGroupId].group_name)}" required maxlength="60" />
+          </div>
+          <button type="submit" class="btn-primary" style="margin-bottom: 12px; margin-top: 10px;">Save Changes</button>
+        </form>
+        <hr style="border: 0; border-top: 1px solid var(--line-dark); margin: 24px 0;">
+        ` : ''}
+        
+        ${membersHtml}
+
+        <hr style="border: 0; border-top: 1px solid var(--line-dark); margin: 24px 0;">
+        <button id="group-export-btn" class="btn-secondary" style="width: 100%; margin-bottom: 24px;">Export as CSV</button>
+        
+        <h3 style="margin-top:0; margin-bottom: 16px; font-family: var(--font-display); font-size: 18px; color: var(--debit);">Danger Zone</h3>
+        <button id="group-leave-btn" class="btn-secondary" style="width: 100%; color: var(--debit); border-color: rgba(194, 91, 70, 0.4); margin-bottom: ${isAdmin ? '12px' : '0'};">Leave Tab</button>
+        ${isAdmin ? `<button id="group-delete-btn" class="btn-secondary" style="width: 100%; color: var(--debit); border-color: rgba(194, 91, 70, 0.4);">Delete Tab</button>` : ''}
+      </div>
+    `;
+    
+    // Bind Export
+    overlay.querySelector("#group-export-btn").onclick = async () => {
       try {
-        clearGroupCache(state.activeGroupId);
-        await api(`/groups/${state.activeGroupId}`, { method: "DELETE", auth: true });
-        delete state.memberships[state.activeGroupId];
-        state.activeGroupId = null;
-        localStorage.removeItem("activeGroupId");
-        overlay.remove();
-        history.replaceState(null, "", "/");
-        renderHub();
-      } catch (ex) {
-        alert(ex.message);
-        btn.disabled = false;
-        btn.textContent = originalText;
+        const res = await fetch(`/api/groups/${state.activeGroupId}/export/csv`, {
+          headers: { "Authorization": "Bearer " + state.token }
+        });
+        if (!res.ok) throw new Error("Export failed");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${state.memberships[state.activeGroupId].group_name.replace(/ /g, '_')}_export.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch(err) {
+        alert(err.message);
       }
+    };
+
+    if (isAdmin) {
+      overlay.querySelector("#group-edit-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const newName = document.getElementById("g-name-input").value.trim();
+        if (!newName) return;
+        try {
+          await api("/groups/" + state.activeGroupId, {
+            method: "PUT",
+            auth: true,
+            body: { name: newName }
+          });
+          state.memberships[state.activeGroupId].group_name = newName;
+          localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
+          if (state.group && state.group.id === state.activeGroupId) {
+             state.group.name = newName;
+             document.getElementById("group-title").textContent = newName;
+          }
+          overlay.remove();
+          renderSidebar();
+        } catch (err) {
+          alert("Error: " + err.message);
+        }
+      };
+
+      overlay.querySelector("#group-delete-btn").onclick = async () => {
+        if (!confirm("Are you sure you want to permanently delete this tab? This cannot be undone.")) return;
+        try {
+          await api("/groups/" + state.activeGroupId, { method: "DELETE", auth: true });
+          delete state.memberships[state.activeGroupId];
+          localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
+          clearGroupCache(state.activeGroupId);
+          
+          overlay.remove();
+          if (onClose) onClose();
+          
+          state.activeGroupId = null;
+          saveActiveGroup(null);
+          history.pushState(null, "", "/");
+          renderHub();
+        } catch(err) {
+          alert("Error deleting tab: " + err.message);
+        }
+      };
+      
+      overlay.querySelectorAll(".remove-btn").forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm("Remove this member from the tab?")) return;
+          try {
+            await api(`/groups/${state.activeGroupId}/members/${btn.dataset.id}`, { method: "DELETE", auth: true });
+            overlay.remove();
+            clearGroupCache(state.activeGroupId);
+            loadDashboard(); // Refresh current UI
+          } catch(err) {
+            alert("Error removing member: " + err.message);
+          }
+        };
+      });
     }
-  };
+
+    overlay.querySelector("#group-leave-btn").onclick = async () => {
+      if (!confirm("Are you sure you want to leave this tab?")) return;
+      try {
+        await api(`/groups/${state.activeGroupId}/members/${myMemberId}`, { method: "DELETE", auth: true });
+        delete state.memberships[state.activeGroupId];
+        localStorage.setItem("evenly_memberships", JSON.stringify(state.memberships));
+        clearGroupCache(state.activeGroupId);
+        
+        overlay.remove();
+        if (onClose) onClose();
+        
+        state.activeGroupId = null;
+        saveActiveGroup(null);
+        history.pushState(null, "", "/");
+        renderHub();
+      } catch(err) {
+        alert("Error leaving tab: " + err.message);
+      }
+    };
+  } catch (err) {
+    overlay.innerHTML = `<div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div style="padding: 20px; color: var(--debit); text-align: center;">Error loading settings: ${err.message}</div>
+    </div>`;
+  }
 }
 
 async function markSettled(from, to, amount) {

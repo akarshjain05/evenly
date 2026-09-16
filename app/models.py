@@ -102,3 +102,18 @@ class Settlement(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("Group", back_populates="settlements")
+
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), index=True, nullable=False)
+    endpoint = Column(String, nullable=False)
+    p256dh = Column(String, nullable=False)
+    auth = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class SystemConfig(Base):
+    __tablename__ = "system_config"
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
