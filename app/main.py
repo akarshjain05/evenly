@@ -25,7 +25,7 @@ from sqlalchemy import text
 
 from . import balances, models, schemas, auth, deps
 from fastapi.security import OAuth2PasswordRequestForm
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, SessionLocal
 
 # Base.metadata.create_all(bind=engine)  # Removed in favor of Alembic migrations
 
