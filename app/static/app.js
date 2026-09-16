@@ -286,10 +286,29 @@ async function loadDashboard() {
       renderDashboard();
     }
   } catch (ex) {
-    delete state.memberships[gId];
-    state.activeGroupId = null;
-    renderAuth();
-    toast(ex.message);
+    if (ex.message.includes("validate credentials")) {
+      delete state.memberships[gId];
+      state.activeGroupId = null;
+      renderAuth();
+      toast("Please log in again.");
+      return;
+    }
+    // Show nice error page
+    const root = document.getElementById("app");
+    root.innerHTML = `
+      <div style="padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+        <div style="color: var(--debit); margin-bottom: 16px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0 0 8px;">Something went wrong</h2>
+        <p style="color: var(--on-dark-soft); margin: 0 0 24px;">${escapeHtml(ex.message)}</p>
+        <button class="btn-primary" onclick="loadDashboard()">Try Again</button>
+      </div>
+    `;
   }
 }
 
@@ -1410,7 +1429,25 @@ function showLogin() {
       saveToken(res.access_token);
       state.token = res.access_token;
       updateThemeIcons();
-init(); // Re-run init now that we are logged in
+init().catch(err => {
+  document.getElementById("app-layout").classList.remove("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  const root = document.getElementById("app");
+  root.innerHTML = `
+    <div style="padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+      <div style="color: var(--debit); margin-bottom: 16px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0 0 8px;">App Error</h2>
+      <p style="color: var(--on-dark-soft); margin: 0 0 24px;">${err.message}</p>
+      <button class="btn-primary" onclick="window.location.reload()">Reload App</button>
+    </div>
+  `;
+}); // Re-run init now that we are logged in
     } catch (ex) {
       // Revert transition
       root.innerHTML = oldRootHTML;
@@ -1509,7 +1546,25 @@ if ("serviceWorker" in navigator) {
 }
 
 updateThemeIcons();
-init();
+init().catch(err => {
+  document.getElementById("app-layout").classList.remove("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  const root = document.getElementById("app");
+  root.innerHTML = `
+    <div style="padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+      <div style="color: var(--debit); margin-bottom: 16px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin: 0 0 8px;">App Error</h2>
+      <p style="color: var(--on-dark-soft); margin: 0 0 24px;">${err.message}</p>
+      <button class="btn-primary" onclick="window.location.reload()">Reload App</button>
+    </div>
+  `;
+});
 
 
 window.addEventListener('popstate', (e) => {
