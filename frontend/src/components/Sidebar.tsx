@@ -5,7 +5,7 @@ import type { MembershipResponse } from '../types/api';
 import { PlusCircle, Users } from 'lucide-react';
 
 const fetchGroups = async (): Promise<MembershipResponse[]> => {
-  const { data } = await apiClient.get('/users/me/groups');
+  const { data } = await apiClient.get('users/me/groups');
   return data;
 };
 
@@ -17,28 +17,28 @@ export default function Sidebar() {
   const location = useLocation();
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-[#e5e4e7] flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#08060d] flex items-center gap-2">
-          <Users size={20} className="text-[#C19A5B]" /> Evenly
+    <div className="flex flex-col h-full bg-bg border-r border-line-dark">
+      <div className="p-[24px] pb-[16px] flex items-center justify-between">
+        <h2 className="font-display text-[24px] font-semibold text-ink flex items-center gap-2 m-0">
+          <Users size={24} className="text-brass" /> Evenly
         </h2>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">Your Tabs</div>
+      <div className="flex-1 overflow-y-auto px-[12px] flex flex-col gap-1">
+        <div className="text-[11px] font-semibold text-on-dark-soft uppercase tracking-[0.5px] px-[12px] pt-[8px] pb-[4px]">Your Tabs</div>
         
-        {isLoading && <div className="text-sm text-gray-400">Loading...</div>}
-        {error && <div className="text-sm text-red-500">Failed to load tabs</div>}
+        {isLoading && <div className="text-sm text-on-dark-soft px-[12px]">Loading...</div>}
+        {error && <div className="text-sm text-[#c81e1e] px-[12px]">Failed to load tabs</div>}
         
         <ul className="space-y-1">
           {groups?.map((m) => (
             <li key={m.group.id}>
               <Link
                 to={`/group/${m.group.id}`}
-                className={`block px-3 py-2 rounded-md transition-colors ${
+                className={`block px-[12px] py-[10px] rounded-[10px] transition-colors text-[15px] font-medium ${
                   location.pathname === `/group/${m.group.id}`
-                    ? 'bg-[#C19A5B] text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-bg-soft text-ink border border-line-dark shadow-sm'
+                    : 'text-ink border border-transparent hover:bg-paper-dim'
                 }`}
               >
                 {m.group.name}
@@ -49,9 +49,9 @@ export default function Sidebar() {
 
         <Link
           to="/new"
-          className="mt-4 flex items-center gap-2 px-3 py-2 text-sm text-[#C19A5B] hover:bg-orange-50 rounded-md transition-colors"
+          className="mt-2 flex items-center gap-3 px-[12px] py-[10px] text-[15px] font-medium text-brass hover:bg-highlight rounded-[10px] transition-colors border border-transparent"
         >
-          <PlusCircle size={16} /> New Tab
+          <PlusCircle size={18} /> New Tab
         </Link>
       </div>
     </div>

@@ -16,7 +16,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   const [paidBy, setPaidBy] = useState(group.members[0]?.id || '');
   
   const mutation = useMutation({
-    mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`/groups/${id}/expenses`, newExpense),
+    mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['group', id] });
       queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
@@ -30,31 +30,31 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-semibold">Add an expense</h2>
-          <button onClick={closeAddExpense} className="text-gray-500 hover:bg-gray-100 p-1 rounded-full"><X size={20}/></button>
+      <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md overflow-hidden">
+        <div className="flex justify-between items-center p-5 border-b border-line-dark">
+          <h2 className="font-display text-[20px] font-medium m-0">Add an expense</h2>
+          <button onClick={closeAddExpense} className="text-on-dark-soft hover:bg-paper-dim p-1.5 rounded-full transition-colors"><X size={20}/></button>
         </div>
         
-        <form onSubmit={(e) => { e.preventDefault(); mutation.mutate({ description, amount: parseFloat(amount), paid_by: paidBy, split_type: 'equal' }); }} className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <input type="text" required value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="Dinner at Joe's" />
+        <form onSubmit={(e) => { e.preventDefault(); mutation.mutate({ description, amount: parseFloat(amount), paid_by: paidBy, split_type: 'equal' }); }} className="p-5 space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] text-ink-soft">Description</label>
+            <input type="text" required value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Dinner at Joe's" />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Amount</label>
-            <input type="number" required step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="0.00" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] text-ink-soft">Amount</label>
+            <input type="number" required step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input-field font-mono" placeholder="0.00" />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Paid by</label>
-            <select value={paidBy} onChange={e => setPaidBy(e.target.value)} className="w-full px-3 py-2 border rounded-md">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] text-ink-soft">Paid by</label>
+            <select value={paidBy} onChange={e => setPaidBy(e.target.value)} className="input-field">
               {group.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
           
-          <div className="pt-4 border-t flex justify-end gap-3">
-            <button type="button" onClick={closeAddExpense} className="px-4 py-2 border rounded-md hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="px-4 py-2 bg-[#08060d] text-white rounded-md hover:bg-[#1a1625]">
+          <div className="pt-4 flex justify-end gap-3">
+            <button type="button" onClick={closeAddExpense} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="btn-primary">
               {mutation.isPending ? 'Saving...' : 'Save'}
             </button>
           </div>

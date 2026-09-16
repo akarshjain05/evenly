@@ -28,12 +28,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Let's check schemas. UserLogin is a standard JSON payload. Wait, no.
     // In main.py: `@app.post("/api/auth/login") def login(payload: schemas.UserLogin...)`
     // Yes, it expects a JSON payload according to schemas.UserLogin.
-    const response = await apiClient.post<Token>('/auth/login', data);
+    const response = await apiClient.post<Token>('auth/login', data);
     setToken(response.data.access_token);
   };
 
   const register = async (data: UserCreate) => {
-    const response = await apiClient.post<Token>('/auth/register', data);
+    const response = await apiClient.post<Token>('auth/register', data);
     setToken(response.data.access_token);
   };
 

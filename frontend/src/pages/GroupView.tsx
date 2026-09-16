@@ -1,24 +1,26 @@
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
 import { useUIStore } from '../store/uiStore';
-import { Plus, Handshake } from 'lucide-react';
+import { Plus, Handshake, Trash2 } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
+import SettleUpModal from '../components/modals/SettleUpModal';
 
 const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
-  const { data } = await apiClient.get(`/groups/${id}`);
+  const { data } = await apiClient.get(`groups/${id}`);
   return data;
 };
 
 const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
-  const { data } = await apiClient.get(`/groups/${id}/activity`);
+  const { data } = await apiClient.get(`groups/${id}/activity`);
   return data;
 };
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
   const { openAddExpense, openSettleUp } = useUIStore();
+  const queryClient = useQueryClient();
 
   const { data: group, isLoading: isLoadingGroup } = useQuery({
     queryKey: ['group', id],
@@ -36,12 +38,37 @@ export default function GroupView() {
   if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-20">
       <AddExpenseModal group={group} />
+      <SettleUpModal group={group} />
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#08060d]">{group.name}</h1>
-          <p className="text-gray-500 mt-1">Invite code: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-[#C19A5B]">{group.invite_code}</span></p>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-ink">{group.name}</h1>
+            <button 
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('token');
+                  const res = await fetch(`/api/groups/${id}/export/csv`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (!res.ok) throw new Error('Export failed');
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${group.name.replace(/\s+/g, '_')}_export.csv`;
+                  a.click();
+                } catch(e) {
+                  alert('Export failed');
+                }
+              }}
+              className="text-[12px] font-semibold text-brass hover:text-brass-deep transition-colors border border-brass px-2 py-0.5 rounded-md"
+            >
+              Export CSV
+            </button>
+          </div>
+          <p className="text-sm text-on-dark-soft">Invite Code: <span className="font-mono font-medium text-ink">{group.invite_code}</span></p>
         </div>
         
         <div className="flex gap-3">
@@ -70,7 +97,25 @@ export default function GroupView() {
             {activities?.map((item) => (
               <div key={item.id} className="flex justify-between items-center p-4 bg-white rounded-lg shadow-sm border border-[#e5e4e7]">
                 <div>
-                  <h3 className="font-medium text-[#08060d]">{item.description}</h3>
+                  <div className="flex items-center">
+                    <h3 className="font-medium text-[#08060d]">{item.description}</h3>
+                    {item.type === 'expense' && (
+                      <button 
+                        onClick={() => {
+                          if (window.confirm('Delete this expense?')) {
+                            apiClient.delete(`groups/${id}/expenses/${item.id}`).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ['group', id] });
+                              queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                            });
+                          }
+                        }}
+                        className="text-on-dark-soft hover:text-[#c81e1e] p-1 ml-2 transition-colors"
+                        title="Delete expense"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
                     {item.type === 'expense' ? (
                       <>Paid by <span className="font-medium">{item.paid_by_name}</span></>
