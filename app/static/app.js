@@ -803,7 +803,7 @@ function renderDashboard() {
     });
   }
 
-  document.getElementById("add-fab").onclick = openAddExpenseSheet;
+  document.getElementById("add-fab").onclick = () => openAddExpenseSheet(null);
   document.getElementById("invite-btn").onclick = openInviteSheet;
   document.getElementById("group-switch").onclick = openGroupSwitcher;
 }
