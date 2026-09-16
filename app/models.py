@@ -58,6 +58,7 @@ class Member(Base):
     name = Column(String, nullable=False)
     color = Column(String, default="#B4863A")
     is_admin = Column(Boolean, default=False)
+    balance = Column(Numeric, default=0, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     group = relationship("Group", back_populates="members")

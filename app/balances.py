@@ -12,27 +12,9 @@ from . import models, schemas
 
 
 def compute_net_balances(db: Session, group_id: str) -> Dict[str, Decimal]:
-    """
-    Positive net = this person is owed money overall.
-    Negative net = this person owes money overall.
-    """
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
-    net = {m.id: Decimal('0.0') for m in members}
+    return {m.id: Decimal(str(m.balance)).quantize(Decimal('0.01')) for m in members}
 
-    expenses = db.query(models.Expense).options(selectinload(models.Expense.splits)).filter(models.Expense.group_id == group_id).all()
-    for expense in expenses:
-        net[expense.paid_by] = net.get(expense.paid_by, Decimal('0.0')) + expense.amount
-        for split in expense.splits:
-            net[split.member_id] = net.get(split.member_id, Decimal('0.0')) - split.share_amount
-
-    settlements = db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all()
-    for s in settlements:
-        # from_member paid to_member, so from_member's debt shrinks (net moves up)
-        # and to_member has now been paid back (net moves down).
-        net[s.from_member] = net.get(s.from_member, Decimal('0.0')) + s.amount
-        net[s.to_member] = net.get(s.to_member, Decimal('0.0')) - s.amount
-
-    return {member_id: amount.quantize(Decimal('0.01')) for member_id, amount in net.items()}
 
 
 def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
@@ -118,3 +100,31 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
 
     for split in splits:
         db.add(split)
+
+def apply_expense(db: Session, expense: models.Expense):
+    payer = db.get(models.Member, expense.paid_by)
+    payer.balance = Decimal(str(payer.balance)) + Decimal(str(expense.amount))
+    
+    for split in expense.splits:
+        sm = db.get(models.Member, split.member_id)
+        sm.balance = Decimal(str(sm.balance)) - Decimal(str(split.share_amount))
+
+def revert_expense(db: Session, expense: models.Expense):
+    payer = db.get(models.Member, expense.paid_by)
+    payer.balance = Decimal(str(payer.balance)) - Decimal(str(expense.amount))
+    
+    for split in expense.splits:
+        sm = db.get(models.Member, split.member_id)
+        sm.balance = Decimal(str(sm.balance)) + Decimal(str(split.share_amount))
+
+def apply_settlement(db: Session, settlement: models.Settlement):
+    frm = db.get(models.Member, settlement.from_member)
+    to = db.get(models.Member, settlement.to_member)
+    frm.balance = Decimal(str(frm.balance)) + Decimal(str(settlement.amount))
+    to.balance = Decimal(str(to.balance)) - Decimal(str(settlement.amount))
+
+def revert_settlement(db: Session, settlement: models.Settlement):
+    frm = db.get(models.Member, settlement.from_member)
+    to = db.get(models.Member, settlement.to_member)
+    frm.balance = Decimal(str(frm.balance)) - Decimal(str(settlement.amount))
+    to.balance = Decimal(str(to.balance)) + Decimal(str(settlement.amount))

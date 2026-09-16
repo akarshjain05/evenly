@@ -191,7 +191,8 @@ def add_expense(
     db.flush()
 
     balances.process_expense_splits(db, group_id, expense, payload)
-    
+    db.flush()
+    balances.apply_expense(db, expense)
     db.commit()
     
     # Send push
@@ -217,6 +218,10 @@ def update_expense(
     if not member.is_admin and expense.paid_by != member.id:
         raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can edit this expense")
         
+    # Revert old balance impact
+    db.flush() # ensure old expense object has splits
+    balances.revert_expense(db, expense)
+    
     # Delete old splits
     db.query(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id).delete()
     
@@ -229,6 +234,10 @@ def update_expense(
     
     # Recreate splits
     balances.process_expense_splits(db, group_id, expense, payload)
+    db.flush()
+    
+    # Apply new balance impact
+    balances.apply_expense(db, expense)
     
     db.commit()
     return {"ok": True}
@@ -249,6 +258,7 @@ def delete_expense(
         raise HTTPException(status_code=404, detail="Expense not found")
     if not member.is_admin and expense.paid_by != member.id:
         raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can delete this expense")
+    balances.revert_expense(db, expense)
     db.delete(expense)
     db.commit()
     return {"ok": True}
@@ -269,6 +279,7 @@ def add_settlement(
         group_id=group_id, from_member=payload.from_member, to_member=payload.to_member, amount=payload.amount
     )
     db.add(settlement)
+    balances.apply_settlement(db, settlement)
     db.commit()
     
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
@@ -345,6 +356,7 @@ def delete_settlement(
     if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
         raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can delete this settlement")
         
+    balances.revert_settlement(db, settlement)
     db.delete(settlement)
     db.commit()
     return {"ok": True}
