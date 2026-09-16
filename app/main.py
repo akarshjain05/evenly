@@ -489,15 +489,12 @@ def subscribe_push(
         db.commit()
     return {"ok": True}
 
-def get_vapid_private(db: Session):
-    row = db.execute(text("SELECT value FROM system_config WHERE key='vapid_private'")).fetchone()
-    return row[0] if row else None
 
 def send_web_push(user_ids: list, title: str, body: str):
     from .database import SessionLocal
     db = SessionLocal()
     try:
-        vapid_priv = get_vapid_private(db)
+        vapid_priv = os.environ.get("VAPID_PRIVATE_KEY")
         if not vapid_priv: return
         
         subs = db.query(models.PushSubscription).filter(models.PushSubscription.user_id.in_(user_ids)).all()
@@ -517,9 +514,8 @@ def send_web_push(user_ids: list, title: str, body: str):
         db.close()
 
 @app.get("/api/notifications/vapid-public")
-def get_vapid_public(db: Session = Depends(get_db)):
-    row = db.execute(text("SELECT value FROM system_config WHERE key='vapid_public'")).fetchone()
-    return {"public_key": row[0] if row else None}
+def get_vapid_public():
+    return {"public_key": os.environ.get("VAPID_PUBLIC_KEY")}
 
 @app.get("/api/groups/{group_id}/export/csv")
 def export_csv(
