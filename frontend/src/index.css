@@ -1,6 +1,49 @@
 @import "tailwindcss";
 
-/* 
-  We will port some of the specific styling variables later,
-  but for now Tailwind will handle the bulk of styling.
-*/
+@theme {
+  --font-display: "Fraunces", serif;
+  --font-sans: system-ui, -apple-system, sans-serif;
+
+  --color-bg: #FAF9F6;
+  --color-bg-soft: #FFFFFF;
+  --color-paper: #FFFFFF;
+  --color-paper-dim: #F5F5F5;
+  
+  --color-ink: #111111;
+  --color-ink-soft: #666666;
+  --color-on-dark: #111111;
+  --color-on-dark-soft: #666666;
+  
+  --color-brass: #C19A5B;
+  --color-brass-deep: #A37F45;
+  
+  --color-debit: #C19A5B;
+  --color-credit: #2D6A4F;
+  --color-primary: #1B4332;
+  
+  --color-line-dark: #EAEAEA;
+  --color-line-paper: #D0D0D0;
+}
+
+@layer base {
+  html, body {
+    @apply bg-bg text-on-dark font-sans antialiased;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Base button and input styling to match old styling seamlessly */
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-semibold text-[15px] px-[16px] py-[13px] rounded-[10px] border-none cursor-pointer transition-colors hover:bg-[#112F22];
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent text-ink font-medium text-[14px] px-[14px] py-[11px] rounded-[10px] border border-line-paper cursor-pointer transition-colors hover:bg-gray-50;
+  }
+
+  .input-field {
+    @apply bg-paper-dim border border-line-paper rounded-[10px] px-[13px] py-[12px] text-[16px] text-ink w-full focus:outline-none focus:ring-2 focus:ring-brass-deep;
+  }
+}

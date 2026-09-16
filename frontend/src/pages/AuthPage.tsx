@@ -26,75 +26,98 @@ export default function AuthPage() {
       } else {
         await register({ email, password });
       }
-      navigate('/'); // Redirect to dashboard
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'An error occurred');
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-[#FAF9F6] text-[#08060d]">
-      <div className="mb-8 text-[#C19A5B]">
-        <svg viewBox="0 0 40 40" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+    <div className="flex-1 flex flex-col justify-center min-h-screen px-5 py-6 gap-[22px] max-w-md mx-auto">
+      
+      <div className="text-center text-brass">
+        <svg viewBox="0 0 40 40" className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
           <line x1="10" y1="8" x2="10" y2="32"/><line x1="16" y1="8" x2="16" y2="32"/>
           <line x1="22" y1="8" x2="22" y2="32"/><line x1="28" y1="8" x2="28" y2="32"/>
           <line x1="7" y1="30" x2="31" y2="10"/>
         </svg>
       </div>
-      <h1 className="text-4xl font-semibold mb-2">Evenly</h1>
-      <p className="text-[#6b6375] mb-8">{isLogin ? 'Sign in to your account' : 'Create an account'}</p>
+      
+      <div>
+        <h1 className="font-display text-[30px] font-medium text-center m-0 leading-tight">Evenly</h1>
+        <p className="text-center text-on-dark-soft text-[15px] mt-1 leading-snug">
+          {isLogin ? 'Sign in to your account' : 'Create a free account'}
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white p-6 rounded-lg shadow-md border border-[#e5e4e7]">
-        {error && <div className="mb-4 text-red-500 text-center text-sm">{error}</div>}
+      <div className="flex bg-bg-soft rounded-full p-1 gap-1 mx-auto w-full max-w-[240px] border border-line-dark shadow-sm">
+        <button 
+          type="button"
+          onClick={() => setIsLogin(true)}
+          className={`flex-1 py-2.5 rounded-full text-[14px] font-medium transition-colors ${isLogin ? 'bg-primary text-white' : 'text-on-dark-soft bg-transparent'}`}
+        >
+          Sign In
+        </button>
+        <button 
+          type="button"
+          onClick={() => setIsLogin(false)}
+          className={`flex-1 py-2.5 rounded-full text-[14px] font-medium transition-colors ${!isLogin ? 'bg-primary text-white' : 'text-on-dark-soft bg-transparent'}`}
+        >
+          Register
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-paper text-ink rounded-[14px] p-[22px] flex flex-col gap-[14px] border border-line-dark shadow-sm">
+        {error && <div className="text-[#c81e1e] text-[13px] text-center font-medium">{error}</div>}
         
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="email">Email</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[13px] text-ink-soft" htmlFor="email">Email address</label>
           <input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#C19A5B]"
+            className="input-field"
+            placeholder="you@example.com"
             required
           />
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1" htmlFor="password">Password</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[13px] text-ink-soft" htmlFor="password">Password</label>
           <input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#C19A5B]"
+            className="input-field"
+            placeholder="••••••••"
             required
             minLength={6}
           />
         </div>
 
         {!isLogin && (
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-1" htmlFor="confirm-password">Confirm Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] text-ink-soft" htmlFor="confirm-password">Confirm Password</label>
             <input
               id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#C19A5B]"
+              className="input-field"
+              placeholder="••••••••"
               required
               minLength={6}
             />
           </div>
         )}
 
-        <button type="submit" className="w-full py-2 bg-[#08060d] text-white rounded-md hover:bg-[#1a1625] transition-colors">
-          {isLogin ? 'Sign In' : 'Register'}
+        <button type="submit" className="btn-primary mt-2">
+          {isLogin ? 'Sign In' : 'Create Account'}
         </button>
       </form>
 
-      <button onClick={() => setIsLogin(!isLogin)} className="mt-6 text-sm text-[#6b6375] hover:underline">
-        {isLogin ? 'Need an account? Register' : 'Already have an account? Sign in'}
-      </button>
     </div>
   );
 }
