@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
 import AuthPage from './pages/AuthPage'
 import Layout from './components/Layout'
+import GroupView from './pages/GroupView'
+import NotFoundPage from './pages/NotFoundPage'
 
 function Dashboard() {
   return (
@@ -17,8 +19,9 @@ function App() {
       <Route path="/login" element={<AuthPage />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
-        {/* We will add GroupView and other routes here later */}
+        <Route path="/group/:id" element={<GroupView />} />
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

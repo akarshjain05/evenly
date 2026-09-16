@@ -14,7 +14,7 @@ Say goodbye to ads, per-user subscription fees, and bloated interfaces. Evenly i
 - **Push Notifications:** Real-time Web Push Notifications keep everyone in the loop when expenses are added or settled.
 - **PWA Ready:** Install it on iOS or Android and it runs full-screen, without a browser bar, just like a native app.
 
-Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the frontend (no build step, no framework tooling to fight with).
+Built with **FastAPI + SQLAlchemy** on the backend and **React + TypeScript + Tailwind CSS** on the frontend, ensuring high performance, complete type safety, and an excellent developer experience.
 
 ## How it works, in short
 
@@ -30,52 +30,68 @@ Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the fron
 ```
 evenly/
 ├── alembic/             # Database migrations
-├── app/
-│   ├── main.py          # FastAPI app entrypoint, middleware, and SPA routing
+├── app/                 # FastAPI Backend
+│   ├── main.py          # FastAPI app entrypoint and middleware
 │   ├── routers/         # Modular API endpoints (auth, groups, users, notifications)
 │   ├── database.py      # DB connection (SQLite locally, Postgres in prod)
 │   ├── models.py        # SQLAlchemy tables
 │   ├── schemas.py       # Pydantic request/response validation
 │   ├── auth.py          # Secure JWT auth and password hashing
-│   ├── balances.py      # Core financial engine + debt simplification
-│   └── static/          # The whole frontend (HTML/CSS/JS/PWA files)
+│   └── balances.py      # Core financial engine + debt simplification
+├── frontend/            # React Frontend
+│   ├── src/
+│   │   ├── api/         # Axios API client configured for JWT
+│   │   ├── components/  # Reusable UI components & Modals
+│   │   ├── context/     # React Context for authentication
+│   │   ├── pages/       # Route-level components (GroupView, AuthPage)
+│   │   ├── store/       # Zustand UI state store
+│   │   └── types/       # TypeScript types mirroring FastAPI schemas
+│   ├── vite.config.ts   # Vite configuration including PWA generation
+│   └── package.json
 ├── tests/               # Comprehensive Pytest API suite
-├── requirements.txt
+├── vercel.json          # Monorepo deployment config for Vercel
 ├── .env.example
 └── README.md
 ```
 
 ## Running it locally
 
+Because the frontend and backend are decoupled, you will need two terminal windows.
+
+### 1. Start the Backend (Terminal 1)
 ```bash
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
+The API will run on `http://127.0.0.1:8000`. It creates an `evenly.db` SQLite file next to the app automatically.
 
-Open `http://127.0.0.1:8000`. No database setup needed — it creates a
-`evenly.db` SQLite file next to the app automatically. Delete that file
-any time to wipe all data and start fresh.
+### 2. Start the Frontend (Terminal 2)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The React application will run on `http://localhost:5173`. Open this URL in your browser.
 
 ## Shipping it — Vercel (hosting) + Supabase (database)
 
-This project is configured to deploy instantly on Vercel as a serverless app, backed by a free Supabase Postgres database. Total cost: **$0**.
+This project is configured via `vercel.json` to deploy **both** the React frontend and the FastAPI backend instantly on Vercel as a single monorepo app, backed by a free Supabase Postgres database. Total cost: **$0**.
 
 ### 1. Create a free Postgres database on Supabase
 
-1. Go to supabase.com and sign up (no card needed).
+1. Go to supabase.com and sign up.
 2. Create a new project — any region close to you is fine. Save the database password you create!
-3. Once the project is ready, click **Connect** at the top of the dashboard.
-4. Switch to the **Transaction Mode (Port 6543)** or Connection Pooler string. (Because Vercel is serverless, a connection pooler is required to avoid exhausting database connections).
-5. Copy the `postgresql://` URI and replace `[YOUR-PASSWORD]` with your actual password. Keep this handy for the next step.
+3. Click **Connect** at the top of the dashboard.
+4. Switch to the **Transaction Mode (Port 6543)** or Connection Pooler string.
+5. Copy the `postgresql://` URI and replace `[YOUR-PASSWORD]` with your actual password.
 
 ### 2. Push this folder to GitHub
 
 ```bash
-cd evenly
 git init
 git add .
-git commit -m "Evenly: private expense splitter"
+git commit -m "Evenly: React + FastAPI expense splitter"
 gh repo create evenly --source=. --public --push
 ```
 
@@ -91,15 +107,10 @@ gh repo create evenly --source=. --public --push
    - **`VAPID_PRIVATE_KEY`:** *(run `npx web-push generate-vapid-keys` to generate)*
    - **`VAPID_PUBLIC_KEY`:** *(from the same command)*
    - **`VAPID_CLAIMS_EMAIL`:** `mailto:your-email@example.com`
-   - **`CORS_ORIGINS`:** `https://your-vercel-domain.vercel.app` (comma separated list of allowed origins)
+   - **`CORS_ORIGINS`:** `https://your-vercel-domain.vercel.app`
 6. Click **Deploy**.
 
-Vercel will build and deploy the app in about a minute. You'll get a URL like `https://evenly-xyz.vercel.app` — that's the app, live, for your group.
-
-### What "free" actually means here
-
-- **Vercel Hobby Tier:** Completely free for personal use. Because Vercel is "serverless", your app wakes up instantly (1-2 seconds).
-- **Supabase Free Tier:** A permanent, fully-featured Postgres database with 500MB of storage. It automatically pauses after 1 week of inactivity, and wakes up the moment someone opens your app.
+Vercel will build the React app and deploy the FastAPI backend simultaneously.
 
 ## Inviting your group
 
@@ -109,16 +120,13 @@ link pre-fills the code; the person just signs in to join.
 ## Adding it to a phone home screen
 
 - **iOS (Safari):** open the link → Share icon → *Add to Home Screen*.
-- **Android (Chrome):** open the link → ⋮ menu → *Add to Home screen* /
-  *Install app*.
+- **Android (Chrome):** open the link → ⋮ menu → *Add to Home screen* / *Install app*.
 
-Once installed it opens full-screen, no browser bar, like a normal app.
+Once installed it opens full-screen, no browser bar, like a normal native app thanks to the `vite-plugin-pwa` integration.
 
 ## A few things worth knowing
 
-- **Currency symbol:** hardcoded to ₹ in `app/static/app.js`, in the
-  `fmt()` function near the top. Change the `"₹"` to `"$"` or whatever
-  you need — it's one line.
+- **Currency symbol:** Modify formatting in the frontend components as needed.
 - **Deleting an expense:** For safety, only the tab creator (admin) or the person who paid the expense is allowed to delete it.
-- **Exporting Data:** You can export the entire tab's ledger and history to a CSV file from the Tab Settings menu.
+- **Exporting Data:** You can export the entire tab's ledger and history to a CSV file from the API.
 - **Syncing across devices:** your account identity is securely tied to your email and password. Log in from any phone or computer and your tabs will instantly sync from the cloud.

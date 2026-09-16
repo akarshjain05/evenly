@@ -1,15 +1,14 @@
 {
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
   "builds": [
     {
       "src": "app/main.py",
-      "use": "@vercel/python",
-      "config": {
-        "includeFiles": "app/static/**"
-      }
+      "use": "@vercel/python"
     },
     {
-      "src": "app/static/**",
-      "use": "@vercel/static"
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build"
     }
   ],
   "routes": [
@@ -18,20 +17,11 @@
       "dest": "app/main.py"
     },
     {
-      "src": "/(app\\.js|style\\.css|manifest\\.json|service-worker\\.js)",
-      "dest": "/app/static/$1"
-    },
-    {
-      "src": "/icons/(.*)",
-      "dest": "/app/static/icons/$1"
-    },
-    {
-      "src": "/(group-.*|settings|new)",
-      "dest": "/app/static/index.html"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "app/main.py"
+      "dest": "/index.html"
     }
   ]
 }
