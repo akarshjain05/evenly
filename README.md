@@ -107,6 +107,6 @@ Once installed it opens full-screen, no browser bar, like a normal app.
 - **Currency symbol:** hardcoded to ₹ in `app/static/app.js`, in the
   `fmt()` function near the top. Change the `"₹"` to `"$"` or whatever
   you need — it's one line.
-- **Deleting an expense:** any member can delete any expense (again,
-  built for a trusted group, not strangers).
+- **Deleting an expense:** For safety, only the tab creator (admin) or the person who paid the expense is allowed to delete it.
+- **Exporting Data:** You can export the entire tab's ledger and history to a CSV file from the Tab Settings menu.
 - **Syncing across devices:** your account identity is securely tied to your email and password. Log in from any phone or computer and your tabs will instantly sync from the cloud.
