@@ -649,6 +649,7 @@ function renderDashboard() {
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button class="icon-btn theme-toggle-btn" aria-label="Toggle Theme" style="width:38px; height:38px;"></button>
         <button class="icon-btn" id="invite-btn" aria-label="Invite people">${ICONS.share}</button>
+        <button class="icon-btn" id="group-settings-btn" aria-label="Tab Settings">${ICONS.more}</button>
       </div>
     </div>
 
@@ -920,7 +921,8 @@ async function renderGroupSettings(onClose = null) {
         }
       };
 
-      overlay.querySelector("#group-delete-btn").onclick = async () => {
+      const delBtn = overlay.querySelector("#group-delete-btn");
+      if (delBtn) delBtn.onclick = async () => {
         if (!confirm("Are you sure you want to permanently delete this tab? This cannot be undone.")) return;
         try {
           await api("/groups/" + state.activeGroupId, { method: "DELETE", auth: true });
