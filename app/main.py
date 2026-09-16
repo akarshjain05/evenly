@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,13 @@ import asyncio
 from app.database import Base, engine, get_db, SessionLocal
 from app.routers import auth, users, groups, notifications
 
-app = FastAPI(title="Evenly API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(cleanup_rate_limiter())
+    yield
+    task.cancel()
+
+app = FastAPI(title="Evenly API", lifespan=lifespan)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -36,17 +43,16 @@ PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
 async def cleanup_rate_limiter():
     while True:
         await asyncio.sleep(300)
-        now = time.time()
-        for ip in list(auth.auth_attempts.keys()):
-            valid_attempts = [t for t in auth.auth_attempts[ip] if now - t < 60]
-            if valid_attempts:
-                auth.auth_attempts[ip] = valid_attempts
-            else:
-                del auth.auth_attempts[ip]
-
-@app.on_event("startup")
-async def startup_rate_limiter_cleanup():
-    asyncio.create_task(cleanup_rate_limiter())
+        try:
+            now = time.time()
+            for ip in list(auth.auth_attempts.keys()):
+                valid_attempts = [t for t in auth.auth_attempts[ip] if now - t < 60]
+                if valid_attempts:
+                    auth.auth_attempts[ip] = valid_attempts
+                else:
+                    del auth.auth_attempts[ip]
+        except Exception:
+            logger.error("Rate limiter cleanup failed", exc_info=True)
 
 app.include_router(auth.router)
 app.include_router(users.router)
