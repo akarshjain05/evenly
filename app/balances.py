@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from . import models, schemas
 
 
-def compute_net_balances(db: Session, group_id: str) -> Dict[str, float]:
+def compute_net_balances(db: Session, group_id: str) -> Dict[str, Decimal]:
     """
     Positive net = this person is owed money overall.
     Negative net = this person owes money overall.
@@ -32,10 +32,10 @@ def compute_net_balances(db: Session, group_id: str) -> Dict[str, float]:
         net[s.from_member] = net.get(s.from_member, Decimal('0.0')) + s.amount
         net[s.to_member] = net.get(s.to_member, Decimal('0.0')) - s.amount
 
-    return {member_id: float(round(amount, 2)) for member_id, amount in net.items()}
+    return {member_id: amount.quantize(Decimal('0.01')) for member_id, amount in net.items()}
 
 
-def simplify_debts(net: Dict[str, float]) -> List[dict]:
+def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
     """
     Greedy min-cash-flow settle-up: repeatedly match the biggest creditor
     with the biggest debtor. Not guaranteed to be the mathematical minimum
@@ -60,12 +60,12 @@ def simplify_debts(net: Dict[str, float]) -> List[dict]:
         credit_amt = -neg_credit
         debt_amt = -neg_debt
 
-        pay = round(min(credit_amt, debt_amt), 2)
+        pay = min(credit_amt, debt_amt).quantize(Decimal('0.01'))
         if pay > Decimal('0.01'):
             transactions.append({"from_member": debtor_id, "to_member": creditor_id, "amount": pay})
 
-        remaining_credit = round(credit_amt - pay, 2)
-        remaining_debt = round(debt_amt - pay, 2)
+        remaining_credit = (credit_amt - pay).quantize(Decimal('0.01'))
+        remaining_debt = (debt_amt - pay).quantize(Decimal('0.01'))
 
         if remaining_credit > Decimal('0.01'):
             heapq.heappush(creditors, (-remaining_credit, creditor_id))
@@ -85,11 +85,13 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
         participants = [p for p in (payload.participant_ids or list(valid_ids)) if p in valid_ids]
         if not participants:
             raise HTTPException(status_code=400, detail="Pick at least one person to split with")
-        share = round(payload.amount / len(participants), 2)
-        remainder = round(payload.amount - share * len(participants), 2)
+        total_amt = Decimal(str(payload.amount))
+        num = Decimal(len(participants))
+        share = (total_amt / num).quantize(Decimal('0.01'))
+        remainder = total_amt - (share * num)
         for i, pid in enumerate(participants):
-            amt = share + (remainder if i == 0 else 0)
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=round(amt, 2)))
+            amt = share + (remainder if i == 0 else Decimal('0.00'))
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=amt))
 
     elif payload.split_type == "exact":
         if not payload.splits:
@@ -100,7 +102,7 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
         for s in payload.splits:
             if s.member_id not in valid_ids:
                 raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=round(s.value, 2)))
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=Decimal(str(s.value)).quantize(Decimal('0.01'))))
 
     elif payload.split_type == "percentage":
         if not payload.splits:
@@ -111,7 +113,7 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
         for s in payload.splits:
             if s.member_id not in valid_ids:
                 raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            amt = round(payload.amount * s.value / 100, 2)
+            amt = (Decimal(str(payload.amount)) * Decimal(str(s.value)) / Decimal('100')).quantize(Decimal('0.01'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
 
     for split in splits:

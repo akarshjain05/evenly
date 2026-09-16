@@ -1,3 +1,4 @@
+from decimal import Decimal
 from datetime import datetime
 from typing import List, Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
@@ -31,13 +32,13 @@ class JoinRequest(BaseModel):
 
 class SplitInput(BaseModel):
     member_id: str
-    value: float  # exact: rupees/dollars; percentage: 0-100
+    value: Decimal  # exact: rupees/dollars; percentage: 0-100
 
 
 class ExpenseCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=120)
     category: str = "General"
-    amount: float = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0)
     paid_by: str
     split_type: Literal["equal", "exact", "percentage"] = "equal"
     participant_ids: Optional[List[str]] = None  # used for "equal"
@@ -47,7 +48,7 @@ class ExpenseCreate(BaseModel):
 class SettlementCreate(BaseModel):
     from_member: str
     to_member: str
-    amount: float = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0)
 
 class MemberResponse(BaseModel):
     id: str
@@ -71,12 +72,12 @@ class CreateJoinResponse(BaseModel):
 class SimplifiedDebt(BaseModel):
     from_member: str
     to_member: str
-    amount: float
+    amount: Decimal
     from_name: str
     to_name: str
 
 class MemberBalances(MemberResponse):
-    balance: float
+    balance: Decimal
 
 class GroupDetailResponse(BaseModel):
     id: str
@@ -88,14 +89,14 @@ class GroupDetailResponse(BaseModel):
 class SplitInfo(BaseModel):
     member_id: str
     name: str
-    share_amount: float
+    share_amount: Decimal
 
 class ActivityResponse(BaseModel):
     id: str
     type: str
     category: Optional[str] = None
     description: str
-    amount: float
+    amount: Decimal
     paid_by_name: str
     created_at: datetime
     from_name: Optional[str] = None

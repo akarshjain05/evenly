@@ -71,7 +71,7 @@ def test_auth_and_group_flow():
     assert res.status_code == 200
     transactions = res.json()["simplified_debts"]
     assert len(transactions) == 1
-    assert transactions[0]["amount"] == 15.0
+    assert float(transactions[0]["amount"]) == 15.0
 
 def test_invalid_token():
     res = client.get("/api/users/me/groups", headers={"Authorization": "Bearer invalidtoken"})

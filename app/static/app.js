@@ -694,13 +694,13 @@ function renderDashboard() {
   
   const totalGroupExpenses = state.activity
     .filter(a => a.type === "expense")
-    .reduce((sum, a) => sum + a.amount, 0);
+    .reduce((sum, a) => sum + parseFloat(a.amount), 0);
 
   const myTotalShare = state.activity
     .filter(a => a.type === "expense")
     .reduce((sum, a) => {
       const mySplit = a.splits.find(s => s.member_id === me.member_id);
-      return sum + (mySplit ? mySplit.share_amount : 0);
+      return sum + (mySplit ? parseFloat(mySplit.share_amount) : 0);
     }, 0);
 
   document.getElementById("totals-summary").innerHTML = `
