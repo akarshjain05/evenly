@@ -46,6 +46,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -307,6 +308,9 @@ button:focus-visible {
 
 .sidebar-link:hover {
   background: var(--paper-dim);
+}
+.sidebar-link:active {
+  opacity: 0.7;
 }
 
 .sidebar-link.active {
@@ -928,4 +932,11 @@ button:focus-visible {
   0% { opacity: 0.6; }
   50% { opacity: 0.3; }
   100% { opacity: 0.6; }
+}
+
+/* Natural tap states for mobile */
+.group-hub-card:active,
+.icon-btn:active,
+button:active {
+  opacity: 0.7;
 }
