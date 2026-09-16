@@ -71,7 +71,7 @@ textarea {
 }
 
 .app {
-  max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100dvh;
   display: flex;
@@ -427,6 +427,15 @@ button:focus-visible {
     border-right: 1px solid var(--line-dark);
     background: var(--bg);
   }
+  .app {
+    max-width: 640px;
+  }
+  .sheet {
+    max-width: 520px;
+    border-radius: 20px;
+    margin-bottom: auto;
+    margin-top: auto;
+  }
   body {
     background: var(--bg-soft); /* Outer body white, inner bg gray */
   }
@@ -735,7 +744,6 @@ button:focus-visible {
   background: var(--paper);
   color: var(--ink);
   width: 100%;
-  max-width: 480px;
   margin: 0 auto;
   border-radius: 20px 20px 0 0;
   padding: 20px 20px calc(var(--safe-bottom) + 20px);
