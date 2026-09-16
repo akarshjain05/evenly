@@ -458,7 +458,7 @@ function renderSidebar() {
           <line x1="7" y1="30" x2="31" y2="10"/>
         </svg>
       </div>
-      <h1 class="sidebar-title">evenly</h1>
+      <h1 class="sidebar-title">Evenly</h1>
     </div>
     
     <div class="sidebar-section">Active Groups</div>
