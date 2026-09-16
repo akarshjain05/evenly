@@ -17,14 +17,17 @@ Built with FastAPI + SQLAlchemy on the backend and plain HTML/CSS/JS on the fron
 
 ```
 evenly/
+├── alembic/             # Database migrations
 ├── app/
-│   ├── main.py          # FastAPI routes + serves the frontend
+│   ├── main.py          # FastAPI app entrypoint, middleware, and SPA routing
+│   ├── routers/         # Modular API endpoints (auth, groups, users, notifications)
 │   ├── database.py      # DB connection (SQLite locally, Postgres in prod)
 │   ├── models.py        # SQLAlchemy tables
-│   ├── schemas.py       # Request/response validation
+│   ├── schemas.py       # Pydantic request/response validation
 │   ├── auth.py          # Secure JWT auth and password hashing
-│   ├── balances.py      # Balance math + debt simplification
+│   ├── balances.py      # Core financial engine + debt simplification
 │   └── static/          # The whole frontend (HTML/CSS/JS/PWA files)
+├── tests/               # Comprehensive Pytest API suite
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -69,12 +72,14 @@ gh repo create evenly --source=. --public --push
 1. Go to vercel.com and sign up with your GitHub account.
 2. Click **Add New... > Project** and import your newly pushed `evenly` repository.
 3. Open the **Environment Variables** section.
-4. Add a new variable:
-   - **Key:** `DATABASE_URL`
-   - **Value:** *(your Supabase connection string from Step 1)*
-5. Add a second variable:
-   - **Key:** `JWT_SECRET_KEY`
-   - **Value:** *(any long, random string to secure user sessions)*
+4. Add the following required environment variables:
+   - **`DATABASE_URL`:** *(your Supabase connection string from Step 1)*
+   - **`JWT_SECRET_KEY`:** *(run `openssl rand -hex 32` in a terminal to generate a secure random string)*
+5. (Optional) Add variables to enable Web Push Notifications and secure CORS:
+   - **`VAPID_PRIVATE_KEY`:** *(run `npx web-push generate-vapid-keys` to generate)*
+   - **`VAPID_PUBLIC_KEY`:** *(from the same command)*
+   - **`VAPID_CLAIMS_EMAIL`:** `mailto:your-email@example.com`
+   - **`CORS_ORIGINS`:** `https://your-vercel-domain.vercel.app` (comma separated list of allowed origins)
 6. Click **Deploy**.
 
 Vercel will build and deploy the app in about a minute. You'll get a URL like `https://evenly-xyz.vercel.app` — that's the app, live, for your group.
