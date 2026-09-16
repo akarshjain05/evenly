@@ -14,6 +14,10 @@ from app.database import get_db
 
 router = APIRouter(prefix='/api/users', tags=['users'])
 
+@router.get("/me")
+def get_me(user: models.User = Depends(deps.get_current_user)):
+    return {"id": user.id, "email": user.email}
+
 @router.get("/me/groups", response_model=list[schemas.MembershipResponse])
 def get_my_groups(user: models.User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
     user = db.query(models.User).options(
