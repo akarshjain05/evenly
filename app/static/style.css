@@ -950,3 +950,45 @@ input:-webkit-autofill:active{
     -webkit-text-fill-color: var(--ink) !important;
     transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ---------- Dialogs (Alerts/Confirms) ---------- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 11, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fade-in 0.2s ease-out forwards;
+}
+.dialog {
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+  max-width: 320px;
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transform: scale(0.95);
+  animation: scale-up 0.2s ease-out forwards;
+}
+.dialog-message {
+  margin: 0 0 24px 0;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-wrap;
+}
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+}
+.dialog-actions button {
+  flex: 1;
+  margin: 0;
+}
+@keyframes scale-up {
+  to { transform: scale(1); }
+}

@@ -599,14 +599,14 @@ function renderSettings() {
       toast("Notifications enabled!");
       btn.textContent = "Enabled";
     } catch(e) {
-      alert(e.message);
+      customAlert(e.message);
       document.getElementById("push-toggle-btn").textContent = "Enable";
       document.getElementById("push-toggle-btn").disabled = false;
     }
   };
 
-  document.getElementById("settings-logout-btn").onclick = () => {
-    if (confirm("Are you sure you want to log out?")) {
+  document.getElementById("settings-logout-btn").onclick = async () => {
+    if (await customConfirm("Are you sure you want to log out?")) {
       saveToken(null);
       localStorage.removeItem("evenly_memberships");
       saveActiveGroup(null);
@@ -792,7 +792,7 @@ function renderDashboard() {
         e.stopPropagation();
         const type = btn.dataset.type || "expense";
         const endpoint = type === "settlement" ? "settlements" : "expenses";
-        if (!confirm(`Remove this ${type} from the tab?`)) return;
+        if (!await customConfirm(`Remove this ${type} from the tab?`)) return;
         try {
           await api(`/groups/${g.id}/${endpoint}/${btn.dataset.id}`, { method: "DELETE", auth: true });
           clearGroupCache(g.id);
@@ -891,7 +891,7 @@ function renderGroupSettings(onClose = null) {
         a.click();
         window.URL.revokeObjectURL(url);
       } catch(err) {
-        alert(err.message);
+        customAlert(err.message);
       }
     };
 
@@ -915,13 +915,13 @@ function renderGroupSettings(onClose = null) {
           overlay.remove();
           renderSidebar();
         } catch (err) {
-          alert("Error: " + err.message);
+          customAlert("Error: " + err.message);
         }
       };
 
       const delBtn = overlay.querySelector("#group-delete-btn");
       if (delBtn) delBtn.onclick = async () => {
-        if (!confirm("Are you sure you want to permanently delete this tab? This cannot be undone.")) return;
+        if (!await customConfirm("Are you sure you want to permanently delete this tab? This cannot be undone.")) return;
         try {
           await api("/groups/" + state.activeGroupId, { method: "DELETE", auth: true });
           delete state.memberships[state.activeGroupId];
@@ -936,27 +936,27 @@ function renderGroupSettings(onClose = null) {
           history.pushState(null, "", "/");
           renderHub();
         } catch(err) {
-          alert("Error deleting tab: " + err.message);
+          customAlert("Error deleting tab: " + err.message);
         }
       };
       
       overlay.querySelectorAll(".remove-btn").forEach(btn => {
         btn.onclick = async () => {
-          if (!confirm("Remove this member from the tab?")) return;
+          if (!await customConfirm("Remove this member from the tab?")) return;
           try {
             await api(`/groups/${state.activeGroupId}/members/${btn.dataset.id}`, { method: "DELETE", auth: true });
             overlay.remove();
             clearGroupCache(state.activeGroupId);
             loadDashboard(); // Refresh current UI
           } catch(err) {
-            alert("Error removing member: " + err.message);
+            customAlert("Error removing member: " + err.message);
           }
         };
       });
     }
 
     overlay.querySelector("#group-leave-btn").onclick = async () => {
-      if (!confirm("Are you sure you want to leave this tab?")) return;
+      if (!await customConfirm("Are you sure you want to leave this tab?")) return;
       try {
         await api(`/groups/${state.activeGroupId}/members/${myMemberId}`, { method: "DELETE", auth: true });
         delete state.memberships[state.activeGroupId];
@@ -971,7 +971,7 @@ function renderGroupSettings(onClose = null) {
         history.pushState(null, "", "/");
         renderHub();
       } catch(err) {
-        alert("Error leaving tab: " + err.message);
+        customAlert("Error leaving tab: " + err.message);
       }
     };
   } catch (err) {
@@ -1197,7 +1197,7 @@ function openAddExpenseSheet(expToEdit = null) {
       if (expToEdit) {
     const delBtn = overlay.querySelector("#delete-expense-btn");
     delBtn.onclick = async () => {
-      if (confirm("Delete this expense?")) {
+      if (await customConfirm("Delete this expense?")) {
         delBtn.textContent = "Deleting...";
         delBtn.disabled = true;
         try {
@@ -1206,7 +1206,7 @@ function openAddExpenseSheet(expToEdit = null) {
           overlay.remove();
           loadDashboard();
         } catch (ex) {
-          alert(ex.message);
+          customAlert(ex.message);
           delBtn.disabled = false;
           delBtn.textContent = "Delete Expense";
         }
@@ -1340,8 +1340,8 @@ function openGroupSwitcher() {
     state.activeGroupId = null;
     renderAuth();
   };
-  overlay.querySelector("#logout-btn").onclick = () => {
-    if (confirm("Are you sure you want to log out?")) {
+  overlay.querySelector("#logout-btn").onclick = async () => {
+    if (await customConfirm("Are you sure you want to log out?")) {
       saveToken(null);
       localStorage.removeItem("evenly_memberships");
       saveActiveGroup(null);
