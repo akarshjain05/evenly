@@ -65,6 +65,24 @@ import time
 # Basic in-memory rate limiting (max 10 auth attempts per minute per IP)
 auth_attempts = defaultdict(list)
 
+import asyncio
+
+async def cleanup_rate_limiter():
+    while True:
+        await asyncio.sleep(300)  # Clean up every 5 minutes
+        now = time.time()
+        for ip in list(auth_attempts.keys()):
+            valid_attempts = [t for t in auth_attempts[ip] if now - t < 60]
+            if valid_attempts:
+                auth_attempts[ip] = valid_attempts
+            else:
+                del auth_attempts[ip]
+
+@app.on_event("startup")
+async def startup_rate_limiter_cleanup():
+    asyncio.create_task(cleanup_rate_limiter())
+
+
 def rate_limit_auth(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
