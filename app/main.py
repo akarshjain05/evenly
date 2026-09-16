@@ -61,13 +61,4 @@ app.include_router(notifications.router)
 def health():
     return {"status": "ok"}
 
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
-@app.get("/group-{group_id}", include_in_schema=False)
-@app.get("/settings", include_in_schema=False)
-@app.get("/new", include_in_schema=False)
-def serve_spa():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
-
-if os.path.exists(STATIC_DIR):
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
