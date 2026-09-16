@@ -86,8 +86,8 @@ Vercel will build and deploy the app in about a minute. You'll get a URL like `h
 
 ### What "free" actually means here
 
-- **Vercel Hobby Tier:** Completely free for personal use. Because Vercel is "serverless", your app wakes up instantly (1-2 seconds) rather than taking 60 seconds like traditional free-tier hosts (e.g. Render).
-- **Supabase Free Tier:** A permanent, fully-featured Postgres database with 500MB of storage. It automatically pauses after 1 week of inactivity (unlike Neon's 5 minutes), and wakes up the moment someone opens your app.
+- **Vercel Hobby Tier:** Completely free for personal use. Because Vercel is "serverless", your app wakes up instantly (1-2 seconds).
+- **Supabase Free Tier:** A permanent, fully-featured Postgres database with 500MB of storage. It automatically pauses after 1 week of inactivity, and wakes up the moment someone opens your app.
 
 ## Inviting your group
 
