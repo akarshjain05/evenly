@@ -73,6 +73,7 @@ class Expense(Base):
     amount = Column(Numeric, nullable=False)
     paid_by = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     split_type = Column(SAEnum(SplitType), default=SplitType.equal)
+    category = Column(String, default="General")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("Group", back_populates="expenses")

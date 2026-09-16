@@ -36,6 +36,7 @@ class SplitInput(BaseModel):
 
 class ExpenseCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=120)
+    category: str = "General"
     amount: float = Field(..., gt=0)
     paid_by: str
     split_type: Literal["equal", "exact", "percentage"] = "equal"
@@ -92,6 +93,7 @@ class SplitInfo(BaseModel):
 class ActivityResponse(BaseModel):
     id: str
     type: str
+    category: Optional[str] = None
     description: str
     amount: float
     paid_by_name: str

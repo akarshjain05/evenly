@@ -230,6 +230,7 @@ def get_activity(
                 "type": "expense",
                 "id": e.id,
                 "description": e.description,
+                "category": e.category,
                 "amount": e.amount,
                 "paid_by": e.paid_by,
                 "paid_by_name": name_lookup.get(e.paid_by, "?"),
@@ -274,6 +275,7 @@ def add_expense(
         amount=payload.amount,
         paid_by=payload.paid_by,
         split_type=payload.split_type,
+        category=payload.category,
     )
     db.add(expense)
     db.flush()
@@ -305,6 +307,7 @@ def update_expense(
     expense.description = payload.description
     expense.amount = payload.amount
     expense.paid_by = payload.paid_by
+    expense.category = payload.category
     expense.split_type = payload.split_type
     
     # Recreate splits
@@ -399,5 +402,41 @@ def remove_member(
         raise HTTPException(status_code=400, detail=msg)
         
     db.delete(target)
+    db.commit()
+    return {"ok": True}
+
+
+@app.put("/api/groups/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)
+def update_settlement(
+    group_id: str,
+    settlement_id: str,
+    payload: schemas.SettlementCreate,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db),
+):
+    settlement = db.query(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).first()
+    if not settlement:
+        raise HTTPException(status_code=404, detail="Settlement not found")
+    if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
+        raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can edit this settlement")
+    
+    settlement.amount = payload.amount
+    db.commit()
+    return {"ok": True}
+
+@app.delete("/api/groups/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)
+def delete_settlement(
+    group_id: str,
+    settlement_id: str,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db),
+):
+    settlement = db.query(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).first()
+    if not settlement:
+        raise HTTPException(status_code=404, detail="Settlement not found")
+    if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
+        raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can delete this settlement")
+        
+    db.delete(settlement)
     db.commit()
     return {"ok": True}

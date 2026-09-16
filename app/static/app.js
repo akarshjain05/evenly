@@ -656,49 +656,78 @@ function renderDashboard() {
           <span class="settle-text">${d.from_member === me.member_id ? "You" : escapeHtml(d.from_name)} owe${d.from_member === me.member_id ? "" : "s"}
             ${d.to_member === me.member_id ? "you" : escapeHtml(d.to_name)}
             <span class="amt">${fmt(d.amount)}</span></span>
-          <button class="settle-btn" data-from="${d.from_member}" data-to="${d.to_member}" data-amount="${d.amount}">Mark settled</button>
+          <button class="settle-btn" data-from="${d.from_member}" data-to="${d.to_member}" data-amount="${d.amount}" data-from-name="${escapeHtml(d.from_name)}" data-to-name="${escapeHtml(d.to_name)}">Settle</button>
         </div>`
       )
       .join("");
     settleList.querySelectorAll(".settle-btn").forEach((btn) => {
-      btn.onclick = () => markSettled(btn.dataset.from, btn.dataset.to, parseFloat(btn.dataset.amount));
+      btn.onclick = () => {
+        const debt = {
+          from_member: btn.dataset.from,
+          to_member: btn.dataset.to,
+          amount: parseFloat(btn.dataset.amount),
+          from_name: btn.dataset.fromName,
+          to_name: btn.dataset.toName
+        };
+        renderSettleModal(debt, g.id);
+      };
     });
   }
 
   const ledger = document.getElementById("ledger");
+  const EMOJI_MAP = { "Food": "🍔", "Travel": "✈️", "Housing": "🏠", "Utilities": "💡", "General": "🧾" };
+  
   if (state.activity.length === 0) {
     ledger.innerHTML = `<p class="empty-note">Nothing logged yet — add the first expense.</p>`;
   } else {
     ledger.innerHTML = state.activity
       .map((item) => {
         if (item.type === "settlement") {
+          const canEditSettle = isAdmin || item.from_member === me.member_id || item.to_member === me.member_id;
           return `
             <div class="ledger-row settlement">
               <div class="ledger-main">
-                <p class="ledger-desc">${item.from_member === me.member_id ? "You" : escapeHtml(item.from_name)} paid
-                  ${item.to_member === me.member_id ? "you" : escapeHtml(item.to_name)}</p>
+                <p class="ledger-desc"><span style="margin-right: 8px;">💸</span>${item.from_member === me.member_id ? "You" : escapeHtml(item.from_name)} paid ${item.to_member === me.member_id ? "you" : escapeHtml(item.to_name)}</p>
                 <p class="ledger-meta">${timeAgo(item.created_at)} · settled</p>
               </div>
-              <div class="ledger-amt">${fmt(item.amount)}</div>
+              <div class="ledger-amt">
+                ${fmt(item.amount)}
+                ${canEditSettle ? `<button class="ledger-del" data-type="settlement" data-id="${item.id}" aria-label="Delete">${ICONS.close}</button>` : ''}
+              </div>
             </div>`;
         }
         const names = item.splits.map((s) => (s.member_id === me.member_id ? "you" : s.name)).join(", ");
         const canEdit = isAdmin || item.paid_by === me.member_id;
+        const catEmoji = EMOJI_MAP[item.category] || "🧾";
         return `
-          <div class="ledger-row">
+          <div class="ledger-row" style="cursor: ${canEdit ? 'pointer' : 'default'}" ${canEdit ? `onclick='window.editExpense("${item.id}")'` : ''}>
             <div class="ledger-main">
-              <p class="ledger-desc">${escapeHtml(item.description)}</p>
+              <p class="ledger-desc"><span style="margin-right: 8px;">${catEmoji}</span>${escapeHtml(item.description)}</p>
               <p class="ledger-meta">${item.paid_by_name} paid · split with ${names} · ${timeAgo(item.created_at)}</p>
             </div>
-            <div class="ledger-amt">${fmt(item.amount)}${canEdit ? `<button class="ledger-del" data-id="${item.id}" aria-label="Delete">${ICONS.close}</button>` : ''}</div>
+            <div class="ledger-amt" onclick="event.stopPropagation()">
+              ${fmt(item.amount)}
+              ${canEdit ? `<button class="ledger-del" data-type="expense" data-id="${item.id}" aria-label="Delete">${ICONS.close}</button>` : ''}
+            </div>
           </div>`;
       })
       .join("");
+      
+    // Expose edit handler to global for inline onclick
+    window.editExpense = (id) => {
+      const exp = state.activity.find(a => a.id === id);
+      if (exp) openAddExpenseSheet(exp);
+    };
+
     ledger.querySelectorAll(".ledger-del").forEach((btn) => {
-      btn.onclick = async () => {
-        if (!confirm("Remove this expense from the tab?")) return;
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const type = btn.dataset.type || "expense";
+        const endpoint = type === "settlement" ? "settlements" : "expenses";
+        if (!confirm(`Remove this ${type} from the tab?`)) return;
         try {
-          await api(`/groups/${g.id}/expenses/${btn.dataset.id}`, { method: "DELETE", auth: true });
+          await api(`/groups/${g.id}/${endpoint}/${btn.dataset.id}`, { method: "DELETE", auth: true });
+          clearGroupCache(g.id);
           loadDashboard();
         } catch (ex) {
           toast(ex.message);
@@ -826,6 +855,16 @@ function openAddExpenseSheet(expToEdit = null) {
         <div class="field">
           <label for="e-desc">What was it for</label>
           <input id="e-desc" placeholder="Groceries, cab, movie tickets…" required maxlength="120" value="${expToEdit ? escapeHtml(expToEdit.description) : ''}" />
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select id="e-category" style="width: 100%; background: var(--bg-soft); border: 1px solid var(--line-paper); border-radius: 10px; padding: 12px 13px; font-size: 16px; color: var(--ink);">
+            <option value="General">General</option>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Housing">Housing</option>
+            <option value="Utilities">Utilities</option>
+          </select>
         </div>
         <div class="field">
           <label for="e-amount">Amount</label>
@@ -1368,3 +1407,46 @@ document.addEventListener('click', (e) => {
     toggleTheme();
   }
 });
+
+function renderSettleModal(debt, groupId) {
+  const overlay = document.createElement("div");
+  overlay.className = "sheet-overlay";
+  overlay.innerHTML = `
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 style="margin-top:0; margin-bottom: 8px; font-family: var(--font-display); font-size: 20px;">Settle Up</h3>
+      <p style="margin-top:0; margin-bottom: 24px; color: var(--ink-soft); font-size: 15px;">
+        ${debt.from_name} paying ${debt.to_name}
+      </p>
+      <form id="settle-form">
+        <div class="field">
+          <label>Amount paid</label>
+          <input type="number" id="s-amount" step="0.01" min="0.01" value="${debt.amount}" required style="font-size: 24px; font-family: var(--font-display); font-weight: 600;" />
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top: 10px; margin-bottom: 24px; width: 100%;">Record Payment</button>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+  
+  overlay.querySelector("#settle-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const amt = parseFloat(document.getElementById("s-amount").value);
+    if (isNaN(amt) || amt <= 0) return;
+    try {
+       await api(`/groups/${groupId}/settlements`, {
+          method: "POST", auth: true,
+          body: { from_member: debt.from_member, to_member: debt.to_member, amount: amt }
+       });
+       overlay.remove();
+       clearGroupCache(groupId);
+       loadDashboard();
+    } catch(err) {
+       toast(err.message);
+    }
+  };
+}
