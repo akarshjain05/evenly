@@ -569,7 +569,9 @@ function renderDashboard() {
   renderSidebar();
   const g = state.group;
   const me = state.memberships[g.id];
-  const myBalance = (g.members.find((m) => m.id === me.member_id) || {}).balance || 0;
+  const myMemberInfo = g.members.find((m) => m.id === me.member_id) || {};
+  const myBalance = myMemberInfo.balance || 0;
+  const isAdmin = myMemberInfo.is_admin || false;
   const heroClass = myBalance > 0.01 ? "credit" : myBalance < -0.01 ? "debit" : "even";
   const heroLabel = myBalance > 0.01 ? "you're owed, overall" : myBalance < -0.01 ? "you owe, overall" : "you're all settled up";
   const multiGroup = Object.keys(state.memberships).length > 1;
@@ -681,13 +683,14 @@ function renderDashboard() {
             </div>`;
         }
         const names = item.splits.map((s) => (s.member_id === me.member_id ? "you" : s.name)).join(", ");
+        const canEdit = isAdmin || item.paid_by === me.member_id;
         return `
           <div class="ledger-row">
             <div class="ledger-main">
               <p class="ledger-desc">${escapeHtml(item.description)}</p>
               <p class="ledger-meta">${item.paid_by_name} paid · split with ${names} · ${timeAgo(item.created_at)}</p>
             </div>
-            <div class="ledger-amt">${fmt(item.amount)}<button class="ledger-del" data-id="${item.id}" aria-label="Delete">${ICONS.close}</button></div>
+            <div class="ledger-amt">${fmt(item.amount)}${canEdit ? `<button class="ledger-del" data-id="${item.id}" aria-label="Delete">${ICONS.close}</button>` : ''}</div>
           </div>`;
       })
       .join("");

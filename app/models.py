@@ -3,7 +3,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Boolean, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -57,6 +57,7 @@ class Member(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String, nullable=False)
     color = Column(String, default="#B4863A")
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("Group", back_populates="members")

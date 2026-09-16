@@ -117,7 +117,7 @@ def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.
             db.add(group)
             db.flush()
 
-            member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color())
+            member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(), is_admin=True)
             db.add(member)
             db.commit()
             db.refresh(group)
@@ -185,6 +185,8 @@ def get_group(group_id: str, member: models.Member = Depends(deps.get_current_me
 
 @app.put("/api/groups/{group_id}", response_model=schemas.BasicResponse)
 def update_group(group_id: str, payload: schemas.GroupUpdate, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
+    if not member.is_admin:
+        raise HTTPException(status_code=403, detail="Only the tab creator can edit tab settings")
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
@@ -194,6 +196,8 @@ def update_group(group_id: str, payload: schemas.GroupUpdate, member: models.Mem
 
 @app.delete("/api/groups/{group_id}", response_model=schemas.BasicResponse)
 def delete_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: Session = Depends(get_db)):
+    if not member.is_admin:
+        raise HTTPException(status_code=403, detail="Only the tab creator can delete this tab")
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
@@ -291,6 +295,8 @@ def update_expense(
     expense = db.query(models.Expense).filter(models.Expense.id == expense_id, models.Expense.group_id == group_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
+    if not member.is_admin and expense.paid_by != member.id:
+        raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can edit this expense")
         
     # Delete old splits
     db.query(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id).delete()
@@ -321,6 +327,8 @@ def delete_expense(
     )
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
+    if not member.is_admin and expense.paid_by != member.id:
+        raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can delete this expense")
     db.delete(expense)
     db.commit()
     return {"ok": True}
@@ -366,3 +374,30 @@ def serve_spa():
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(STATIC_DIR):
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+@app.delete("/api/groups/{group_id}/members/{target_member_id}", response_model=schemas.BasicResponse)
+def remove_member(
+    group_id: str,
+    target_member_id: str,
+    member: models.Member = Depends(deps.get_current_member),
+    db: Session = Depends(get_db),
+):
+    # Check permissions
+    if member.id != target_member_id and not member.is_admin:
+        raise HTTPException(status_code=403, detail="You do not have permission to remove this member")
+    
+    target = db.query(models.Member).filter(models.Member.id == target_member_id, models.Member.group_id == group_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Member not found")
+        
+    # Check balances
+    net = balances.compute_net_balances(db, group_id)
+    target_balance = net.get(target_member_id, 0.0)
+    
+    if abs(target_balance) > 0.01:
+        msg = "You cannot leave the tab with an unsettled balance" if member.id == target_member_id else "Cannot remove member with an unsettled balance"
+        raise HTTPException(status_code=400, detail=msg)
+        
+    db.delete(target)
+    db.commit()
+    return {"ok": True}
