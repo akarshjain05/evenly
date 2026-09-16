@@ -568,8 +568,9 @@ function renderSettings() {
       btn.disabled = true;
 
       const reg = await navigator.serviceWorker.ready;
-      const vapidRes = await fetch("/api/notifications/vapid-public");
+      const vapidRes = await fetch("/api/notifications/vapid-public", { headers: { "Authorization": "Bearer " + state.token } });
       const vapidData = await vapidRes.json();
+      if (!vapidRes.ok || !vapidData.public_key) throw new Error("Failed to load Push Notification keys from server.");
       
       function urlBase64ToUint8Array(base64String) {
         const padding = "=".repeat((4 - base64String.length % 4) % 4);

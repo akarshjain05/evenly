@@ -32,7 +32,16 @@ from .database import Base, engine, get_db, SessionLocal
 app = FastAPI(title="Evenly API")
 
 from sqlalchemy import text
-@app.on_event("startup")
+_schema_setup_done = False
+
+@app.middleware("http")
+async def db_schema_middleware(request: Request, call_next):
+    global _schema_setup_done
+    if not _schema_setup_done:
+        setup_database_schema()
+        _schema_setup_done = True
+    return await call_next(request)
+
 def setup_database_schema():
     db = SessionLocal()
     try:
