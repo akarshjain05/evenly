@@ -115,29 +115,35 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
         db.add(split)
 
 def apply_expense(db: Session, expense: models.Expense):
-    payer = db.get(models.Member, expense.paid_by)
-    payer.balance = Decimal(str(payer.balance)) + Decimal(str(expense.amount))
-    
+    db.query(models.Member).filter(models.Member.id == expense.paid_by).update(
+        {models.Member.balance: models.Member.balance + expense.amount}
+    )
     for split in expense.splits:
-        sm = db.get(models.Member, split.member_id)
-        sm.balance = Decimal(str(sm.balance)) - Decimal(str(split.share_amount))
+        db.query(models.Member).filter(models.Member.id == split.member_id).update(
+            {models.Member.balance: models.Member.balance - split.share_amount}
+        )
 
 def revert_expense(db: Session, expense: models.Expense):
-    payer = db.get(models.Member, expense.paid_by)
-    payer.balance = Decimal(str(payer.balance)) - Decimal(str(expense.amount))
-    
+    db.query(models.Member).filter(models.Member.id == expense.paid_by).update(
+        {models.Member.balance: models.Member.balance - expense.amount}
+    )
     for split in expense.splits:
-        sm = db.get(models.Member, split.member_id)
-        sm.balance = Decimal(str(sm.balance)) + Decimal(str(split.share_amount))
+        db.query(models.Member).filter(models.Member.id == split.member_id).update(
+            {models.Member.balance: models.Member.balance + split.share_amount}
+        )
 
 def apply_settlement(db: Session, settlement: models.Settlement):
-    frm = db.get(models.Member, settlement.from_member)
-    to = db.get(models.Member, settlement.to_member)
-    frm.balance = Decimal(str(frm.balance)) + Decimal(str(settlement.amount))
-    to.balance = Decimal(str(to.balance)) - Decimal(str(settlement.amount))
+    db.query(models.Member).filter(models.Member.id == settlement.from_member).update(
+        {models.Member.balance: models.Member.balance + settlement.amount}
+    )
+    db.query(models.Member).filter(models.Member.id == settlement.to_member).update(
+        {models.Member.balance: models.Member.balance - settlement.amount}
+    )
 
 def revert_settlement(db: Session, settlement: models.Settlement):
-    frm = db.get(models.Member, settlement.from_member)
-    to = db.get(models.Member, settlement.to_member)
-    frm.balance = Decimal(str(frm.balance)) - Decimal(str(settlement.amount))
-    to.balance = Decimal(str(to.balance)) + Decimal(str(settlement.amount))
+    db.query(models.Member).filter(models.Member.id == settlement.from_member).update(
+        {models.Member.balance: models.Member.balance - settlement.amount}
+    )
+    db.query(models.Member).filter(models.Member.id == settlement.to_member).update(
+        {models.Member.balance: models.Member.balance + settlement.amount}
+    )
