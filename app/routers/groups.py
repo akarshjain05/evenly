@@ -50,9 +50,22 @@ async def update_group(group_id: str, payload: schemas.GroupUpdate, member: mode
 async def delete_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: AsyncSession = Depends(get_db)):
     if not member.is_admin:
         raise HTTPException(status_code=403, detail="Only tab creators can delete the tab")
-    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
-    group = result.scalars().first()
-    await db.delete(group)
+    
+    from sqlalchemy import delete
+    
+    # 1. Delete all expense splits associated with the group's expenses
+    expense_ids_res = await db.execute(select(models.Expense.id).filter(models.Expense.group_id == group_id))
+    expense_ids = expense_ids_res.scalars().all()
+    if expense_ids:
+        await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id.in_(expense_ids)))
+        
+    # 2. Delete all expenses, settlements, and members
+    await db.execute(delete(models.Expense).filter(models.Expense.group_id == group_id))
+    await db.execute(delete(models.Settlement).filter(models.Settlement.group_id == group_id))
+    await db.execute(delete(models.Member).filter(models.Member.group_id == group_id))
+    
+    # 3. Finally delete the group itself
+    await db.execute(delete(models.Group).filter(models.Group.id == group_id))
     await db.commit()
     return {"ok": True}
 
