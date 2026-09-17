@@ -9,15 +9,18 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     if (!isLogin && password !== confirmPassword) {
       setError('Passwords do not match');
+      setIsLoading(false);
       return;
     }
 
@@ -30,6 +33,7 @@ export default function AuthPage() {
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'An error occurred');
+      setIsLoading(false);
     }
   };
 
@@ -132,8 +136,8 @@ export default function AuthPage() {
           </div>
         )}
 
-        <button type="submit" className="btn-primary mt-2">
-          {isLogin ? 'Sign In' : 'Create Account'}
+        <button type="submit" disabled={isLoading} className="btn-primary mt-2">
+          {isLoading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
         </button>
       </form>
 
