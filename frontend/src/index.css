@@ -27,18 +27,18 @@
 
 @layer base {
   html.dark {
-    --color-bg: #121212;
-    --color-bg-soft: #1E1E1E;
-    --color-paper: #242424;
-    --color-paper-dim: #2C2C2C;
+    --color-bg: #1C2723;
+    --color-bg-soft: #27352E;
+    --color-paper: #222F2B;
+    --color-paper-dim: #1C2723;
     
-    --color-ink: #F0F0F0;
-    --color-ink-soft: #A0A0A0;
-    --color-on-dark: #F0F0F0;
-    --color-on-dark-soft: #A0A0A0;
+    --color-ink: #F0EBD9;
+    --color-ink-soft: #A6ACA0;
+    --color-on-dark: #F0EBD9;
+    --color-on-dark-soft: #A6ACA0;
     
-    --color-line-dark: #333333;
-    --color-line-paper: #444444;
+    --color-line-dark: #314238;
+    --color-line-paper: #314238;
   }
 
   html, body {
