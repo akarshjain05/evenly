@@ -57,42 +57,6 @@ app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(notifications.router)
 
-from sqlalchemy.orm import Session
-from fastapi import Depends
-
-@app.get("/api/migrate")
-def migrate_db(db: Session = Depends(get_db)):
-    try:
-        from sqlalchemy import text
-        # Add is_admin to members
-        try:
-            db.execute(text("ALTER TABLE members ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;"))
-        except Exception as e:
-            logger.info(f"is_admin already exists or error: {e}")
-            db.rollback()
-            
-        # Add balance to members
-        try:
-            db.execute(text("ALTER TABLE members ADD COLUMN balance NUMERIC DEFAULT 0 NOT NULL;"))
-        except Exception as e:
-            logger.info(f"balance already exists or error: {e}")
-            db.rollback()
-            
-        # Alter Float to Numeric (this is actually usually fine if left as float in PG, but we can try)
-        try:
-            db.execute(text("ALTER TABLE expenses ALTER COLUMN amount TYPE NUMERIC;"))
-            db.execute(text("ALTER TABLE expense_splits ALTER COLUMN share_amount TYPE NUMERIC;"))
-            db.execute(text("ALTER TABLE settlements ALTER COLUMN amount TYPE NUMERIC;"))
-        except Exception as e:
-            logger.info(f"numeric cast error: {e}")
-            db.rollback()
-
-        db.commit()
-        return {"status": "migrated"}
-    except Exception as e:
-        db.rollback()
-        return {"error": str(e)}
-
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
