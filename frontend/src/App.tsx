@@ -16,11 +16,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const isLoggedIn = localStorage.getItem('is_logged_in') === 'true';
+  if (isLoggedIn) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <>
       <Routes>
-      <Route path="/login" element={<AuthPage />} />
+      <Route path="/login" element={<PublicRoute><AuthPage /></PublicRoute>} />
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/new" element={<Dashboard />} />
