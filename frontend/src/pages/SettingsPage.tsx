@@ -48,7 +48,19 @@ export default function SettingsPage() {
     }
 
     if (isNotificationsEnabled) {
-      showAlert('Info', 'Notifications are already enabled. You can disable them in your browser settings.');
+      setIsSubscribing(true);
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+        }
+        setIsNotificationsEnabled(false);
+      } catch (err: any) {
+        showAlert('Error', 'Failed to disable notifications: ' + err.message);
+      } finally {
+        setIsSubscribing(false);
+      }
       return;
     }
 
@@ -123,14 +135,10 @@ export default function SettingsPage() {
             </div>
             <button 
               onClick={toggleNotifications}
-              disabled={isSubscribing || isNotificationsEnabled}
-              className={`px-4 py-2 text-[14px] font-medium rounded-xl transition-colors cursor-pointer border-none ${
-                isNotificationsEnabled 
-                  ? 'bg-bg text-primary border border-line-dark' 
-                  : 'bg-primary text-white hover:bg-[#112F22]'
-              }`}
+              disabled={isSubscribing}
+              className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer border-none ${isNotificationsEnabled ? 'bg-primary' : 'bg-[#D0D0D0]'}`}
             >
-              {isSubscribing ? 'Enabling...' : isNotificationsEnabled ? 'Enabled' : 'Enable'}
+              <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isNotificationsEnabled ? 'translate-x-6' : ''}`} />
             </button>
           </div>
 
