@@ -19,7 +19,7 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     db.add(group)
     await db.flush()
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(), is_admin=True)
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(), is_admin=True)
     db.add(member)
     await db.commit()
     await db.refresh(group)
@@ -36,7 +36,7 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="You are already in this tab")
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(), is_admin=False)
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(), is_admin=False)
     db.add(member)
     await db.commit()
     await db.refresh(group)
@@ -50,6 +50,15 @@ async def get_group_details(group_id: str, db: AsyncSession):
         raise HTTPException(status_code=404, detail="Tab not found")
     
     net = await balances.compute_net_balances(db, group_id)
+
+
+    members_dict = {m.id: m.name for m in group.members}
+    debts = balances.simplify_debts(net)
+    for d in debts:
+        d["from_name"] = members_dict.get(d["from_member"], "Unknown")
+        d["to_name"] = members_dict.get(d["to_member"], "Unknown")
+
+        
     return {
         "id": group.id,
         "name": group.name,
@@ -59,7 +68,7 @@ async def get_group_details(group_id: str, db: AsyncSession):
             {"id": m.id, "name": m.name, "color": m.color, "is_admin": m.is_admin, "balance": net.get(m.id, Decimal(0))}
             for m in group.members
         ],
-        "debts": balances.simplify_debts(net)
+        "simplified_debts": debts
     }
 
 

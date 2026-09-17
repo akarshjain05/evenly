@@ -104,6 +104,7 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
             else:
                 splits[0].share_amount += remainder
 
+    await db.flush()
     for split in splits:
         db.add(split)
 
@@ -111,13 +112,19 @@ async def apply_expense(db: AsyncSession, expense: models.Expense):
     from sqlalchemy import update
     await db.execute(select(models.Member).filter(models.Member.id == expense.paid_by).with_for_update())
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
-    for split in expense.splits:
+    result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
+    splits = result.scalars().all()
+    await db.flush()
+    for split in splits:
         await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance - split.share_amount))
 
 async def revert_expense(db: AsyncSession, expense: models.Expense):
     from sqlalchemy import update
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance - expense.amount))
-    for split in expense.splits:
+    result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
+    splits = result.scalars().all()
+    await db.flush()
+    for split in splits:
         await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance + split.share_amount))
 
 async def apply_settlement(db: AsyncSession, settlement: models.Settlement):
