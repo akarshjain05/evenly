@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
 import { useUIStore } from '../store/uiStore';
-import { Plus, Handshake, Trash2, Share2, MoreVertical, Moon, Sun } from 'lucide-react';
+import { Plus, Handshake, Trash2, Pencil, Share2, MoreVertical, Moon, Sun } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
+import EditExpenseModal from '../components/modals/EditExpenseModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import { GroupViewSkeleton } from '../components/Skeleton';
 
@@ -27,6 +28,7 @@ export default function GroupView() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -63,6 +65,13 @@ export default function GroupView() {
     <div className="max-w-4xl mx-auto pb-20">
       <AddExpenseModal group={group} />
       <SettleUpModal group={group} />
+      {editingExpense && (
+        <EditExpenseModal
+          expense={editingExpense}
+          group={group}
+          onClose={() => setEditingExpense(null)}
+        />
+      )}
       
       {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
@@ -228,19 +237,36 @@ export default function GroupView() {
                     </p>
                     
                     {item.type === 'expense' && (
-                      <button 
-                        onClick={async () => {
-                          if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
-                            apiClient.delete(`groups/${id}/expenses/${item.id}`).then(() => {
-                              queryClient.invalidateQueries({ queryKey: ['group', id] });
-                              queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                            });
-                          }
-                        }}
-                        className="text-ink-soft hover:text-danger mt-1 transition-colors text-[12px] flex items-center gap-1"
-                      >
-                        <Trash2 size={14} /> Delete
-                      </button>
+                      <div className="flex items-center gap-3 mt-1">
+                        <button
+                          onClick={() => setEditingExpense(item)}
+                          className="text-ink-soft hover:text-primary transition-colors text-[12px] flex items-center gap-1"
+                        >
+                          <Pencil size={13} /> Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
+                              // Optimistic delete
+                              queryClient.setQueryData(['group-activity', id], (old: any) =>
+                                old?.filter((a: ActivityResponse) => a.id !== item.id)
+                              );
+                              apiClient.delete(`groups/${id}/expenses/${item.id}`)
+                                .then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['group', id] });
+                                  queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                })
+                                .catch(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                  showAlert('Error', 'Failed to delete expense.');
+                                });
+                            }
+                          }}
+                          className="text-ink-soft hover:text-danger transition-colors text-[12px] flex items-center gap-1"
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
