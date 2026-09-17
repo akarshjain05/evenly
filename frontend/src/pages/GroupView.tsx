@@ -213,7 +213,7 @@ export default function GroupView() {
                     <div className="flex justify-between">
                       <h3 className="font-medium text-ink m-0">{item.description}</h3>
                       <div className={`font-semibold ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
-                        ${Number(item.amount).toFixed(2)}
+                        ₹{Number(item.amount).toFixed(2)}
                       </div>
                     </div>
                     <p className="text-sm text-ink-soft m-0 flex justify-between">
@@ -277,7 +277,7 @@ export default function GroupView() {
                     <span>
                       <span className="font-semibold text-ink">{debt.from_name}</span> owes <span className="font-semibold text-ink">{debt.to_name}</span>
                     </span>
-                    <span className="font-semibold text-ink">${Number(debt.amount).toFixed(2)}</span>
+                    <span className="font-semibold text-ink">₹{Number(debt.amount).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
