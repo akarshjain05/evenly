@@ -17,3 +17,16 @@ async def kill_idle(db: AsyncSession = Depends(get_db)):
     await db.execute(query)
     await db.commit()
     return {"status": "killed"}
+
+@router.get("/migrate")
+async def migrate_db(db: AsyncSession = Depends(get_db)):
+    try:
+        await db.execute(text("ALTER TABLE expenses ADD COLUMN created_by_user_id VARCHAR REFERENCES users(id);"))
+    except Exception as e:
+        print(e)
+    try:
+        await db.execute(text("ALTER TABLE settlements ADD COLUMN created_by_user_id VARCHAR REFERENCES users(id);"))
+    except Exception as e:
+        print(e)
+    await db.commit()
+    return {"status": "migrated"}
