@@ -16,7 +16,6 @@ export default function Dashboard() {
   const [isJoin, setIsJoin] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [yourName, setYourName] = useState('');
   const [error, setError] = useState('');
   
   const queryClient = useQueryClient();
@@ -30,9 +29,9 @@ export default function Dashboard() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (isJoin) {
-        return apiClient.post(`groups/by-code/${encodeURIComponent(inviteCode)}/join`, { name: yourName });
+        return apiClient.post(`groups/by-code/${encodeURIComponent(inviteCode)}/join`, {});
       } else {
-        return apiClient.post(`groups`, { name: groupName, your_name: yourName });
+        return apiClient.post(`groups`, { name: groupName });
       }
     },
     onSuccess: (res) => {
@@ -132,11 +131,6 @@ export default function Dashboard() {
                   <input type="text" required value={inviteCode} onChange={e => setInviteCode(e.target.value)} className="input-field uppercase" placeholder="ABCDEF" />
                 </div>
               )}
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-ink-soft">Your Name</label>
-                <input type="text" required value={yourName} onChange={e => setYourName(e.target.value)} className="input-field" placeholder="Alice" />
-              </div>
 
               <button type="submit" disabled={mutation.isPending} className="btn-primary mt-2">
                 {mutation.isPending ? 'Processing...' : (isJoin ? 'Join Tab' : 'Create Tab')}

@@ -19,7 +19,10 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     db.add(group)
     await db.flush()
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(), is_admin=True)
+    member_name = payload.your_name or user.name or user.email.split('@')[0]
+    member_name = member_name.capitalize()
+
+    member = models.Member(group_id=group.id, user_id=user.id, name=member_name, color=pick_color(), is_admin=True)
     db.add(member)
     await db.commit()
     await db.refresh(group)
@@ -36,7 +39,10 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="You are already in this tab")
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(), is_admin=False)
+    member_name = payload.name or user.name or user.email.split('@')[0]
+    member_name = member_name.capitalize()
+
+    member = models.Member(group_id=group.id, user_id=user.id, name=member_name, color=pick_color(), is_admin=False)
     db.add(member)
     await db.commit()
     await db.refresh(group)

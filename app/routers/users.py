@@ -10,7 +10,7 @@ router = APIRouter(prefix='/api/users', tags=['users'])
 
 @router.get("/me")
 async def get_me(user: models.User = Depends(deps.get_current_user)):
-    return {"id": user.id, "email": user.email}
+    return {"id": user.id, "email": user.email, "name": user.name}
 
 @router.get("/me/groups", response_model=list[schemas.MembershipResponse])
 async def get_my_groups(user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):

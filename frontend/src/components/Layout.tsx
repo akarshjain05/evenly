@@ -29,9 +29,8 @@ export default function Layout() {
     return <Navigate to="/login" replace />;
   }
 
-  // Derive initials and name from email if no name is available globally
-  const emailName = user?.email ? user.email.split('@')[0] : 'User';
-  const displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+  // Use explicitly provided name, or derive from email
+  const displayName = user?.name ? user.name : (user?.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : 'User');
   const initials = displayName.substring(0, 2).toUpperCase();
 
   return (

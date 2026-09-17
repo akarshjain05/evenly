@@ -15,7 +15,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = auth.get_password_hash(payload.password)
-    user = models.User(email=payload.email, password_hash=hashed_password)
+    user = models.User(email=payload.email, name=payload.name, password_hash=hashed_password)
     db.add(user)
     await db.commit()
     await db.refresh(user)

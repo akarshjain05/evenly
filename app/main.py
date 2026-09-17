@@ -97,6 +97,23 @@ async def migrate2_db(db: AsyncSession = Depends(get_db)):
         await db.rollback()
         return {"error": str(e)}
 
+@app.get("/api/migrate3")
+async def migrate3_db(db: AsyncSession = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        # Add name to users table
+        try:
+            await db.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR;"))
+        except Exception as e:
+            logger.info(f"name already exists or error: {e}")
+            await db.rollback()
+
+        await db.commit()
+        return {"status": "migrated3"}
+    except Exception as e:
+        await db.rollback()
+        return {"error": str(e)}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

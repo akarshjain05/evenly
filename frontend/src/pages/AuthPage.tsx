@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ export default function AuthPage() {
       if (isLogin) {
         await login({ email, password });
       } else {
-        await register({ email, password });
+        await register({ email, name, password });
       }
       navigate(from, { replace: true });
     } catch (err: any) {
@@ -65,6 +66,7 @@ export default function AuthPage() {
             if (!isLogin) {
               setIsLogin(true);
               setEmail('');
+              setName('');
               setPassword('');
               setConfirmPassword('');
               setError('');
@@ -80,6 +82,7 @@ export default function AuthPage() {
             if (isLogin) {
               setIsLogin(false);
               setEmail('');
+              setName('');
               setPassword('');
               setConfirmPassword('');
               setError('');
@@ -93,6 +96,21 @@ export default function AuthPage() {
 
       <form onSubmit={handleSubmit} className="bg-paper text-ink rounded-[14px] p-[22px] flex flex-col gap-[14px] border border-line-dark shadow-sm">
         {error && <div className="text-[#c81e1e] text-[13px] text-center font-medium">{error}</div>}
+        
+        {!isLogin && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] text-ink-soft" htmlFor="name">Your Name</label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input-field"
+              placeholder="Alice"
+              required={!isLogin}
+            />
+          </div>
+        )}
         
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] text-ink-soft" htmlFor="email">Email address</label>
