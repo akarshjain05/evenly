@@ -62,3 +62,13 @@
     @apply bg-paper-dim border border-line-paper rounded-[10px] px-[13px] py-[12px] text-[16px] text-ink w-full focus:outline-none focus:ring-2 focus:ring-brass-deep;
   }
 }
+
+/* Fix WebKit autofill white background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 50px var(--color-paper-dim) inset !important;
+    -webkit-text-fill-color: var(--color-ink) !important;
+    caret-color: var(--color-ink) !important;
+}
