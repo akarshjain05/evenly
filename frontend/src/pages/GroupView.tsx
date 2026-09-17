@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
@@ -21,6 +21,7 @@ const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { openAddExpense, openSettleUp, showAlert, showConfirm, showPrompt } = useUIStore();
   const queryClient = useQueryClient();
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -142,6 +143,24 @@ export default function GroupView() {
                 className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors"
               >
                 Export to CSV
+              </button>
+              <button
+                onClick={async () => {
+                  setShowMenu(false);
+                  const confirmed = await showConfirm("Delete Tab", "Are you sure you want to delete this tab? This will permanently delete all expenses and settlements. This action cannot be undone.");
+                  if (confirmed) {
+                    try {
+                      await apiClient.delete(`groups/${id}`);
+                      queryClient.invalidateQueries({ queryKey: ['groups'] });
+                      navigate('/');
+                    } catch (e: any) {
+                      showAlert('Error', e.response?.data?.detail || 'Failed to delete tab. Only the creator can delete it.');
+                    }
+                  }
+                }}
+                className="w-full text-left px-4 py-2 text-[14px] text-[#c81e1e] hover:bg-bg transition-colors"
+              >
+                Delete Tab
               </button>
             </div>
           )}
