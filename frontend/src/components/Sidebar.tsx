@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { MembershipResponse } from '../types/api';
-import { PlusCircle } from 'lucide-react';
 
 const fetchGroups = async (): Promise<MembershipResponse[]> => {
   const { data } = await apiClient.get('users/me/groups');
@@ -50,13 +49,6 @@ export default function Sidebar() {
             </li>
           ))}
         </ul>
-
-        <Link
-          to="/new"
-          className="mt-2 flex items-center gap-3 px-[12px] py-[10px] text-[15px] font-medium text-brass hover:bg-highlight rounded-[10px] transition-colors border border-transparent"
-        >
-          <PlusCircle size={18} /> New Tab
-        </Link>
       </div>
     </div>
   );
