@@ -85,7 +85,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md overflow-hidden">
+      <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
           <h2 className="font-display text-[20px] font-medium m-0">Record a payment</h2>
           <button onClick={closeSettleUp} className="text-on-dark-soft hover:bg-paper-dim p-1.5 rounded-full transition-colors"><X size={20}/></button>
