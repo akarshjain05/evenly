@@ -98,6 +98,19 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
             amt = (Decimal(str(payload.amount)) * Decimal(str(s.value)) / Decimal('100')).quantize(Decimal('0.01'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
 
+    # Guarantee zero-sum constraint: The total splits MUST exactly equal the expense amount.
+    if splits:
+        total_splits = sum(s.share_amount for s in splits)
+        expense_amt = Decimal(str(payload.amount)).quantize(Decimal('0.01'))
+        remainder = expense_amt - total_splits
+        if remainder != Decimal('0.00'):
+            # Assign the remainder to the payer if they are in the split, otherwise the first person
+            payer_split = next((s for s in splits if s.member_id == payload.paid_by), None)
+            if payer_split:
+                payer_split.share_amount += remainder
+            else:
+                splits[0].share_amount += remainder
+
     for split in splits:
         db.add(split)
 
