@@ -1,3 +1,4 @@
+import DialogModal from "./components/modals/DialogModal";
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AuthPage from './pages/AuthPage'
 import Layout from './components/Layout'
@@ -16,7 +17,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       <Route path="/login" element={<AuthPage />} />
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
@@ -25,6 +27,8 @@ function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+      <DialogModal />
+    </>
   )
 }
 

@@ -16,7 +16,7 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function SettingsModal() {
-  const { isSettingsOpen, closeSettings } = useUIStore();
+  const { isSettingsOpen, closeSettings, showAlert, showConfirm } = useUIStore();
   const { logout } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
@@ -45,12 +45,12 @@ export default function SettingsModal() {
 
   const toggleNotifications = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Push notifications are not supported in this browser.');
+      showAlert('Error', 'Push notifications are not supported in this browser.');
       return;
     }
 
     if (isNotificationsEnabled) {
-      alert('Notifications are already enabled. You can disable them in your browser settings.');
+      showAlert('Info', 'Notifications are already enabled. You can disable them in your browser settings.');
       return;
     }
 
@@ -67,12 +67,12 @@ export default function SettingsModal() {
         
         await apiClient.post('notifications/subscribe', subscription.toJSON());
         setIsNotificationsEnabled(true);
-        alert('Notifications enabled successfully!');
+        showAlert('Success', 'Notifications enabled successfully!');
       } else {
-        alert('Notification permission was denied.');
+        showAlert('Error', 'Notification permission was denied.');
       }
     } catch (err: any) {
-      alert('Failed to enable notifications: ' + err.message);
+      showAlert('Error', 'Failed to enable notifications: ' + err.message);
     } finally {
       setIsSubscribing(false);
     }
@@ -134,8 +134,8 @@ export default function SettingsModal() {
 
         <div className="p-5 sm:p-6 border-t border-line-dark">
           <button 
-            onClick={() => {
-              if (window.confirm('Are you sure you want to sign out?')) {
+            onClick={async () => {
+              if (await showConfirm('Sign Out', 'Are you sure you want to sign out?', { danger: true })) {
                 closeSettings();
                 logout();
               }

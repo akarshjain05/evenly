@@ -21,7 +21,7 @@ const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
-  const { openAddExpense, openSettleUp } = useUIStore();
+  const { openAddExpense, openSettleUp, showAlert, showConfirm, showPrompt } = useUIStore();
   const queryClient = useQueryClient();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -88,7 +88,7 @@ export default function GroupView() {
                 navigator.share({ title: group.name, url });
               } else {
                 navigator.clipboard.writeText(url);
-                alert("Invite link copied to clipboard!");
+                showAlert("Copied!", "Invite link copied to clipboard.");
               }
             }}
             className="p-2 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
@@ -109,14 +109,14 @@ export default function GroupView() {
               <button
                 onClick={async () => {
                   setShowMenu(false);
-                  const newName = prompt("Enter new tab name:", group.name);
+                  const newName = await showPrompt("Rename Tab", group.name);
                   if (newName && newName !== group.name) {
                     try {
                       await apiClient.put(`groups/${id}`, { name: newName });
                       queryClient.invalidateQueries({ queryKey: ['group', id] });
                       queryClient.invalidateQueries({ queryKey: ['groups'] });
                     } catch (e) {
-                      alert("Failed to rename tab.");
+                      showAlert('Error', 'Failed to rename tab.');
                     }
                   }
                 }}
@@ -135,7 +135,7 @@ export default function GroupView() {
                     a.download = `${group.name.replace(/\s+/g, '_')}_export.csv`;
                     a.click();
                   } catch(e) {
-                    alert('Export failed');
+                    showAlert('Export failed');
                   }
                 }}
                 className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors"
@@ -196,8 +196,8 @@ export default function GroupView() {
                     
                     {item.type === 'expense' && (
                       <button 
-                        onClick={() => {
-                          if (window.confirm('Delete this expense?')) {
+                        onClick={async () => {
+                          if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
                             apiClient.delete(`groups/${id}/expenses/${item.id}`).then(() => {
                               queryClient.invalidateQueries({ queryKey: ['group', id] });
                               queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
