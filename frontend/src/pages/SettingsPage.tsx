@@ -57,7 +57,14 @@ export default function SettingsPage() {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const registration = await navigator.serviceWorker.ready;
-        const { data } = await apiClient.get<{ public_key: string }>('notifications/vapid-public');
+        const { data } = await apiClient.get<{ public_key: string | null }>('notifications/vapid-public');
+        
+        if (!data.public_key) {
+          showAlert('Error', 'Push notifications are not configured on the server.');
+          setIsSubscribing(false);
+          return;
+        }
+
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(data.public_key)
