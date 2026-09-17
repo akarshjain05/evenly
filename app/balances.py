@@ -1,32 +1,22 @@
 import heapq
 from typing import Dict, List
 from decimal import Decimal
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import HTTPException
+from . import models, schemas
 
 EXACT_SPLIT_TOLERANCE = Decimal('0.02')
 PERCENTAGE_TOLERANCE = Decimal('0.5')
 
-from sqlalchemy.orm import Session, selectinload
-from fastapi import HTTPException
-
-from . import models, schemas
-
-
-def compute_net_balances(db: Session, group_id: str) -> Dict[str, Decimal]:
-    members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
+async def compute_net_balances(db: AsyncSession, group_id: str) -> Dict[str, Decimal]:
+    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
+    members = result.scalars().all()
     return {m.id: Decimal(str(m.balance)).quantize(Decimal('0.01')) for m in members}
 
-
-
 def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
-    """
-    Greedy min-cash-flow settle-up: repeatedly match the biggest creditor
-    with the biggest debtor. Not guaranteed to be the mathematical minimum
-    number of transactions in every case, but it's a fast, correct, and
-    well-known-good heuristic for this problem, and it's what most
-    bill-splitting apps use in practice.
-    """
-    creditors: List[tuple] = []  # max-heap via negated amount: (-amount, member_id)
-    debtors: List[tuple] = []  # min-heap on negative amount: (amount, member_id), amount < 0
+    creditors: List[tuple] = []
+    debtors: List[tuple] = []
 
     for member_id, amount in net.items():
         if amount > Decimal('0.01'):
@@ -56,8 +46,11 @@ def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
 
     return transactions
 
-def process_expense_splits(db: Session, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate):
-    valid_ids = {m.id for m in db.query(models.Member).filter(models.Member.group_id == group_id).all()}
+async def process_expense_splits(db: AsyncSession, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate):
+    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
+    members = result.scalars().all()
+    valid_ids = {m.id for m in members}
+    
     if payload.paid_by not in valid_ids:
         raise HTTPException(status_code=400, detail="Payer is not in this tab")
 
@@ -98,13 +91,11 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
             amt = (Decimal(str(payload.amount)) * Decimal(str(s.value)) / Decimal('100')).quantize(Decimal('0.01'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
 
-    # Guarantee zero-sum constraint: The total splits MUST exactly equal the expense amount.
     if splits:
         total_splits = sum(s.share_amount for s in splits)
         expense_amt = Decimal(str(payload.amount)).quantize(Decimal('0.01'))
         remainder = expense_amt - total_splits
         if remainder != Decimal('0.00'):
-            # Assign the remainder to the payer if they are in the split, otherwise the first person
             payer_split = next((s for s in splits if s.member_id == payload.paid_by), None)
             if payer_split:
                 payer_split.share_amount += remainder
@@ -114,36 +105,26 @@ def process_expense_splits(db: Session, group_id: str, expense: models.Expense, 
     for split in splits:
         db.add(split)
 
-def apply_expense(db: Session, expense: models.Expense):
-    db.query(models.Member).filter(models.Member.id == expense.paid_by).update(
-        {models.Member.balance: models.Member.balance + expense.amount}
-    )
+async def apply_expense(db: AsyncSession, expense: models.Expense):
+    await db.execute(select(models.Member).filter(models.Member.id == expense.paid_by).with_for_update())
+    # Note: I can just use atomic update
+    from sqlalchemy import update
+    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
     for split in expense.splits:
-        db.query(models.Member).filter(models.Member.id == split.member_id).update(
-            {models.Member.balance: models.Member.balance - split.share_amount}
-        )
+        await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance - split.share_amount))
 
-def revert_expense(db: Session, expense: models.Expense):
-    db.query(models.Member).filter(models.Member.id == expense.paid_by).update(
-        {models.Member.balance: models.Member.balance - expense.amount}
-    )
+async def revert_expense(db: AsyncSession, expense: models.Expense):
+    from sqlalchemy import update
+    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance - expense.amount))
     for split in expense.splits:
-        db.query(models.Member).filter(models.Member.id == split.member_id).update(
-            {models.Member.balance: models.Member.balance + split.share_amount}
-        )
+        await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance + split.share_amount))
 
-def apply_settlement(db: Session, settlement: models.Settlement):
-    db.query(models.Member).filter(models.Member.id == settlement.from_member).update(
-        {models.Member.balance: models.Member.balance + settlement.amount}
-    )
-    db.query(models.Member).filter(models.Member.id == settlement.to_member).update(
-        {models.Member.balance: models.Member.balance - settlement.amount}
-    )
+async def apply_settlement(db: AsyncSession, settlement: models.Settlement):
+    from sqlalchemy import update
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance + settlement.amount))
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance - settlement.amount))
 
-def revert_settlement(db: Session, settlement: models.Settlement):
-    db.query(models.Member).filter(models.Member.id == settlement.from_member).update(
-        {models.Member.balance: models.Member.balance - settlement.amount}
-    )
-    db.query(models.Member).filter(models.Member.id == settlement.to_member).update(
-        {models.Member.balance: models.Member.balance + settlement.amount}
-    )
+async def revert_settlement(db: AsyncSession, settlement: models.Settlement):
+    from sqlalchemy import update
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance - settlement.amount))
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance + settlement.amount))

@@ -57,8 +57,46 @@ app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(notifications.router)
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
+
+@app.get("/api/migrate")
+def migrate_db():
+    return {"status": "ok"}
+
+@app.get("/api/migrate2")
+async def migrate2_db(db: AsyncSession = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        # Add created_by_user_id to expenses and settlements
+        try:
+            await db.execute(text("ALTER TABLE expenses ADD COLUMN created_by_user_id VARCHAR REFERENCES users(id);"))
+        except Exception as e:
+            logger.info(f"created_by_user_id already exists or error: {e}")
+            await db.rollback()
+            
+        try:
+            await db.execute(text("ALTER TABLE settlements ADD COLUMN created_by_user_id VARCHAR REFERENCES users(id);"))
+        except Exception as e:
+            logger.info(f"created_by_user_id already exists or error: {e}")
+            await db.rollback()
+            
+        # Add indexes
+        try:
+            await db.execute(text("CREATE INDEX ix_expenses_created_at ON expenses (created_at);"))
+            await db.execute(text("CREATE INDEX ix_settlements_created_at ON settlements (created_at);"))
+            await db.execute(text("CREATE INDEX ix_expenses_created_by_user_id ON expenses (created_by_user_id);"))
+            await db.execute(text("CREATE INDEX ix_settlements_created_by_user_id ON settlements (created_by_user_id);"))
+        except Exception as e:
+            logger.info(f"index already exists or error: {e}")
+            await db.rollback()
+
+        await db.commit()
+        return {"status": "migrated2"}
+    except Exception as e:
+        await db.rollback()
+        return {"error": str(e)}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
-

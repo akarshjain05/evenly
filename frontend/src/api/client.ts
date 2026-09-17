@@ -6,18 +6,10 @@ const API_URL = import.meta.env.VITE_API_URL || '/api/';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
-});
-
-// Interceptor to attach the JWT token to every request
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
 });
 
 // Generic interceptor for catching 401s globally
@@ -25,10 +17,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and reload to force login screen
-      localStorage.removeItem('token');
-      // Avoiding window.location.reload() loop if already on login
-      if (window.location.pathname !== '/login') {
+      localStorage.removeItem('is_logged_in');
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }
     }

@@ -75,7 +75,8 @@ class Expense(Base):
     paid_by = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     split_type = Column(SAEnum(SplitType), default=SplitType.equal)
     category = Column(String, default="General")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="expenses")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
@@ -100,7 +101,8 @@ class Settlement(Base):
     from_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     to_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
     amount = Column(Numeric, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="settlements")
 

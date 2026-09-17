@@ -3,41 +3,37 @@ import type { UserLogin, UserCreate, Token } from '../types/api';
 import { apiClient } from '../api/client';
 
 interface AuthContextType {
-  token: string | null;
   isAuthenticated: boolean;
   login: (data: UserLogin) => Promise<void>;
   register: (data: UserCreate) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(localStorage.getItem('is_logged_in') === 'true');
 
   const login = async (data: UserLogin) => {
-    // Note: FastAPI uses OAuth2PasswordRequestForm, but this app might use JSON
-    // Let's check schemas. UserLogin is a standard JSON payload. Wait, no.
-    // In main.py: `@app.post("/api/auth/login") def login(payload: schemas.UserLogin...)`
-    // Yes, it expects a JSON payload according to schemas.UserLogin.
-    const response = await apiClient.post<Token>('auth/login', data);
-    localStorage.setItem('token', response.data.access_token);
-    setToken(response.data.access_token);
+    await apiClient.post('auth/login', data);
+    localStorage.setItem('is_logged_in', 'true');
+    setIsAuthenticated(true);
   };
 
   const register = async (data: UserCreate) => {
-    const response = await apiClient.post<Token>('auth/register', data);
-    localStorage.setItem('token', response.data.access_token);
-    setToken(response.data.access_token);
+    await apiClient.post('auth/register', data);
+    localStorage.setItem('is_logged_in', 'true');
+    setIsAuthenticated(true);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+  const logout = async () => {
+    try { await apiClient.post('auth/logout'); } catch (e) {}
+    localStorage.removeItem('is_logged_in');
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated: !!token, login, register, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
