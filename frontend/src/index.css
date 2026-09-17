@@ -26,6 +26,21 @@
 }
 
 @layer base {
+  html.dark {
+    --color-bg: #121212;
+    --color-bg-soft: #1E1E1E;
+    --color-paper: #242424;
+    --color-paper-dim: #2C2C2C;
+    
+    --color-ink: #F0F0F0;
+    --color-ink-soft: #A0A0A0;
+    --color-on-dark: #F0F0F0;
+    --color-on-dark-soft: #A0A0A0;
+    
+    --color-line-dark: #333333;
+    --color-line-paper: #444444;
+  }
+
   html, body {
     @apply bg-bg text-on-dark font-sans antialiased;
     margin: 0;
