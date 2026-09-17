@@ -29,6 +29,7 @@ export default function GroupView() {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -217,12 +218,59 @@ export default function GroupView() {
                 <p className="text-ink-soft italic text-center py-8">No expenses yet.</p>
               )}
               {activities?.map((item) => (
-                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex justify-between">
-                      <h3 className="font-medium text-ink m-0">{item.description}</h3>
-                      <div className={`font-semibold ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
-                        ₹{Number(item.amount).toFixed(2)}
+                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative">
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="font-medium text-ink m-0 truncate">{item.description}</h3>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className={`font-semibold ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
+                          ₹{Number(item.amount).toFixed(2)}
+                        </div>
+                        {item.type === 'expense' && (
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+                              className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                            {openMenuId === item.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setEditingExpense(item); }}
+                                    className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
+                                  >
+                                    <Pencil size={13} /> Edit
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      setOpenMenuId(null);
+                                      if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
+                                        queryClient.setQueryData(['group-activity', id], (old: any) =>
+                                          old?.filter((a: ActivityResponse) => a.id !== item.id)
+                                        );
+                                        apiClient.delete(`groups/${id}/expenses/${item.id}`)
+                                          .then(() => {
+                                            queryClient.invalidateQueries({ queryKey: ['group', id] });
+                                            queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                          })
+                                          .catch(() => {
+                                            queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                            showAlert('Error', 'Failed to delete expense.');
+                                          });
+                                      }
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
+                                  >
+                                    <Trash2 size={13} /> Delete
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <p className="text-sm text-ink-soft m-0 flex justify-between">
@@ -235,39 +283,6 @@ export default function GroupView() {
                       </span>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
                     </p>
-                    
-                    {item.type === 'expense' && (
-                      <div className="flex items-center gap-3 mt-1">
-                        <button
-                          onClick={() => setEditingExpense(item)}
-                          className="text-ink-soft hover:text-primary transition-colors text-[12px] flex items-center gap-1"
-                        >
-                          <Pencil size={13} /> Edit
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
-                              // Optimistic delete
-                              queryClient.setQueryData(['group-activity', id], (old: any) =>
-                                old?.filter((a: ActivityResponse) => a.id !== item.id)
-                              );
-                              apiClient.delete(`groups/${id}/expenses/${item.id}`)
-                                .then(() => {
-                                  queryClient.invalidateQueries({ queryKey: ['group', id] });
-                                  queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                                })
-                                .catch(() => {
-                                  queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                                  showAlert('Error', 'Failed to delete expense.');
-                                });
-                            }
-                          }}
-                          className="text-ink-soft hover:text-danger transition-colors text-[12px] flex items-center gap-1"
-                        >
-                          <Trash2 size={13} /> Delete
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
