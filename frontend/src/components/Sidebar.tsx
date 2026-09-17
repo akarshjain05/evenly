@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { MembershipResponse } from '../types/api';
-import { PlusCircle, Users } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 
 const fetchGroups = async (): Promise<MembershipResponse[]> => {
   const { data } = await apiClient.get('users/me/groups');
@@ -21,8 +21,8 @@ export default function Sidebar() {
     <div className="flex flex-col h-full bg-bg border-r border-line-dark">
       <div className="p-[24px] pb-[16px] flex items-center justify-between">
         <Link to="/" className="no-underline">
-          <h2 className="font-display text-[24px] font-semibold text-ink flex items-center gap-2 m-0 hover:opacity-80 transition-opacity cursor-pointer">
-            <Users size={24} className="text-brass" /> Evenly
+          <h2 className="font-display text-[24px] font-semibold text-ink m-0 hover:opacity-80 transition-opacity cursor-pointer">
+            Evenly
           </h2>
         </Link>
       </div>

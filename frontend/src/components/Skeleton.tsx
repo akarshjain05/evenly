@@ -1,7 +1,7 @@
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-md bg-gray-200 dark:bg-gray-800 ${
+      className={`animate-pulse rounded-md bg-paper-dim ${
         className || ""
       }`}
     />
@@ -28,11 +28,11 @@ export function GroupViewSkeleton() {
             <Skeleton className="h-12 flex-1 rounded-xl" />
           </div>
 
-          <div className="bg-paper rounded-2xl border border-border overflow-hidden">
-            <div className="px-6 py-5 border-b border-border flex justify-between items-center">
+          <div className="bg-paper rounded-2xl border border-line-dark overflow-hidden">
+            <div className="px-6 py-5 border-b border-line-dark flex justify-between items-center">
               <Skeleton className="h-6 w-32" />
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-line-dark">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="p-4 sm:p-6 flex items-start gap-4">
                   <Skeleton className="w-10 h-10 rounded-full shrink-0" />
@@ -51,8 +51,8 @@ export function GroupViewSkeleton() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="bg-paper rounded-2xl border border-border overflow-hidden">
-            <div className="p-5 border-b border-border">
+          <div className="bg-paper rounded-2xl border border-line-dark overflow-hidden">
+            <div className="p-5 border-b border-line-dark">
               <Skeleton className="h-6 w-24" />
             </div>
             <div className="p-5 space-y-4">
@@ -75,13 +75,9 @@ export function GroupViewSkeleton() {
 
 export function SidebarSkeleton() {
   return (
-    <div className="space-y-4 px-3 py-2">
-      <Skeleton className="h-4 w-20 mb-4" />
+    <div className="space-y-2 px-3 py-2">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="flex items-center gap-3">
-          <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
-          <Skeleton className="h-5 flex-1" />
-        </div>
+        <Skeleton key={i} className="h-10 w-full rounded-[10px]" />
       ))}
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Users } from 'lucide-react';
+
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -46,7 +46,7 @@ export default function AuthPage() {
       
       <div>
         <h1 className="font-display text-[30px] font-semibold text-ink flex items-center justify-center gap-2.5 m-0 leading-tight">
-          <Users size={30} className="text-brass" /> Evenly
+          Evenly
         </h1>
         <p className="text-center text-on-dark-soft text-[15px] mt-1.5 leading-snug">
           {isLogin ? 'Sign in to your account' : 'Create a free account'}

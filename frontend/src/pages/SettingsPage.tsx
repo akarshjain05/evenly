@@ -127,14 +127,14 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-[#c81e1e] border-opacity-30 bg-[#c81e1e] bg-opacity-5 rounded-[12px]">
+          <div className="flex items-center justify-between p-4 rounded-[12px]" style={{border: '1px solid rgba(200,30,30,0.3)', background: 'rgba(200,30,30,0.06)'}}>
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-bg flex items-center justify-center shrink-0 border border-line-dark">
                 <LogOut className="text-[#c81e1e]" size={20} />
               </div>
               <div>
                 <div className="font-medium text-[15px] text-[#c81e1e]">Sign Out</div>
-                <div className="text-[13px] text-[#c81e1e] opacity-80 mt-0.5">End your current session</div>
+                <div className="text-[13px] text-ink-soft mt-0.5">End your current session</div>
               </div>
             </div>
             <button 
@@ -143,7 +143,8 @@ export default function SettingsPage() {
                   logout();
                 }
               }}
-              className="px-4 py-2 text-[14px] font-medium rounded-xl transition-colors cursor-pointer border border-[#c81e1e] text-[#c81e1e] hover:bg-[#c81e1e] hover:text-white bg-transparent"
+              className="px-4 py-2 text-[14px] font-medium rounded-xl transition-colors cursor-pointer bg-transparent text-[#c81e1e] hover:bg-[#c81e1e] hover:text-white"
+              style={{border: '1px solid #c81e1e'}}
             >
               Sign Out
             </button>
