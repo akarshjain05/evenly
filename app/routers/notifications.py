@@ -14,7 +14,6 @@ from app.database import get_db
 
 router = APIRouter(prefix='/api/notifications', tags=['notifications'])
 
-from pywebpush import webpush, WebPushException
 @router.post("/subscribe", response_model=schemas.BasicResponse)
 async def subscribe_push(
     payload: schemas.PushSubscriptionCreate,
@@ -37,6 +36,8 @@ def get_vapid_public():
     return {"public_key": os.environ.get("VAPID_PUBLIC_KEY")}
 
 async def send_web_push(user_ids: list, title: str, body: str):
+    from pywebpush import webpush, WebPushException
+
     from app.database import AsyncSessionLocal
     import asyncio
     async with AsyncSessionLocal() as db:
