@@ -141,6 +141,14 @@ export default function AuthPage() {
         </button>
       </form>
 
+      {isLoading && (
+        <div className="fixed inset-0 bg-bg/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-line-dark border-t-primary animate-spin"></div>
+            <div className="text-ink font-medium text-[15px]">Logging you in...</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
