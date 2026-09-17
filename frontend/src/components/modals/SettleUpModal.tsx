@@ -5,6 +5,7 @@ import { useUIStore } from '../../store/uiStore';
 import { apiClient } from '../../api/client';
 import type { GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
+import Select from '../ui/Select';
 
 export default function SettleUpModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -54,16 +55,20 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] text-ink-soft">Who paid?</label>
-            <select value={fromMember} onChange={e => setFromMember(e.target.value)} className="input-field">
-              {group.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select 
+              value={fromMember} 
+              onChange={setFromMember} 
+              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] text-ink-soft">Who received it?</label>
-            <select value={toMember} onChange={e => setToMember(e.target.value)} className="input-field">
-              {group.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select 
+              value={toMember} 
+              onChange={setToMember} 
+              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

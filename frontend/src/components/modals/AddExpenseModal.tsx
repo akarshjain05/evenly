@@ -5,6 +5,7 @@ import { useUIStore } from '../../store/uiStore';
 import { apiClient } from '../../api/client';
 import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
+import Select from '../ui/Select';
 
 export default function AddExpenseModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -47,9 +48,11 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] text-ink-soft">Paid by</label>
-            <select value={paidBy} onChange={e => setPaidBy(e.target.value)} className="input-field">
-              {group.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select 
+              value={paidBy} 
+              onChange={setPaidBy} 
+              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+            />
           </div>
           
           <div className="pt-4 flex justify-end gap-3">
