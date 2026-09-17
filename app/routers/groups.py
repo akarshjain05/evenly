@@ -126,50 +126,75 @@ def get_activity(
     members = db.query(models.Member).filter(models.Member.group_id == group_id).all()
     name_lookup = {m.id: m.name for m in members}
 
-    items = []
-    # Eagerly load splits to prevent N+1 queries
-    expenses = (
-        db.query(models.Expense)
-        .options(selectinload(models.Expense.splits))
-        .filter(models.Expense.group_id == group_id)
-        .all()
-    )
-    for e in expenses:
-        items.append(
-            {
-                "type": "expense",
-                "id": e.id,
-                "description": e.description,
-                "category": e.category,
-                "amount": e.amount,
-                "paid_by": e.paid_by,
-                "paid_by_name": name_lookup.get(e.paid_by, "?"),
-                "split_type": e.split_type.value if hasattr(e.split_type, 'value') else str(e.split_type),
-                "created_at": e.created_at,
-                "splits": [
-                    {"member_id": s.member_id, "name": name_lookup.get(s.member_id, "?"), "share_amount": s.share_amount}
-                    for s in e.splits
-                ],
-            }
-        )
-    for s in db.query(models.Settlement).filter(models.Settlement.group_id == group_id).all():
-        items.append(
-            {
-                "type": "settlement",
-                "id": s.id,
-                "from_member": s.from_member,
-                "from_name": name_lookup.get(s.from_member, "?"),
-                "to_member": s.to_member,
-                "to_name": name_lookup.get(s.to_member, "?"),
-                "amount": s.amount,
-                "created_at": s.created_at,
-                "description": "Settlement",
-                "paid_by_name": name_lookup.get(s.from_member, "?"),
-            }
-        )
+    # Fetch the union of expenses and settlements ordered by created_at DESC with limit/offset
+    query = text("""
+        SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
+        UNION ALL
+        SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
+        ORDER BY created_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    results = db.execute(query, {"group_id": group_id, "limit": limit, "offset": offset}).fetchall()
 
-    items.sort(key=lambda x: x["created_at"], reverse=True)
-    return items[offset : offset + limit]
+    expense_ids = [r.id for r in results if r.type == 'expense']
+    settlement_ids = [r.id for r in results if r.type == 'settlement']
+
+    expenses_map = {}
+    if expense_ids:
+        expenses = (
+            db.query(models.Expense)
+            .options(selectinload(models.Expense.splits))
+            .filter(models.Expense.id.in_(expense_ids))
+            .all()
+        )
+        expenses_map = {e.id: e for e in expenses}
+
+    settlements_map = {}
+    if settlement_ids:
+        settlements = db.query(models.Settlement).filter(models.Settlement.id.in_(settlement_ids)).all()
+        settlements_map = {s.id: s for s in settlements}
+
+    items = []
+    for row in results:
+        if row.type == 'expense':
+            e = expenses_map.get(row.id)
+            if not e: continue
+            items.append(
+                {
+                    "type": "expense",
+                    "id": e.id,
+                    "description": e.description,
+                    "category": e.category,
+                    "amount": e.amount,
+                    "paid_by": e.paid_by,
+                    "paid_by_name": name_lookup.get(e.paid_by, "?"),
+                    "split_type": e.split_type.value if hasattr(e.split_type, 'value') else str(e.split_type),
+                    "created_at": e.created_at,
+                    "splits": [
+                        {"member_id": s.member_id, "name": name_lookup.get(s.member_id, "?"), "share_amount": s.share_amount}
+                        for s in e.splits
+                    ],
+                }
+            )
+        elif row.type == 'settlement':
+            s = settlements_map.get(row.id)
+            if not s: continue
+            items.append(
+                {
+                    "type": "settlement",
+                    "id": s.id,
+                    "from_member": s.from_member,
+                    "from_name": name_lookup.get(s.from_member, "?"),
+                    "to_member": s.to_member,
+                    "to_name": name_lookup.get(s.to_member, "?"),
+                    "amount": s.amount,
+                    "created_at": s.created_at,
+                    "description": "Settlement",
+                    "paid_by_name": name_lookup.get(s.from_member, "?"),
+                }
+            )
+
+    return items
 
 @router.post("/{group_id}/expenses", response_model=schemas.ExpenseResponse)
 def add_expense(
