@@ -114,18 +114,6 @@ async def migrate3_db(db: AsyncSession = Depends(get_db)):
         await db.rollback()
         return {"error": str(e)}
 
-@app.get("/api/reset")
-async def reset_db(db: AsyncSession = Depends(get_db)):
-    try:
-        from sqlalchemy import text
-        # Truncate all tables and cascade to dependencies
-        await db.execute(text("TRUNCATE TABLE users, groups, members, expenses, expense_splits, settlements CASCADE;"))
-        await db.commit()
-        return {"status": "Database completely wiped!"}
-    except Exception as e:
-        await db.rollback()
-        return {"error": str(e)}
-
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
