@@ -19,7 +19,7 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     db.add(group)
     await db.flush()
 
-    member = models.Member(group_id=group.id, user_id=user.id, name=payload.name, color=pick_color(), is_admin=True)
+    member = models.Member(group_id=group.id, user_id=user.id, name=payload.your_name, color=pick_color(), is_admin=True)
     db.add(member)
     await db.commit()
     await db.refresh(group)

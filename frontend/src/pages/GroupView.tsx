@@ -117,8 +117,8 @@ export default function GroupView() {
                       await apiClient.put(`groups/${id}`, { name: newName });
                       queryClient.invalidateQueries({ queryKey: ['group', id] });
                       queryClient.invalidateQueries({ queryKey: ['groups'] });
-                    } catch (e) {
-                      showAlert('Error', 'Failed to rename tab.');
+                    } catch (e: any) {
+                      showAlert('Error', e.response?.data?.detail || 'Failed to rename tab.');
                     }
                   }
                 }}
