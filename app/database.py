@@ -15,14 +15,12 @@ elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("p
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 # Supabase uses PgBouncer in transaction pooling mode which is incompatible
-# with asyncpg's prepared statements. Disable them entirely.
-engine_kwargs: dict = {}
+# with asyncpg's prepared statements. Disable them and enable SSL.
 if "asyncpg" in DATABASE_URL:
-    engine_kwargs["connect_args"] = {"ssl": "require", "statement_cache_size": 0}
-else:
-    engine_kwargs["connect_args"] = connect_args
+    connect_args["ssl"] = True
+    connect_args["statement_cache_size"] = 0
 
-engine = create_async_engine(DATABASE_URL, **engine_kwargs)
+engine = create_async_engine(DATABASE_URL, connect_args=connect_args)
 AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 Base = declarative_base()
 
