@@ -61,6 +61,19 @@
   .input-field {
     @apply bg-paper-dim border border-line-paper rounded-[10px] px-[13px] py-[12px] text-[16px] text-ink w-full focus:outline-none focus:ring-2 focus:ring-brass-deep;
   }
+
+  select.input-field {
+    padding-right: 40px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23666666' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+  }
+}
+
+html.dark select.input-field {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23A6ACA0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
 }
 
 /* Fix WebKit autofill white background */
