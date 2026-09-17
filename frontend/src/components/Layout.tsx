@@ -1,16 +1,14 @@
 
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import { Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-import SettingsModal from './modals/SettingsModal';
-import { useUIStore } from '../store/uiStore';
 
 export default function Layout() {
   const { isAuthenticated } = useAuth();
-  const { openSettings } = useUIStore();
+  const navigate = useNavigate();
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -38,7 +36,7 @@ export default function Layout() {
         </div>
         <div className="p-4 shrink-0">
           <button 
-            onClick={openSettings} 
+            onClick={() => navigate('/settings')} 
             className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
           >
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-medium text-[15px] shrink-0">
@@ -55,7 +53,6 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto p-6 relative">
         <Outlet />
       </main>
-      <SettingsModal />
-    </div>
+          </div>
   );
 }

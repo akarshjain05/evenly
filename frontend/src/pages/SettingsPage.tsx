@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useUIStore } from '../../store/uiStore';
-import { useAuth } from '../../context/AuthContext';
-import { apiClient } from '../../api/client';
-import { X, Moon, Bell, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useUIStore } from '../store/uiStore';
+import { apiClient } from '../api/client';
+import { Moon, Bell, LogOut } from 'lucide-react';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -15,9 +15,9 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-export default function SettingsModal() {
-  const { isSettingsOpen, closeSettings, showAlert, showConfirm } = useUIStore();
+export default function SettingsPage() {
   const { logout } = useAuth();
+  const { showAlert, showConfirm } = useUIStore();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -27,9 +27,7 @@ export default function SettingsModal() {
     if ('Notification' in window) {
       setIsNotificationsEnabled(Notification.permission === 'granted');
     }
-  }, [isSettingsOpen]);
-
-  if (!isSettingsOpen) return null;
+  }, []);
 
   const toggleDarkMode = () => {
     const isDark = !isDarkMode;
@@ -79,26 +77,23 @@ export default function SettingsModal() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div 
-        className="bg-paper w-full sm:w-[400px] rounded-t-[20px] sm:rounded-[20px] shadow-xl flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-line-dark">
-          <h2 className="text-xl font-display font-semibold text-ink m-0">Personal Settings</h2>
-          <button onClick={closeSettings} className="p-2 hover:bg-bg rounded-full text-ink-soft transition-colors cursor-pointer border-none bg-transparent">
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto">
+    <div className="max-w-2xl mx-auto p-6 sm:p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-display font-semibold text-ink m-0 mb-2">Personal Settings</h1>
+        <p className="text-[15px] text-ink-soft m-0">Manage your preferences and account.</p>
+      </div>
+      
+      <div className="bg-paper rounded-2xl border border-line-dark overflow-hidden flex flex-col mb-8 shadow-sm">
+        <div className="p-5 sm:p-6 flex flex-col gap-4">
           
           <div className="flex items-center justify-between p-4 border border-line-dark rounded-[12px]">
-            <div className="flex items-center gap-3">
-              <Moon className="text-ink" size={20} />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-bg flex items-center justify-center shrink-0 border border-line-dark">
+                <Moon className="text-ink" size={20} />
+              </div>
               <div>
                 <div className="font-medium text-[15px] text-ink">Dark Mode</div>
-                <div className="text-[13px] text-ink-soft">Toggle dark theme appearance</div>
+                <div className="text-[13px] text-ink-soft mt-0.5">Toggle dark theme appearance</div>
               </div>
             </div>
             <button 
@@ -110,20 +105,22 @@ export default function SettingsModal() {
           </div>
 
           <div className="flex items-center justify-between p-4 border border-line-dark rounded-[12px]">
-            <div className="flex items-center gap-3">
-              <Bell className="text-ink" size={20} />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-bg flex items-center justify-center shrink-0 border border-line-dark">
+                <Bell className="text-ink" size={20} />
+              </div>
               <div>
                 <div className="font-medium text-[15px] text-ink">Push Notifications</div>
-                <div className="text-[13px] text-ink-soft">Get alerts when tabs are updated</div>
+                <div className="text-[13px] text-ink-soft mt-0.5">Get alerts when tabs are updated</div>
               </div>
             </div>
             <button 
               onClick={toggleNotifications}
               disabled={isSubscribing || isNotificationsEnabled}
-              className={`px-4 py-2 text-sm font-medium rounded-[8px] transition-colors border-none ${
+              className={`px-4 py-2 text-[14px] font-medium rounded-xl transition-colors cursor-pointer border-none ${
                 isNotificationsEnabled 
-                  ? 'bg-bg text-primary' 
-                  : 'bg-primary text-white cursor-pointer hover:bg-[#112F22]'
+                  ? 'bg-bg text-primary border border-line-dark' 
+                  : 'bg-primary text-white hover:bg-[#112F22]'
               }`}
             >
               {isSubscribing ? 'Enabling...' : isNotificationsEnabled ? 'Enabled' : 'Enable'}
@@ -132,17 +129,16 @@ export default function SettingsModal() {
 
         </div>
 
-        <div className="p-5 sm:p-6 border-t border-line-dark">
+        <div className="p-5 sm:p-6 bg-paper-dim border-t border-line-dark flex justify-end">
           <button 
             onClick={async () => {
               if (await showConfirm('Sign Out', 'Are you sure you want to sign out?', { danger: true })) {
-                closeSettings();
                 logout();
               }
             }}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[15px] font-medium text-[#C25B46] bg-transparent border border-[#C25B46]/40 rounded-[10px] cursor-pointer hover:bg-[#C25B46]/10 transition-colors"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 text-[14px] font-medium text-white bg-danger rounded-xl cursor-pointer hover:bg-opacity-90 transition-colors border-none"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
             Sign Out
           </button>
         </div>

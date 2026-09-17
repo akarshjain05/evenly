@@ -4,6 +4,7 @@ import AuthPage from './pages/AuthPage'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import GroupView from './pages/GroupView'
+import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from './pages/NotFoundPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ function App() {
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/new" element={<Dashboard />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/group/:id" element={<GroupView />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />

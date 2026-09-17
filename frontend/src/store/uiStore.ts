@@ -21,7 +21,6 @@ interface DialogState {
 interface UIState {
   isAddExpenseOpen: boolean;
   isSettleUpOpen: boolean;
-  isSettingsOpen: boolean;
   activeGroupId: string | null;
   dialog: DialogState;
   
@@ -29,8 +28,6 @@ interface UIState {
   closeAddExpense: () => void;
   openSettleUp: () => void;
   closeSettleUp: () => void;
-  openSettings: () => void;
-  closeSettings: () => void;
   setActiveGroup: (id: string | null) => void;
   
   showAlert: (title: string, message?: string) => Promise<void>;
@@ -42,7 +39,6 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   isAddExpenseOpen: false,
   isSettleUpOpen: false,
-  isSettingsOpen: false,
   activeGroupId: null,
   dialog: { isOpen: false, config: null, resolve: null },
 
@@ -50,8 +46,6 @@ export const useUIStore = create<UIState>((set) => ({
   closeAddExpense: () => set({ isAddExpenseOpen: false }),
   openSettleUp: () => set({ isSettleUpOpen: true }),
   closeSettleUp: () => set({ isSettleUpOpen: false }),
-  openSettings: () => set({ isSettingsOpen: true }),
-  closeSettings: () => set({ isSettingsOpen: false }),
   setActiveGroup: (id) => set({ activeGroupId: id }),
 
   showAlert: (title, message) => {
