@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 import io
 import csv
@@ -10,6 +11,7 @@ from decimal import Decimal
 from app import models, schemas, deps, balances
 from app.database import get_db
 from app.services import group_service
+from app.rate_limiter import rate_limit_invite
 
 router = APIRouter(prefix='/api/groups', tags=['groups'])
 
@@ -17,8 +19,16 @@ router = APIRouter(prefix='/api/groups', tags=['groups'])
 async def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
     return await group_service.create_group_transaction(payload, user, db)
 
+@router.get("/by-code/{invite_code}")
+async def preview_group(invite_code: str, db: AsyncSession = Depends(get_db), _ = Depends(rate_limit_invite)):
+    result = await db.execute(select(models.Group).options(selectinload(models.Group.members)).filter(models.Group.invite_code == invite_code))
+    group = result.scalars().first()
+    if not group:
+        raise HTTPException(status_code=404, detail="No tab found for that code")
+    return {"id": group.id, "name": group.name, "member_count": len(group.members)}
+
 @router.post("/by-code/{invite_code}/join", response_model=schemas.CreateJoinResponse)
-async def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
+async def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db), _ = Depends(rate_limit_invite)):
     return await group_service.join_group_transaction(invite_code, payload, user, db)
 
 @router.get("/{group_id}", response_model=schemas.GroupDetailResponse)
@@ -229,15 +239,23 @@ async def export_csv(
 
     items.sort(key=lambda x: x["Date"])
 
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=["Date", "Type", "Category", "Description", "Amount", "Paid By", "Details"])
-    writer.writeheader()
-    writer.writerows(items)
-    output.seek(0)
+    def iter_csv():
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=["Date", "Type", "Category", "Description", "Amount", "Paid By", "Details"])
+        writer.writeheader()
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+        
+        for item in items:
+            writer.writerow(item)
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
 
     filename = f"{group.name.replace(' ', '_')}_export.csv"
     return StreamingResponse(
-        iter([output.getvalue()]),
+        iter_csv(),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )

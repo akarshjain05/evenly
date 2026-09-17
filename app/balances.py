@@ -12,7 +12,7 @@ PERCENTAGE_TOLERANCE = Decimal('0.5')
 async def compute_net_balances(db: AsyncSession, group_id: str) -> Dict[str, Decimal]:
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     members = result.scalars().all()
-    return {m.id: Decimal(str(m.balance)).quantize(Decimal('0.01')) for m in members}
+    return {m.id: m.balance.quantize(Decimal('0.01')) for m in members}
 
 def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
     creditors: List[tuple] = []
@@ -48,8 +48,7 @@ def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
 
 async def process_expense_splits(db: AsyncSession, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate):
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    members = result.scalars().all()
-    valid_ids = {m.id for m in members}
+    valid_ids = {m.id for m in result.scalars().all()}
     
     if payload.paid_by not in valid_ids:
         raise HTTPException(status_code=400, detail="Payer is not in this tab")
@@ -60,10 +59,10 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
         participants = [p for p in (payload.participant_ids or list(valid_ids)) if p in valid_ids]
         if not participants:
             raise HTTPException(status_code=400, detail="Pick at least one person to split with")
-        total_amt = Decimal(str(payload.amount))
+        
         num = Decimal(len(participants))
-        share = (total_amt / num).quantize(Decimal('0.01'))
-        remainder = total_amt - (share * num)
+        share = (payload.amount / num).quantize(Decimal('0.01'))
+        remainder = payload.amount - (share * num)
         for i, pid in enumerate(participants):
             amt = share + (remainder if i == 0 else Decimal('0.00'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=amt))
@@ -71,30 +70,33 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
     elif payload.split_type == "exact":
         if not payload.splits:
             raise HTTPException(status_code=400, detail="Exact split needs an amount per person")
-        total = Decimal(str(round(sum(s.value for s in payload.splits), 2)))
-        if abs(total - Decimal(str(payload.amount))) > EXACT_SPLIT_TOLERANCE:
+        
+        total = sum(s.value for s in payload.splits)
+        if abs(total - payload.amount) > EXACT_SPLIT_TOLERANCE:
             raise HTTPException(status_code=400, detail=f"Splits add up to {total}, not {payload.amount}")
+            
         for s in payload.splits:
             if s.member_id not in valid_ids:
                 raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=Decimal(str(s.value)).quantize(Decimal('0.01'))))
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=s.value.quantize(Decimal('0.01'))))
 
     elif payload.split_type == "percentage":
         if not payload.splits:
             raise HTTPException(status_code=400, detail="Percentage split needs a % per person")
-        total_pct = Decimal(str(round(sum(s.value for s in payload.splits), 2)))
+            
+        total_pct = sum(s.value for s in payload.splits)
         if abs(total_pct - Decimal("100")) > PERCENTAGE_TOLERANCE:
             raise HTTPException(status_code=400, detail=f"Percentages add up to {total_pct}%, not 100%")
+            
         for s in payload.splits:
             if s.member_id not in valid_ids:
                 raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
-            amt = (Decimal(str(payload.amount)) * Decimal(str(s.value)) / Decimal('100')).quantize(Decimal('0.01'))
+            amt = (payload.amount * s.value / Decimal('100')).quantize(Decimal('0.01'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
 
     if splits:
         total_splits = sum(s.share_amount for s in splits)
-        expense_amt = Decimal(str(payload.amount)).quantize(Decimal('0.01'))
-        remainder = expense_amt - total_splits
+        remainder = payload.amount.quantize(Decimal('0.01')) - total_splits
         if remainder != Decimal('0.00'):
             payer_split = next((s for s in splits if s.member_id == payload.paid_by), None)
             if payer_split:
@@ -106,9 +108,8 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
         db.add(split)
 
 async def apply_expense(db: AsyncSession, expense: models.Expense):
-    await db.execute(select(models.Member).filter(models.Member.id == expense.paid_by).with_for_update())
-    # Note: I can just use atomic update
     from sqlalchemy import update
+    await db.execute(select(models.Member).filter(models.Member.id == expense.paid_by).with_for_update())
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
     for split in expense.splits:
         await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance - split.share_amount))

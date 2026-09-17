@@ -36,9 +36,9 @@ def _get_redis():
     return _redis_client
 
 
-def _check_redis(client_ip: str) -> None:
+def _check_redis(client_ip: str, limit_type: str = "auth") -> None:
     r = _get_redis()
-    key = f"rate_limit:auth:{client_ip}"
+    key = f"rate_limit:{limit_type}:{client_ip}"
     current = r.incr(key)
     if current == 1:
         r.expire(key, WINDOW_SECONDS)
@@ -54,30 +54,32 @@ def _check_redis(client_ip: str) -> None:
 # ---------------------------------------------------------------------------
 
 _auth_attempts: dict[str, list[float]] = defaultdict(list)
+_invite_attempts: dict[str, list[float]] = defaultdict(list)
 
-
-def _check_memory(client_ip: str) -> None:
+def _check_memory(client_ip: str, limit_type: str = "auth") -> None:
     now = time.time()
-    _auth_attempts[client_ip] = [
-        t for t in _auth_attempts[client_ip] if now - t < WINDOW_SECONDS
+    store = _auth_attempts if limit_type == "auth" else _invite_attempts
+    store[client_ip] = [
+        t for t in store[client_ip] if now - t < WINDOW_SECONDS
     ]
-    if len(_auth_attempts[client_ip]) >= MAX_ATTEMPTS:
+    if len(store[client_ip]) >= MAX_ATTEMPTS:
         raise HTTPException(
             status_code=429,
             detail="Too many attempts. Please wait a minute.",
         )
-    _auth_attempts[client_ip].append(now)
+    store[client_ip].append(now)
 
 
 def cleanup_memory() -> None:
     """Prune stale IPs from the in-memory store.  Called by the background task."""
     now = time.time()
-    for ip in list(_auth_attempts.keys()):
-        valid = [t for t in _auth_attempts[ip] if now - t < WINDOW_SECONDS]
-        if valid:
-            _auth_attempts[ip] = valid
-        else:
-            del _auth_attempts[ip]
+    for store in [_auth_attempts, _invite_attempts]:
+        for ip in list(store.keys()):
+            valid = [t for t in store[ip] if now - t < WINDOW_SECONDS]
+            if valid:
+                store[ip] = valid
+            else:
+                del store[ip]
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +93,13 @@ def rate_limit_auth(request: Request) -> None:
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
     client_ip = request.client.host if request.client else "unknown"
     if _use_redis:
-        _check_redis(client_ip)
+        _check_redis(client_ip, "auth")
     else:
-        _check_memory(client_ip)
+        _check_memory(client_ip, "auth")
+
+def rate_limit_invite(request: Request) -> None:
+    client_ip = request.client.host if request.client else "unknown"
+    if _use_redis:
+        _check_redis(client_ip, "invite")
+    else:
+        _check_memory(client_ip, "invite")
