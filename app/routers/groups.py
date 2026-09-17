@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,7 +89,13 @@ async def add_expense(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
-    await group_service.process_and_add_expense(payload, group_id, user, member, db, background_tasks)
+    
+    try:
+        await group_service.process_and_add_expense(payload, group_id, user, member, db, background_tasks)
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=400, detail=traceback.format_exc())
+
     return {"ok": True}
 
 @router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
