@@ -20,6 +20,8 @@ const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
   return data;
 };
 
+import ShareModal from '../components/modals/ShareModal';
+
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ export default function GroupView() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -73,6 +76,12 @@ export default function GroupView() {
           onClose={() => setEditingExpense(null)}
         />
       )}
+      {isShareOpen && (
+        <ShareModal
+          group={group}
+          onClose={() => setIsShareOpen(false)}
+        />
+      )}
       
       {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
@@ -95,15 +104,7 @@ export default function GroupView() {
           
 
           <button
-            onClick={() => {
-              const url = `${window.location.origin}/join/${group.invite_code}`;
-              if (navigator.share) {
-                navigator.share({ title: group.name, url });
-              } else {
-                navigator.clipboard.writeText(url);
-                showAlert("Copied!", "Invite link copied to clipboard.");
-              }
-            }}
+            onClick={() => setIsShareOpen(true)}
             className="p-2 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
             title="Share Tab"
           >
