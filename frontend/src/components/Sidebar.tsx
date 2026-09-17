@@ -1,3 +1,4 @@
+import { SidebarSkeleton } from "./Skeleton";
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router-dom';
 import { apiClient } from '../api/client';
@@ -27,7 +28,8 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto px-[12px] flex flex-col gap-1">
         <div className="text-[11px] font-semibold text-on-dark-soft uppercase tracking-[0.5px] px-[12px] pt-[8px] pb-[4px]">Your Tabs</div>
         
-        {isLoading && <div className="text-sm text-on-dark-soft px-[12px]">Loading...</div>}
+
+        {isLoading && <SidebarSkeleton />}
         {error && <div className="text-sm text-[#c81e1e] px-[12px]">Failed to load tabs</div>}
         
         <ul className="space-y-1">

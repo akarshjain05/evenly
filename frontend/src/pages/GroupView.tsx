@@ -6,6 +6,7 @@ import { useUIStore } from '../store/uiStore';
 import { Plus, Handshake, Trash2 } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
+import { GroupViewSkeleton } from '../components/Skeleton';
 
 const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
   const { data } = await apiClient.get(`groups/${id}`);
@@ -34,7 +35,7 @@ export default function GroupView() {
     enabled: !!id,
   });
 
-  if (isLoadingGroup || isLoadingActivity) return <div className="p-8 text-center text-gray-500">Loading tab...</div>;
+  if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
   if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
 
   return (
