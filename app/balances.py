@@ -110,7 +110,6 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
 
 async def apply_expense(db: AsyncSession, expense: models.Expense):
     from sqlalchemy import update
-    await db.execute(select(models.Member).filter(models.Member.id == expense.paid_by).with_for_update())
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
     result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
     splits = result.scalars().all()

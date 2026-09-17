@@ -8,7 +8,7 @@ import os
 import asyncio
 
 from app.database import Base, engine, get_db
-from app.routers import auth, users, groups, notifications
+from app.routers import auth, users, groups, notifications, admin_kill
 from app import rate_limiter
 
 async def _cleanup_rate_limiter():
@@ -55,6 +55,7 @@ PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(groups.router)
+app.include_router(admin_kill.router)
 app.include_router(notifications.router)
 
 from sqlalchemy.ext.asyncio import AsyncSession
