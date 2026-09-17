@@ -80,11 +80,11 @@ export default function Layout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-4 border-b border-line-dark bg-bg shrink-0">
-          <div className="font-display font-bold text-xl text-ink">Evenly</div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="text-ink p-1 cursor-pointer">
+        <header className="md:hidden flex items-center gap-3 p-4 border-b border-line-dark bg-bg shrink-0">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="text-ink p-1 cursor-pointer -ml-1">
             <Menu size={24} />
           </button>
+          <div className="font-display font-bold text-xl text-ink">Evenly</div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 relative">
