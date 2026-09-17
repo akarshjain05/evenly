@@ -82,7 +82,13 @@ export default function SettingsPage() {
           applicationServerKey: urlBase64ToUint8Array(data.public_key)
         });
         
-        await apiClient.post('notifications/subscribe', subscription.toJSON());
+        const subJson = subscription.toJSON();
+        await apiClient.post('notifications/subscribe', {
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys?.p256dh,
+          auth: subJson.keys?.auth
+        });
+        
         setIsNotificationsEnabled(true);
         showAlert('Success', 'Notifications enabled successfully!');
       } else {
