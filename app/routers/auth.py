@@ -21,7 +21,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
     await db.refresh(user)
     
     access_token = auth.create_access_token(data={"sub": user.id})
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=31536000)
     return {"user": {"email": user.email}}
 
 @router.post("/login")
@@ -32,7 +32,7 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     access_token = auth.create_access_token(data={"sub": user.id})
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=31536000)
     return {"user": {"email": user.email}}
 
 @router.post("/logout")
