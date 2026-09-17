@@ -19,6 +19,11 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(String(expense.amount));
   const [paidBy, setPaidBy] = useState(expense.paid_by || group.members[0]?.id || '');
+  const [participants, setParticipants] = useState<string[]>(
+    expense.splits && expense.splits.length > 0
+      ? expense.splits.map(s => s.member_id)
+      : group.members.map(m => m.id)
+  );
   const [error, setError] = useState('');
 
   const mutation = useMutation({
@@ -67,11 +72,16 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
           onSubmit={(e) => {
             e.preventDefault();
             setError('');
+            if (participants.length === 0) {
+              setError('Please select at least one person to split with.');
+              return;
+            }
             mutation.mutate({
               description,
               amount: parseFloat(amount),
               paid_by: paidBy,
-              split_type: expense.split_type || 'equal',
+              split_type: 'equal',
+              participant_ids: participants,
               category: expense.category || 'General',
             });
           }}
@@ -96,6 +106,26 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
               onChange={setPaidBy}
               options={group.members.map(m => ({ value: m.id, label: m.name }))}
             />
+          </div>
+          
+          <div className="flex flex-col gap-2 pt-2 border-t border-line-dark mt-2">
+            <label className="text-[13px] text-ink-soft mt-2">Split equally between</label>
+            <div className="flex flex-wrap gap-2">
+              {group.members.map(m => (
+                <label key={m.id} className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border transition-colors ${participants.includes(m.id) ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-bg border-line-dark text-ink hover:border-primary/50'}`}>
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={participants.includes(m.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setParticipants([...participants, m.id]);
+                      else setParticipants(participants.filter(id => id !== m.id));
+                    }}
+                  />
+                  <span className="text-[14px] font-medium">{m.name}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end gap-3">
