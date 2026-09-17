@@ -7,7 +7,8 @@ Evenly is a private, real-time expense splitting app designed for small groups, 
 Say goodbye to ads, per-user subscription fees, and bloated interfaces. Evenly is built to be fast, secure, and fully owned by you. It can be installed directly to your phone's home screen as a native-feeling Progressive Web App (PWA).
 
 ### Key Features
-- **Secure Accounts & Sync:** Robust JWT-based authentication ensures your data is safely backed up to the cloud and instantly synced across all your devices.
+- **Secure Accounts & Sync:** Features HttpOnly, Secure, SameSite=Lax JWT cookie authentication to prevent XSS attacks, ensuring your data is safely backed up and synced.
+- **Blazing Fast Architecture:** Built on modern asynchronous Python (FastAPI + asyncpg/aiosqlite) with optimized O(1) memory footprint SQL pipelines (UNION ALL, streaming CSV exports) to handle massive group histories.
 - **Advanced Debt Simplification:** The core financial engine automatically calculates the absolute fewest number of payments required to settle all debts in the group.
 - **Flexible Splitting:** Split expenses equally, by exact amounts, or by custom percentages.
 - **Export & Ownership:** Your data is yours. Export any tab's ledger to CSV at any time.
@@ -32,11 +33,12 @@ evenly/
 ├── alembic/             # Database migrations
 ├── app/                 # FastAPI Backend
 │   ├── main.py          # FastAPI app entrypoint and middleware
-│   ├── routers/         # Modular API endpoints (auth, groups, users, notifications)
-│   ├── database.py      # DB connection (SQLite locally, Postgres in prod)
-│   ├── models.py        # SQLAlchemy tables
+│   ├── routers/         # Thin HTTP routing shells (auth, groups, users)
+│   ├── services/        # Core business logic and DB transactions
+│   ├── database.py      # Async DB connection (aiosqlite locally, asyncpg in prod)
+│   ├── models.py        # SQLAlchemy tables and schemas
 │   ├── schemas.py       # Pydantic request/response validation
-│   ├── auth.py          # Secure JWT auth and password hashing
+│   ├── auth.py          # JWT authentication and cookie management
 │   └── balances.py      # Core financial engine + debt simplification
 ├── frontend/            # React Frontend
 │   ├── src/
@@ -128,5 +130,6 @@ Once installed it opens full-screen, no browser bar, like a normal native app th
 
 - **Currency symbol:** Modify formatting in the frontend components as needed.
 - **Deleting an expense:** For safety, only the tab creator (admin) or the person who paid the expense is allowed to delete it.
-- **Exporting Data:** You can export the entire tab's ledger and history to a CSV file from the API.
-- **Syncing across devices:** your account identity is securely tied to your email and password. Log in from any phone or computer and your tabs will instantly sync from the cloud.
+- **Exporting Data:** You can export the entire tab's ledger to a CSV file. The backend streams the CSV chunk-by-chunk to prevent memory bloat on large groups.
+- **Syncing across devices:** Your account identity is securely tied to your email and password via HttpOnly cookies. Log in from any phone or computer and your tabs will instantly sync.
+- **Audit Trails:** Every ledger transaction records exactly which `user_id` created it in the database for secure auditing.
