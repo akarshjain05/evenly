@@ -42,7 +42,8 @@ export default function Dashboard() {
       }
     },
     onError: (err: any) => {
-      setError(err.response?.data?.detail || 'An error occurred');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'An error occurred'));
     }
   });
 

@@ -20,7 +20,7 @@ class Token(BaseModel):
 
 class GroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=60)
-    your_name: str = Field(..., min_length=1, max_length=40)
+    your_name: Optional[str] = None
 
 class GroupUpdate(BaseModel):
     name: str = Field(..., min_length=1, max_length=60)
