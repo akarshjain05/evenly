@@ -112,7 +112,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
             <label className="text-[13px] text-ink-soft mt-2">Split equally between</label>
             <div className="flex flex-wrap gap-2">
               {group.members.map(m => (
-                <label key={m.id} className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border transition-colors ${participants.includes(m.id) ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-bg border-line-dark text-ink hover:border-primary/50'}`}>
+                <label key={m.id} className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border transition-colors ${participants.includes(m.id) ? 'bg-primary border-primary text-white' : 'bg-bg border-line-dark text-ink hover:border-primary/50'}`}>
                   <input
                     type="checkbox"
                     className="hidden"
