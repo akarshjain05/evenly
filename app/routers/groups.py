@@ -17,9 +17,9 @@ router = APIRouter(prefix='/api/groups', tags=['groups'])
 async def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
     return await group_service.create_group_transaction(payload, user, db)
 
-@router.post("/join", response_model=schemas.CreateJoinResponse)
-async def join_group(payload: schemas.GroupJoin, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
-    return await group_service.join_group_transaction(payload, user, db)
+@router.post("/by-code/{invite_code}/join", response_model=schemas.CreateJoinResponse)
+async def join_group(invite_code: str, payload: schemas.JoinRequest, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
+    return await group_service.join_group_transaction(invite_code, payload, user, db)
 
 @router.get("/{group_id}", response_model=schemas.GroupDetailResponse)
 async def get_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: AsyncSession = Depends(get_db)):

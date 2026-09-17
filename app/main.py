@@ -7,7 +7,7 @@ import logging
 import os
 import asyncio
 
-from app.database import Base, engine, get_db, SessionLocal
+from app.database import Base, engine, get_db
 from app.routers import auth, users, groups, notifications
 from app import rate_limiter
 

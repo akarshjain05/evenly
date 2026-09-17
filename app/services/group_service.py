@@ -26,8 +26,8 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     await db.refresh(member)
     return {"group": group, "member": member}
 
-async def join_group_transaction(payload: schemas.GroupJoin, user: models.User, db: AsyncSession):
-    result = await db.execute(select(models.Group).filter(models.Group.invite_code == payload.invite_code))
+async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest, user: models.User, db: AsyncSession):
+    result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code))
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
