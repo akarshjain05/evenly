@@ -1,9 +1,10 @@
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
 import { useUIStore } from '../store/uiStore';
-import { Plus, Handshake, Trash2 } from 'lucide-react';
+import { Plus, Handshake, Trash2, Share2, MoreVertical, Moon, Sun } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import { GroupViewSkeleton } from '../components/Skeleton';
@@ -22,6 +23,24 @@ export default function GroupView() {
   const { id } = useParams<{ id: string }>();
   const { openAddExpense, openSettleUp } = useUIStore();
   const queryClient = useQueryClient();
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleDarkMode = () => {
+    const isDark = !isDarkMode;
+    setIsDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+    }
+  };
 
   const { data: group, isLoading: isLoadingGroup } = useQuery({
     queryKey: ['group', id],
@@ -39,67 +58,142 @@ export default function GroupView() {
   if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
+    <div className="max-w-4xl mx-auto pb-20 p-6 sm:p-8">
       <AddExpenseModal group={group} />
       <SettleUpModal group={group} />
+      
+      {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-ink">{group.name}</h1>
-            <button 
-              onClick={async () => {
-                try {
-                  const token = localStorage.getItem('token');
-                  const res = await fetch(`/api/groups/${id}/export/csv`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                  });
-                  if (!res.ok) throw new Error('Export failed');
-                  const blob = await res.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${group.name.replace(/\s+/g, '_')}_export.csv`;
-                  a.click();
-                } catch(e) {
-                  alert('Export failed');
-                }
-              }}
-              className="text-[12px] font-semibold text-brass hover:text-brass-deep transition-colors border border-brass px-2 py-0.5 rounded-md"
-            >
-              Export CSV
-            </button>
           </div>
           <p className="text-sm text-on-dark-soft">Invite Code: <span className="font-mono font-medium text-ink">{group.invite_code}</span></p>
         </div>
         
-        <div className="flex gap-3">
+        {/* TOP RIGHT CONTROLS */}
+        <div className="flex gap-2 items-center relative">
           <button
-            onClick={openSettleUp}
-            className="flex items-center gap-2 px-4 py-2 border border-[#C19A5B] text-[#C19A5B] rounded-md hover:bg-orange-50 font-medium transition-colors"
+            onClick={toggleDarkMode}
+            className="p-2 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
+            title="Toggle Theme"
           >
-            <Handshake size={18} /> Settle Up
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
+          
           <button
-            onClick={openAddExpense}
-            className="flex items-center gap-2 px-4 py-2 bg-[#08060d] text-white rounded-md hover:bg-[#1a1625] font-medium transition-colors"
+            onClick={() => {
+              const url = `${window.location.origin}/join/${group.invite_code}`;
+              if (navigator.share) {
+                navigator.share({ title: group.name, url });
+              } else {
+                navigator.clipboard.writeText(url);
+                alert("Invite link copied to clipboard!");
+              }
+            }}
+            className="p-2 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
+            title="Share Tab"
           >
-            <Plus size={18} /> Add Expense
+            <Share2 size={20} />
           </button>
+
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <MoreVertical size={20} />
+          </button>
+          
+          {showMenu && (
+            <div className="absolute top-12 right-0 w-48 bg-paper border border-line-dark rounded-xl shadow-xl z-10 py-1">
+              <button
+                onClick={async () => {
+                  setShowMenu(false);
+                  const newName = prompt("Enter new tab name:", group.name);
+                  if (newName && newName !== group.name) {
+                    try {
+                      await apiClient.put(`groups/${id}`, { name: newName });
+                      queryClient.invalidateQueries({ queryKey: ['group', id] });
+                      queryClient.invalidateQueries({ queryKey: ['groups'] });
+                    } catch (e) {
+                      alert("Failed to rename tab.");
+                    }
+                  }
+                }}
+                className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors"
+              >
+                Rename Tab
+              </button>
+              <button
+                onClick={async () => {
+                  setShowMenu(false);
+                  try {
+                    const res = await apiClient.get(`groups/${id}/export/csv`, { responseType: 'blob' });
+                    const url = window.URL.createObjectURL(new Blob([res.data]));
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${group.name.replace(/\s+/g, '_')}_export.csv`;
+                    a.click();
+                  } catch(e) {
+                    alert('Export failed');
+                  }
+                }}
+                className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors"
+              >
+                Export to CSV
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">Activity</h2>
-          <div className="space-y-4">
-            {activities?.length === 0 && (
-              <p className="text-gray-500 italic text-center py-8">No expenses yet.</p>
-            )}
-            {activities?.map((item) => (
-              <div key={item.id} className="flex justify-between items-center p-4 bg-white rounded-lg shadow-sm border border-[#e5e4e7]">
-                <div>
-                  <div className="flex items-center">
-                    <h3 className="font-medium text-[#08060d]">{item.description}</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* ACTION BUTTONS (Moved down into feed column) */}
+          <div className="flex gap-4">
+            <button
+              onClick={openAddExpense}
+              className="flex-1 flex justify-center items-center gap-2 px-4 py-3 bg-primary text-white rounded-xl hover:bg-opacity-90 font-medium transition-colors"
+            >
+              <Plus size={18} /> Add Expense
+            </button>
+            <button
+              onClick={openSettleUp}
+              className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-primary text-primary rounded-xl hover:bg-primary hover:bg-opacity-10 font-medium transition-colors cursor-pointer bg-transparent"
+            >
+              <Handshake size={18} /> Settle Up
+            </button>
+          </div>
+
+          <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
+            <div className="px-6 py-5 border-b border-line-paper flex justify-between items-center">
+               <h2 className="text-xl font-semibold m-0 text-ink">Activity</h2>
+            </div>
+            <div className="divide-y divide-line-paper">
+              {activities?.length === 0 && (
+                <p className="text-ink-soft italic text-center py-8">No expenses yet.</p>
+              )}
+              {activities?.map((item) => (
+                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between">
+                      <h3 className="font-medium text-ink m-0">{item.description}</h3>
+                      <div className={`font-semibold ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
+                        ${item.amount.toFixed(2)}
+                      </div>
+                    </div>
+                    <p className="text-sm text-ink-soft m-0 flex justify-between">
+                      <span>
+                        {item.type === 'expense' ? (
+                          <>Paid by <span className="font-medium">{item.paid_by_name}</span></>
+                        ) : (
+                          <>{item.from_name} paid {item.to_name}</>
+                        )}
+                      </span>
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                    </p>
+                    
                     {item.type === 'expense' && (
                       <button 
                         onClick={() => {
@@ -110,57 +204,49 @@ export default function GroupView() {
                             });
                           }
                         }}
-                        className="text-on-dark-soft hover:text-[#c81e1e] p-1 ml-2 transition-colors"
-                        title="Delete expense"
+                        className="text-ink-soft hover:text-danger mt-1 transition-colors text-[12px] flex items-center gap-1"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} /> Delete
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {item.type === 'expense' ? (
-                      <>Paid by <span className="font-medium">{item.paid_by_name}</span></>
-                    ) : (
-                      <>{item.from_name} paid {item.to_name}</>
-                    )}
-                    <span className="mx-2">•</span>
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </p>
                 </div>
-                <div className={`font-semibold text-lg ${item.type === 'settlement' ? 'text-green-600' : 'text-[#08060d]'}`}>
-                  ${item.amount.toFixed(2)}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">Balances</h2>
-          <div className="bg-white rounded-lg shadow-sm border border-[#e5e4e7] p-4">
-            <ul className="space-y-3">
+        <div className="space-y-6">
+          <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
+            <div className="p-5 border-b border-line-paper">
+              <h2 className="text-xl font-semibold m-0 text-ink">Balances</h2>
+            </div>
+            <div className="p-5 space-y-4">
               {group.members.map((m) => (
-                <li key={m.id} className="flex justify-between items-center">
-                  <span className="font-medium">{m.name}</span>
-                  <span className={`font-semibold ${m.balance > 0 ? 'text-green-600' : m.balance < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                <div key={m.id} className="flex justify-between items-center">
+                  <span className="font-medium text-ink">{m.name}</span>
+                  <span className={`font-semibold ${m.balance > 0 ? 'text-primary' : m.balance < 0 ? 'text-danger' : 'text-ink-soft'}`}>
                     {m.balance > 0 ? '+' : ''}{m.balance.toFixed(2)}
                   </span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
           {group.simplified_debts.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4 border-b pb-2">How to settle up</h2>
-              <div className="bg-white rounded-lg shadow-sm border border-[#e5e4e7] p-4">
-                <ul className="space-y-3">
-                  {group.simplified_debts.map((debt, i) => (
-                    <li key={i} className="text-sm">
-                      <span className="font-semibold">{debt.from_name}</span> owes <span className="font-semibold">{debt.to_name}</span> <span className="font-semibold text-[#08060d]">${debt.amount.toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
+            <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
+              <div className="p-5 border-b border-line-paper">
+                <h2 className="text-xl font-semibold m-0 text-ink">How to settle up</h2>
+              </div>
+              <div className="p-5 space-y-4">
+                {group.simplified_debts.map((debt, i) => (
+                  <div key={i} className="text-sm text-ink-soft flex justify-between items-center">
+                    <span>
+                      <span className="font-semibold text-ink">{debt.from_name}</span> owes <span className="font-semibold text-ink">{debt.to_name}</span>
+                    </span>
+                    <span className="font-semibold text-ink">${debt.amount.toFixed(2)}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

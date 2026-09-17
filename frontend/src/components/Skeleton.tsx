@@ -28,7 +28,7 @@ export function GroupViewSkeleton() {
             <Skeleton className="h-12 flex-1 rounded-xl" />
           </div>
 
-          <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="bg-paper rounded-2xl border border-border overflow-hidden">
             <div className="px-6 py-5 border-b border-border flex justify-between items-center">
               <Skeleton className="h-6 w-32" />
             </div>
@@ -51,7 +51,7 @@ export function GroupViewSkeleton() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+          <div className="bg-paper rounded-2xl border border-border overflow-hidden">
             <div className="p-5 border-b border-border">
               <Skeleton className="h-6 w-24" />
             </div>
