@@ -1,14 +1,16 @@
-
-import { Outlet, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
-import { Settings } from 'lucide-react';
+import { Settings, Menu, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 
 export default function Layout() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -18,6 +20,10 @@ export default function Layout() {
     },
     enabled: isAuthenticated
   });
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -29,12 +35,32 @@ export default function Layout() {
   const initials = displayName.substring(0, 2).toUpperCase();
 
   return (
-    <div className="flex h-screen bg-bg text-ink">
-      <aside className="w-64 bg-bg border-r border-line-dark flex flex-col shrink-0">
-        <div className="flex-1 overflow-hidden">
+    <div className="flex h-screen bg-bg text-ink overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed md:static inset-y-0 left-0 z-50 w-64 bg-bg border-r border-line-dark flex flex-col shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="flex items-center justify-between p-4 md:hidden border-b border-line-dark">
+          <div className="font-display font-bold text-xl text-ink">Evenly</div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="text-ink-soft p-1 cursor-pointer">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
           <Sidebar />
         </div>
-        <div className="p-4 shrink-0">
+        <div className="p-4 shrink-0 border-t border-line-dark md:border-t-0">
           <button 
             onClick={() => navigate('/settings')} 
             className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
@@ -50,9 +76,21 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto p-6 relative">
-        <Outlet />
-      </main>
-          </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between p-4 border-b border-line-dark bg-bg shrink-0">
+          <div className="font-display font-bold text-xl text-ink">Evenly</div>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="text-ink p-1 cursor-pointer">
+            <Menu size={24} />
+          </button>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative">
+          <Outlet />
+        </main>
+      </div>
+    </div>
   );
 }

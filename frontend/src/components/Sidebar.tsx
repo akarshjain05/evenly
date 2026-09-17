@@ -18,8 +18,8 @@ export default function Sidebar() {
   const location = useLocation();
 
   return (
-    <div className="flex flex-col h-full bg-bg border-r border-line-dark">
-      <div className="p-[24px] pb-[16px] flex items-center justify-between">
+    <div className="flex flex-col h-full bg-bg">
+      <div className="p-[24px] pb-[16px] hidden md:flex items-center justify-between">
         <Link to="/" className="no-underline">
           <h2 className="font-display text-[24px] font-semibold text-ink m-0 hover:opacity-80 transition-opacity cursor-pointer">
             Evenly

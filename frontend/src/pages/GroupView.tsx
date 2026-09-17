@@ -59,7 +59,7 @@ export default function GroupView() {
   if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
 
   return (
-    <div className="max-w-4xl mx-auto pb-20 p-6 sm:p-8">
+    <div className="max-w-4xl mx-auto pb-20">
       <AddExpenseModal group={group} />
       <SettleUpModal group={group} />
       
