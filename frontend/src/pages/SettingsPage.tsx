@@ -127,20 +127,28 @@ export default function SettingsPage() {
             </button>
           </div>
 
-        </div>
+          <div className="flex items-center justify-between p-4 border border-[#c81e1e] border-opacity-30 bg-[#c81e1e] bg-opacity-5 rounded-[12px]">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-bg flex items-center justify-center shrink-0 border border-line-dark">
+                <LogOut className="text-[#c81e1e]" size={20} />
+              </div>
+              <div>
+                <div className="font-medium text-[15px] text-[#c81e1e]">Sign Out</div>
+                <div className="text-[13px] text-[#c81e1e] opacity-80 mt-0.5">End your current session</div>
+              </div>
+            </div>
+            <button 
+              onClick={async () => {
+                if (await showConfirm('Sign Out', 'Are you sure you want to sign out?', { danger: true })) {
+                  logout();
+                }
+              }}
+              className="px-4 py-2 text-[14px] font-medium rounded-xl transition-colors cursor-pointer border border-[#c81e1e] text-[#c81e1e] hover:bg-[#c81e1e] hover:text-white bg-transparent"
+            >
+              Sign Out
+            </button>
+          </div>
 
-        <div className="p-5 sm:p-6 bg-paper-dim border-t border-line-dark flex justify-end">
-          <button 
-            onClick={async () => {
-              if (await showConfirm('Sign Out', 'Are you sure you want to sign out?', { danger: true })) {
-                logout();
-              }
-            }}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 text-[14px] font-medium text-white bg-danger rounded-xl cursor-pointer hover:bg-opacity-90 transition-colors border-none"
-          >
-            <LogOut size={16} />
-            Sign Out
-          </button>
         </div>
       </div>
     </div>
