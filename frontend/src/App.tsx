@@ -8,9 +8,9 @@ import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from './pages/NotFoundPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('token');
+  const isLoggedIn = localStorage.getItem('is_logged_in') === 'true';
   const location = useLocation();
-  if (!token) {
+  if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   return <>{children}</>;
