@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { UserLogin, UserCreate } from '../types/api';
 import { apiClient } from '../api/client';
 
@@ -12,6 +13,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(localStorage.getItem('is_logged_in') === 'true');
 
   const login = async (data: UserLogin) => {
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { await apiClient.post('auth/logout'); } catch (e) {}
     localStorage.removeItem('is_logged_in');
     setIsAuthenticated(false);
+    queryClient.clear();
   };
 
   return (
