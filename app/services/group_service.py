@@ -85,7 +85,7 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
         amount=payload.amount,
         paid_by=payload.paid_by,
         category=payload.category,
-        split_type=payload.split_type,
+        split_type=models.SplitType(payload.split_type),
         created_by_user_id=user.id
     )
     db.add(expense)
