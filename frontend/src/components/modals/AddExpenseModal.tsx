@@ -71,7 +71,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       queryClient.invalidateQueries({ queryKey: ['group', id] });
       queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
     },
-    onError: (err: any, newExpense, context: any) => {
+    onError: (err: any, _newExpense: any, context: any) => {
       if (context?.previousActivity) {
         queryClient.setQueryData(['group-activity', id], context.previousActivity);
         queryClient.invalidateQueries({ queryKey: ['group', id] });

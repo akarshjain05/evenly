@@ -71,7 +71,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
       queryClient.invalidateQueries({ queryKey: ['group', id] });
       queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
     },
-    onError: (err: any, settlement, context: any) => {
+    onError: (err: any, _settlement: any, context: any) => {
       if (context?.previousActivity) {
         queryClient.setQueryData(['group-activity', id], context.previousActivity);
         queryClient.invalidateQueries({ queryKey: ['group', id] });
