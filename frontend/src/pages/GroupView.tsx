@@ -26,6 +26,7 @@ export default function GroupView() {
   const queryClient = useQueryClient();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -149,12 +150,15 @@ export default function GroupView() {
                   setShowMenu(false);
                   const confirmed = await showConfirm("Delete Tab", "Are you sure you want to delete this tab? This will permanently delete all expenses and settlements. This action cannot be undone.");
                   if (confirmed) {
+                    setIsDeleting(true);
                     try {
                       await apiClient.delete(`groups/${id}`);
+                      queryClient.setQueryData(['groups'], (old: any) => old?.filter((m: any) => m.group.id !== id));
                       queryClient.invalidateQueries({ queryKey: ['groups'] });
-                      navigate('/');
+                      navigate('/', { replace: true });
                     } catch (e: any) {
                       showAlert('Error', e.response?.data?.detail || 'Failed to delete tab. Only the creator can delete it.');
+                      setIsDeleting(false);
                     }
                   }
                 }}
@@ -166,6 +170,15 @@ export default function GroupView() {
           )}
         </div>
       </div>
+
+      {isDeleting && (
+        <div className="fixed inset-0 bg-bg/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-line-dark border-t-[#c81e1e] animate-spin"></div>
+            <div className="text-ink font-medium text-[15px]">Deleting tab...</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
