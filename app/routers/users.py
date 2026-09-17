@@ -15,16 +15,14 @@ async def get_me(user: models.User = Depends(deps.get_current_user)):
 @router.get("/me/groups", response_model=list[schemas.MembershipResponse])
 async def get_my_groups(user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(models.User).options(
-            selectinload(models.User.memberships).selectinload(models.Member.group)
-        ).filter(models.User.id == user.id)
+        select(models.Member).options(selectinload(models.Member.group)).filter(models.Member.user_id == user.id)
     )
-    user = result.scalars().first()
+    members = result.scalars().all()
     return [
         {
             "group": {"id": m.group.id, "name": m.group.name, "invite_code": m.group.invite_code},
             "member": {"id": m.id, "name": m.name, "color": m.color}
         }
-        for m in user.memberships
+        for m in members
     ]
 
