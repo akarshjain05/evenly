@@ -20,9 +20,11 @@ export default function Sidebar() {
   return (
     <div className="flex flex-col h-full bg-bg border-r border-line-dark">
       <div className="p-[24px] pb-[16px] flex items-center justify-between">
-        <h2 className="font-display text-[24px] font-semibold text-ink flex items-center gap-2 m-0">
-          <Users size={24} className="text-brass" /> Evenly
-        </h2>
+        <Link to="/" className="no-underline">
+          <h2 className="font-display text-[24px] font-semibold text-ink flex items-center gap-2 m-0 hover:opacity-80 transition-opacity cursor-pointer">
+            <Users size={24} className="text-brass" /> Evenly
+          </h2>
+        </Link>
       </div>
       
       <div className="flex-1 overflow-y-auto px-[12px] flex flex-col gap-1">
