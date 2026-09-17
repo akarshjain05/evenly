@@ -15,6 +15,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(group.members[0]?.id || '');
+  const [error, setError] = useState('');
   
   const mutation = useMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
@@ -24,7 +25,12 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       closeAddExpense();
       setDescription('');
       setAmount('');
+      setError('');
     },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'Failed to save expense'));
+    }
   });
 
   if (!isAddExpenseOpen) return null;
@@ -37,7 +43,8 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
           <button onClick={closeAddExpense} className="text-on-dark-soft hover:bg-paper-dim p-1.5 rounded-full transition-colors"><X size={20}/></button>
         </div>
         
-        <form onSubmit={(e) => { e.preventDefault(); mutation.mutate({ description, amount: parseFloat(amount), paid_by: paidBy, split_type: 'equal' }); }} className="p-5 space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); setError(''); mutation.mutate({ description, amount: parseFloat(amount), paid_by: paidBy, split_type: 'equal' }); }} className="p-5 space-y-4">
+          {error && <div className="text-[#c81e1e] text-[13px] font-medium">{error}</div>}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] text-ink-soft">Description</label>
             <input type="text" required value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Dinner at Joe's" />
