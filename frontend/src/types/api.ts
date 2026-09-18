@@ -54,6 +54,7 @@ export interface MemberResponse {
   name: string;
   color: string;
   is_admin?: boolean;
+  user_id?: string | null;
 }
 
 export interface GroupSummary {

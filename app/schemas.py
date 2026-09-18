@@ -56,6 +56,7 @@ class MemberResponse(BaseModel):
     name: str
     color: str
     is_admin: bool = False
+    user_id: Optional[str] = None
 
 class GroupSummary(BaseModel):
     id: str

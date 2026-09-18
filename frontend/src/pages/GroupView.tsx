@@ -51,11 +51,22 @@ export default function GroupView() {
     }
   };
 
+  const { data: user } = useQuery({ queryKey: ['me'], queryFn: async () => (await apiClient.get('users/me')).data });
+
   const { data: group, isLoading: isLoadingGroup } = useQuery({
     queryKey: ['group', id],
     queryFn: () => fetchGroupDetails(id!),
     enabled: !!id,
   });
+
+  const getDisplayName = (memberId: string | null | undefined, fallbackName: string | null | undefined) => {
+    if (!memberId) return fallbackName || 'Unknown';
+    const member = group?.members.find(m => m.id === memberId);
+    if (member && user && member.user_id === user.id) {
+      return 'You';
+    }
+    return fallbackName || member?.name || 'Unknown';
+  };
 
   const { data: activities, isLoading: isLoadingActivity } = useQuery({
     queryKey: ['group-activity', id],
@@ -302,9 +313,9 @@ export default function GroupView() {
                     <p className="text-sm text-ink-soft m-0 flex justify-between">
                       <span>
                         {item.type === 'expense' ? (
-                          <>Paid by <span className="font-medium">{item.paid_by_name}</span></>
+                          <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
                         ) : (
-                          <>{item.from_name} paid {item.to_name}</>
+                          <>{getDisplayName(item.from_member, item.from_name)} paid {getDisplayName(item.to_member, item.to_name)}</>
                         )}
                       </span>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
@@ -324,7 +335,7 @@ export default function GroupView() {
             <div className="p-5 space-y-4">
               {group.members.map((m) => (
                 <div key={m.id} className="flex justify-between items-center">
-                  <span className="font-medium text-ink">{m.name}</span>
+                  <span className="font-medium text-ink">{getDisplayName(m.id, m.name)}</span>
                   <span className={`font-semibold ${Number(m.balance) > 0 ? 'text-primary' : Number(m.balance) < 0 ? 'text-danger' : 'text-ink-soft'}`}>
                     {Number(m.balance) > 0 ? '+' : ''}{Number(m.balance).toFixed(2)}
                   </span>
@@ -342,7 +353,7 @@ export default function GroupView() {
                 {group.simplified_debts.map((debt, i) => (
                   <div key={i} className="text-sm text-ink-soft flex justify-between items-center">
                     <span>
-                      <span className="font-semibold text-ink">{debt.from_name}</span> owes <span className="font-semibold text-ink">{debt.to_name}</span>
+                      <span className="font-semibold text-ink">{getDisplayName(debt.from_member, debt.from_name)}</span> {getDisplayName(debt.from_member, debt.from_name) === 'You' ? 'owe' : 'owes'} <span className="font-semibold text-ink">{getDisplayName(debt.to_member, debt.to_name)}</span>
                     </span>
                     <span className="font-semibold text-ink">₹{Number(debt.amount).toFixed(2)}</span>
                   </div>

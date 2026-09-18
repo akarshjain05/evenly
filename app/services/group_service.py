@@ -71,7 +71,7 @@ async def get_group_details(group_id: str, db: AsyncSession):
         "invite_code": group.invite_code,
         "created_at": group.created_at,
         "members": [
-            {"id": m.id, "name": m.name, "color": m.color, "is_admin": m.is_admin, "balance": net.get(m.id, Decimal(0))}
+            {"id": m.id, "name": m.name, "color": m.color, "is_admin": m.is_admin, "user_id": m.user_id, "balance": net.get(m.id, Decimal(0))}
             for m in group.members
         ],
         "simplified_debts": debts
