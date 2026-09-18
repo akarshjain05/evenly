@@ -5,6 +5,7 @@ import { apiClient } from '../../api/client';
 import type { ActivityResponse, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
+import { simplifyDebts } from '../../utils/balances';
 
 interface Props {
   expense: ActivityResponse;
@@ -42,6 +43,47 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
             : item
         )
       );
+
+      queryClient.setQueryData(['group', id], (old: any) => {
+        if (!old) return old;
+        const newGroup = JSON.parse(JSON.stringify(old));
+        
+        // 1. Revert old expense
+        if (expense.splits && expense.splits.length > 0) {
+            newGroup.members.forEach((m: any) => {
+                let netChange = 0;
+                if (m.id === expense.paid_by) netChange -= expense.amount;
+                const split = expense.splits?.find((s: any) => s.member_id === m.id);
+                if (split) netChange += Number(split.share_amount);
+                m.balance = (Number(m.balance) + netChange).toString();
+            });
+        } else {
+            const share = expense.amount / newGroup.members.length;
+            newGroup.members.forEach((m: any) => {
+                let netChange = 0;
+                if (m.id === expense.paid_by) netChange -= expense.amount;
+                netChange += share;
+                m.balance = (Number(m.balance) + netChange).toString();
+            });
+        }
+
+        // 2. Apply new expense
+        if (updated.split_type === 'equal') {
+            const parts = updated.participant_ids || newGroup.members.map((m: any) => m.id);
+            if (parts.length > 0) {
+                const share = updated.amount / parts.length;
+                newGroup.members.forEach((m: any) => {
+                    let netChange = 0;
+                    if (m.id === updated.paid_by) netChange += updated.amount;
+                    if (parts.includes(m.id)) netChange -= share;
+                    m.balance = (Number(m.balance) + netChange).toString();
+                });
+            }
+        }
+        
+        newGroup.simplified_debts = simplifyDebts(newGroup.members);
+        return newGroup;
+      });
 
       onClose();
       return { previousActivity };

@@ -8,6 +8,8 @@ import { Plus, Handshake, Trash2, Pencil, Share2, MoreVertical, Moon, Sun } from
 import AddExpenseModal from '../components/modals/AddExpenseModal';
 import EditExpenseModal from '../components/modals/EditExpenseModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
+import ShareModal from '../components/modals/ShareModal';
+import { simplifyDebts } from '../utils/balances';
 import { GroupViewSkeleton } from '../components/Skeleton';
 
 const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
@@ -20,7 +22,6 @@ const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
   return data;
 };
 
-import ShareModal from '../components/modals/ShareModal';
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
@@ -252,6 +253,30 @@ export default function GroupView() {
                                         queryClient.setQueryData(['group-activity', id], (old: any) =>
                                           old?.filter((a: ActivityResponse) => a.id !== item.id)
                                         );
+                                        queryClient.setQueryData(['group', id], (old: any) => {
+                                          if (!old) return old;
+                                          const newGroup = JSON.parse(JSON.stringify(old));
+                                          
+                                          if (item.splits && item.splits.length > 0) {
+                                              newGroup.members.forEach((m: any) => {
+                                                  let netChange = 0;
+                                                  if (m.id === item.paid_by) netChange -= item.amount;
+                                                  const split = item.splits?.find((s: any) => s.member_id === m.id);
+                                                  if (split) netChange += Number(split.share_amount);
+                                                  m.balance = (Number(m.balance) + netChange).toString();
+                                              });
+                                          } else {
+                                              const share = item.amount / newGroup.members.length;
+                                              newGroup.members.forEach((m: any) => {
+                                                  let netChange = 0;
+                                                  if (m.id === item.paid_by) netChange -= item.amount;
+                                                  netChange += share;
+                                                  m.balance = (Number(m.balance) + netChange).toString();
+                                              });
+                                          }
+                                          newGroup.simplified_debts = simplifyDebts(newGroup.members);
+                                          return newGroup;
+                                        });
                                         apiClient.delete(`groups/${id}/expenses/${item.id}`)
                                           .then(() => {
                                             queryClient.invalidateQueries({ queryKey: ['group', id] });

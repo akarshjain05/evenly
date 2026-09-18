@@ -6,6 +6,7 @@ import { apiClient } from '../../api/client';
 import type { GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
+import { simplifyDebts } from '../../utils/balances';
 
 export default function SettleUpModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
                 m.balance = (Number(m.balance) - settlement.amount).toString();
             }
         });
+        newGroup.simplified_debts = simplifyDebts(newGroup.members);
         return newGroup;
       });
 

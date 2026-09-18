@@ -6,6 +6,7 @@ import { apiClient } from '../../api/client';
 import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
+import { simplifyDebts } from '../../utils/balances';
 
 export default function AddExpenseModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +61,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
               });
             }
         }
+        newGroup.simplified_debts = simplifyDebts(newGroup.members);
         return newGroup;
       });
 
