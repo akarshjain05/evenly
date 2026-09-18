@@ -20,6 +20,7 @@
   --color-debit: #C19A5B;
   --color-credit: #2D6A4F;
   --color-primary: #1B4332;
+  --color-danger: #c81e1e;
   
   --color-line-dark: #EAEAEA;
   --color-line-paper: #D0D0D0;
@@ -37,6 +38,9 @@
     --color-on-dark: #F0EBD9;
     --color-on-dark-soft: #A6ACA0;
     
+    --color-primary: #52B788;
+    --color-danger: #FF6B6B;
+    
     --color-line-dark: #314238;
     --color-line-paper: #314238;
   }
@@ -51,7 +55,11 @@
 /* Base button and input styling to match old styling seamlessly */
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white font-semibold text-[15px] px-[16px] py-[13px] rounded-[10px] border-none cursor-pointer transition-colors hover:bg-[#112F22];
+    @apply bg-primary text-white font-semibold text-[15px] px-[16px] py-[13px] rounded-[10px] border-none cursor-pointer transition-opacity hover:opacity-90;
+  }
+  
+  html.dark .btn-primary {
+    color: #111111;
   }
   
   .btn-secondary {
