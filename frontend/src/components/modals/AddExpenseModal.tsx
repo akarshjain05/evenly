@@ -1,12 +1,12 @@
+import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { apiClient } from '../../api/client';
 import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 //
 
@@ -15,7 +15,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   const { id } = useParams<{ id: string }>();
   const { isAddExpenseOpen, closeAddExpense, openAddExpense } = useUIStore();
 
-  const queryClient = useQueryClient();
+  
   
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');

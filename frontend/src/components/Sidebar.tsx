@@ -1,20 +1,12 @@
 import { SidebarSkeleton } from "./Skeleton";
-import { useQuery } from '@tanstack/react-query';
+import { useGroups } from '../hooks/useGroups';
 import { Link, useLocation } from 'react-router-dom';
-import { apiClient } from '../api/client';
-import type { MembershipResponse } from '../types/api';
 import Logo from './ui/Logo';
 
-const fetchGroups = async (): Promise<MembershipResponse[]> => {
-  const { data } = await apiClient.get('users/me/groups');
-  return data;
-};
+
 
 export default function Sidebar() {
-  const { data: groups, isLoading, error } = useQuery({
-    queryKey: ['groups'],
-    queryFn: fetchGroups,
-  });
+  const { data: groups, isLoading, error } = useGroups();
   const location = useLocation();
 
   return (

@@ -1,11 +1,11 @@
+import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import type { ActivityResponse, GroupDetailResponse } from '../../types/api';
+import type { ActivityResponse, GroupDetailResponse, ExpenseCreate } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 //
 
@@ -18,7 +18,7 @@ interface Props {
 
 export default function EditExpenseModal({ expense, group, onClose }: Props) {
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
+  
 
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(String(expense.amount));
@@ -31,8 +31,8 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
   const [error, setError] = useState('');
 
   const mutation = useLedgerMutation({
-    mutationFn: (updated: any) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
-    onMutateActivity: (old, updated) => {
+    mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
+    onMutateActivity: (old, updated: ExpenseCreate) => {
       const payer = group.members.find(m => m.id === updated.paid_by);
       const parts = updated.participant_ids || group.members.map((m: any) => m.id);
       const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
@@ -47,7 +47,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
             : item
       );
     },
-    onMutateBalances: (updated, members) => {
+    onMutateBalances: (updated: ExpenseCreate, members) => {
       const changes: { member_id: string, net_change: number }[] = [];
       
       members.forEach((m: any) => {

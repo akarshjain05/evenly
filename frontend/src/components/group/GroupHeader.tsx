@@ -1,17 +1,19 @@
+import type { GroupDetailResponse } from '../../types/api';
 import { useState } from 'react';
 import { Sun, Moon, Share2, MoreVertical } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 
-export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
+export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailResponse, id: string, setIsShareOpen: (v: boolean) => void }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { showPrompt, showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: user } = useQuery({ queryKey: ['me'], queryFn: async () => (await apiClient.get('users/me')).data });
+  const { data: user } = useCurrentUser();
   const currentMember = group?.members?.find((m: any) => m.user_id === user?.id);
   const isAdmin = currentMember?.is_admin;
 

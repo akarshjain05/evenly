@@ -1,15 +1,12 @@
+import { useGroups } from '../hooks/useGroups';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { PlusCircle, Users } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
-import type { MembershipResponse } from '../types/api';
 
-const fetchGroups = async (): Promise<MembershipResponse[]> => {
-  const { data } = await apiClient.get('users/me/groups');
-  return data;
-};
+
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
@@ -21,10 +18,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: groups, isLoading } = useQuery({
-    queryKey: ['groups'],
-    queryFn: fetchGroups,
-  });
+  const { data: groups, isLoading } = useGroups();
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -79,7 +73,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {groups?.map((m) => (
+            {groups?.map((m: any) => (
               <Link 
                 key={m.group.id} 
                 to={`/group/${m.group.id}`}

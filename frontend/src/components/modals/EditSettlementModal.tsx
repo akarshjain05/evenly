@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import type { GroupDetailResponse, ActivityResponse } from '../../types/api';
+import type { GroupDetailResponse, SettlementCreate, ActivityResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts } from '../../utils/balances';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 // 
 
@@ -18,7 +17,7 @@ interface Props {
 
 export default function EditSettlementModal({ settlement, group, onClose }: Props) {
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
+  
   
   const [fromMember, setFromMember] = useState(settlement.from_member || '');
   const [toMember, setToMember] = useState(settlement.to_member || '');
@@ -26,8 +25,8 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
   const [error, setError] = useState('');
   
   const mutation = useLedgerMutation({
-    mutationFn: (updated: any) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
-    onMutateActivity: (old, updated) => {
+    mutationFn: (updated: SettlementCreate) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
+    onMutateActivity: (old, updated: SettlementCreate) => {
       const fromMemberObj = group.members.find(m => m.id === updated.from_member);
       const toMemberObj = group.members.find(m => m.id === updated.to_member);
       
@@ -39,9 +38,9 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             : item
       );
     },
-    onMutateBalances: (updated) => [
-      { member_id: settlement.from_member, net_change: -settlement.amount },
-      { member_id: settlement.to_member, net_change: settlement.amount },
+    onMutateBalances: (updated: SettlementCreate) => [
+      { member_id: settlement.from_member as string, net_change: -settlement.amount },
+      { member_id: settlement.to_member as string, net_change: settlement.amount },
       { member_id: updated.from_member, net_change: updated.amount },
       { member_id: updated.to_member, net_change: -updated.amount }
     ],

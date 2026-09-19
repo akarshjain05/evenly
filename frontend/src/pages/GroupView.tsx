@@ -1,7 +1,8 @@
 import { formatCurrency } from '../utils/currency';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
 import { useUIStore } from '../store/uiStore';
@@ -11,7 +12,6 @@ import EditExpenseModal from '../components/modals/EditExpenseModal';
 import EditSettlementModal from '../components/modals/EditSettlementModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import ShareModal from '../components/modals/ShareModal';
-import { simplifyDebts } from '../utils/balances';
 import { useLedgerMutation } from '../hooks/useLedgerMutation';
 import { GroupViewSkeleton } from '../components/Skeleton';
 import { GroupHeader } from '../components/group/GroupHeader';
@@ -33,7 +33,7 @@ export default function GroupView() {
   const { id } = useParams<{ id: string }>();
   
   const { openAddExpense, openSettleUp, showAlert, showConfirm } = useUIStore();
-  const queryClient = useQueryClient();
+  
   
     
   
@@ -71,7 +71,7 @@ export default function GroupView() {
 
   
 
-  const { data: user } = useQuery({ queryKey: ['me'], queryFn: async () => (await apiClient.get('users/me')).data });
+  const { data: user } = useCurrentUser();
 
   const { data: group, isLoading: isLoadingGroup } = useQuery({
     queryKey: ['group', id],
@@ -192,7 +192,7 @@ export default function GroupView() {
         />
       )}
       
-      <GroupHeader group={group} id={id} setIsShareOpen={setIsShareOpen} />
+      <GroupHeader group={group} id={id as string} setIsShareOpen={setIsShareOpen} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">

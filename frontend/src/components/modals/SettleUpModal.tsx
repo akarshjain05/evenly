@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 import { apiClient } from '../../api/client';
-import type { GroupDetailResponse } from '../../types/api';
+import type { GroupDetailResponse, SettlementCreate } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts } from '../../utils/balances';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 // 
 
@@ -15,7 +14,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   const { id } = useParams<{ id: string }>();
   const { isSettleUpOpen, closeSettleUp, openSettleUp } = useUIStore();
 
-  const queryClient = useQueryClient();
+  
   
   const [fromMember, setFromMember] = useState(group.members[0]?.id || '');
   const [toMember, setToMember] = useState(group.members.length > 1 ? group.members[1].id : '');
@@ -23,8 +22,8 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   const [error, setError] = useState('');
   
   const mutation = useLedgerMutation({
-    mutationFn: (settlement: any) => apiClient.post(`groups/${id}/settlements`, settlement),
-    onMutateActivity: (old, settlement) => {
+    mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
+    onMutateActivity: (old, settlement: SettlementCreate) => {
       const fromMemberObj = group.members.find(m => m.id === settlement.from_member);
       const toMemberObj = group.members.find(m => m.id === settlement.to_member);
       const fakeId = `temp-${Date.now()}`;
@@ -48,7 +47,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
 
       return [optimisticActivity, ...old];
     },
-    onMutateBalances: (settlement) => [
+    onMutateBalances: (settlement: SettlementCreate) => [
       { member_id: settlement.from_member, net_change: settlement.amount },
       { member_id: settlement.to_member, net_change: -settlement.amount }
     ],

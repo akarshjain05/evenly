@@ -3,8 +3,7 @@ import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import { Settings, Menu, X, Download } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../api/client';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import Logo from './ui/Logo';
 import { useUIStore } from '../store/uiStore';
 
@@ -16,14 +15,7 @@ export default function Layout() {
   const installPromptEvent = useUIStore(state => state.installPromptEvent);
   const setInstallPromptEvent = useUIStore(state => state.setInstallPromptEvent);
 
-  const { data: user } = useQuery({
-    queryKey: ['me'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('users/me');
-      return data;
-    },
-    enabled: isAuthenticated
-  });
+  const { data: user } = useCurrentUser({ enabled: isAuthenticated });
 
   useEffect(() => {
     setIsMobileMenuOpen(false);

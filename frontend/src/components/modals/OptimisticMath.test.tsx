@@ -28,9 +28,9 @@ const mockGroup = {
   invite_code: '123456',
   simplified_debts: [],
   members: [
-    { id: '1', name: 'Alice', user_id: 'u1', balance: '0.00' },
-    { id: '2', name: 'Bob', user_id: 'u2', balance: '0.00' },
-    { id: '3', name: 'Charlie', user_id: 'u3', balance: '0.00' }
+    { id: '1', name: 'Alice', user_id: 'u1', balance: 0, color: '#000000' },
+    { id: '2', name: 'Bob', user_id: 'u2', balance: 0, color: '#000000' },
+    { id: '3', name: 'Charlie', user_id: 'u3', balance: 0, color: '#000000' }
   ]
 };
 
@@ -79,7 +79,7 @@ describe('Optimistic Math UI Tests', () => {
     // Wait for the cache to update optimistically
     await waitFor(() => {
       const groupCache = queryClient.getQueryData<any>(['group', 'test-group']);
-      expect(groupCache.members[0].balance).not.toBe('0.00'); // Alice paid, should change
+      expect(groupCache.members[0].balance).not.toBe(0); // Alice paid, should change
     });
     
     const optimisticGroup = queryClient.getQueryData<any>(['group', 'test-group']);
@@ -123,7 +123,7 @@ describe('Optimistic Math UI Tests', () => {
     await waitFor(() => {
       const groupCache = queryClient.getQueryData<any>(['group', 'test-group']);
       // Should be rolled back to 0.00
-      expect(groupCache.members[0].balance).toBe('0.00');
+      expect(groupCache.members[0].balance).toBe(0);
     });
     
     const activities = queryClient.getQueryData<any>(['group-activity', 'test-group']);

@@ -178,25 +178,7 @@ async def update_settlement(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
-    settlement = result.scalars().first()
-    if not settlement:
-        raise HTTPException(status_code=404, detail="Settlement not found")
-    
-    
-    res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    valid_ids = {m.id for m in res.scalars().all()}
-    if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
-        raise HTTPException(status_code=400, detail="Both people must be in this tab")
-        
-    await balances.revert_settlement(db, settlement)
-    
-    settlement.amount = payload.amount
-    settlement.from_member = payload.from_member
-    settlement.to_member = payload.to_member
-    
-    await balances.apply_settlement(db, settlement)
-    await db.commit()
+    await group_service.process_and_update_settlement(group_id, settlement_id, payload, db)
     return {"ok": True}
 
 @router.delete("/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)
