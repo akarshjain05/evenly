@@ -318,3 +318,94 @@ def test_settlement_permissions():
     del_res2 = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", cookies=h1)
     assert del_res2.status_code == 200
 
+
+
+def test_edit_expense_balances():
+    client.post("/api/auth/register", json={"email": "u1_edit@test.com", "password": "pass", "name": "U1"})
+    client.post("/api/auth/login", json={"email": "u1_edit@test.com", "password": "pass"})
+    
+    g_res = client.post("/api/groups", json={"name": "Edit Test"})
+    assert g_res.status_code == 200
+    group_id = g_res.json()["id"]
+    m1_id = g_res.json()["members"][0]["id"]
+    
+    client.post("/api/auth/register", json={"email": "u2_edit@test.com", "password": "pass", "name": "U2"})
+    client.post("/api/auth/login", json={"email": "u2_edit@test.com", "password": "pass"})
+    j_res = client.post(f"/api/groups/join/{g_res.json()['invite_code']}")
+    m2_id = j_res.json()["id"]
+    
+    # Login as U1 again
+    client.post("/api/auth/login", json={"email": "u1_edit@test.com", "password": "pass"})
+    
+    # Create expense of 100 paid by U1, split equal (U1: 50, U2: 50). U1 balance should be +50, U2 should be -50.
+    e_res = client.post(f"/api/groups/{group_id}/expenses", json={
+        "description": "Lunch",
+        "amount": 100,
+        "paid_by": m1_id,
+        "split_type": "equal",
+        "category": "General",
+        "splits": []
+    })
+    
+    g_info = client.get(f"/api/groups/{group_id}")
+    m1_bal = next(m["balance"] for m in g_info.json()["members"] if m["id"] == m1_id)
+    assert float(m1_bal) == 50.0
+    
+    # Get expense ID
+    act_res = client.get(f"/api/groups/{group_id}/activity")
+    expense_id = act_res.json()["items"][0]["id"]
+    
+    # Edit expense to 200. U1 balance should be +100, U2 should be -100.
+    client.put(f"/api/groups/{group_id}/expenses/{expense_id}", json={
+        "description": "Lunch",
+        "amount": 200,
+        "paid_by": m1_id,
+        "split_type": "equal",
+        "category": "General",
+        "splits": []
+    })
+    
+    g_info2 = client.get(f"/api/groups/{group_id}")
+    m1_bal2 = next(m["balance"] for m in g_info2.json()["members"] if m["id"] == m1_id)
+    assert float(m1_bal2) == 100.0
+
+
+def test_edit_settlement_balances():
+    client.post("/api/auth/register", json={"email": "u1_set@test.com", "password": "pass", "name": "U1"})
+    client.post("/api/auth/login", json={"email": "u1_set@test.com", "password": "pass"})
+    
+    g_res = client.post("/api/groups", json={"name": "Settlement Test"})
+    group_id = g_res.json()["id"]
+    m1_id = g_res.json()["members"][0]["id"]
+    
+    client.post("/api/auth/register", json={"email": "u2_set@test.com", "password": "pass", "name": "U2"})
+    client.post("/api/auth/login", json={"email": "u2_set@test.com", "password": "pass"})
+    j_res = client.post(f"/api/groups/join/{g_res.json()['invite_code']}")
+    m2_id = j_res.json()["id"]
+    
+    # Create settlement of 50 from U2 to U1. U1 balance should be -50 (they received), U2 should be +50
+    s_res = client.post(f"/api/groups/{group_id}/settlements", json={
+        "from_member": m2_id,
+        "to_member": m1_id,
+        "amount": 50
+    })
+    
+    g_info = client.get(f"/api/groups/{group_id}")
+    m1_bal = next(m["balance"] for m in g_info.json()["members"] if m["id"] == m1_id)
+    assert float(m1_bal) == -50.0
+    
+    # Get settlement ID
+    act_res = client.get(f"/api/groups/{group_id}/activity")
+    settlement_id = act_res.json()["items"][0]["id"]
+    
+    # Edit settlement to 100
+    client.put(f"/api/groups/{group_id}/settlements/{settlement_id}", json={
+        "from_member": m2_id,
+        "to_member": m1_id,
+        "amount": 100
+    })
+    
+    g_info2 = client.get(f"/api/groups/{group_id}")
+    m1_bal2 = next(m["balance"] for m in g_info2.json()["members"] if m["id"] == m1_id)
+    assert float(m1_bal2) == -100.0
+
