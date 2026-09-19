@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Loader2 } from 'lucide-react';
 
 export default function JoinGroupPage() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
   const attempted = useRef(false);
 
@@ -26,6 +28,7 @@ export default function JoinGroupPage() {
 
         try {
           await apiClient.post(`/groups/by-code/${code}/join`, {});
+          queryClient.invalidateQueries({ queryKey: ['groups'] });
           navigate(`/group/${groupId}`, { replace: true });
         } catch (joinErr: any) {
           if (joinErr.response?.status === 400 && joinErr.response?.data?.detail === 'You are already in this tab') {
