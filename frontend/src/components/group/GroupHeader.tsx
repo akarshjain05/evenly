@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Sun, Moon, Share2, MoreVertical } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 
 export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
-  
   const [showMenu, setShowMenu] = useState(false);
   const { showPrompt, showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  
+  const { data: user } = useQuery({ queryKey: ['me'], queryFn: async () => (await apiClient.get('users/me')).data });
+  const currentMember = group?.members?.find((m: any) => m.user_id === user?.id);
+  const isAdmin = currentMember?.is_admin;
 
   return (
     <div className="flex justify-between items-start mb-8">
@@ -35,6 +36,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
         
         {showMenu && (
           <div className="absolute top-12 right-0 w-48 bg-paper border border-line-dark rounded-xl shadow-xl z-10 py-1">
+            {isAdmin && (
             <button onClick={async () => {
               setShowMenu(false);
               const newName = await showPrompt("Rename Tab", group.name);
@@ -60,6 +62,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
             }} className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors">
               Rename Tab
             </button>
+            )}
             <button onClick={async () => {
               setShowMenu(false);
               try {
@@ -75,6 +78,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
             }} className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors">
               Export to CSV
             </button>
+            {isAdmin && (
             <button onClick={async () => {
               setShowMenu(false);
               const confirmed = await showConfirm("Delete Tab", "Are you sure you want to delete this tab? This will permanently delete all expenses and settlements. This action cannot be undone.");
@@ -91,6 +95,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
             }} className="w-full text-left px-4 py-2 text-[14px] text-[#c81e1e] hover:bg-bg transition-colors">
               Delete Tab
             </button>
+            )}
           </div>
         )}
       </div>
