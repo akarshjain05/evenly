@@ -234,12 +234,17 @@ export default function GroupView() {
                 <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative">
                   <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
                     <div className="space-y-1 min-w-0 flex-1">
-                      <h3 className="font-medium text-ink m-0 truncate">{item.description}</h3>
+                      <h3 className="font-medium text-ink m-0 truncate">
+                        {item.type === 'expense' 
+                          ? item.description 
+                          : `${getDisplayName(item.from_member, item.from_name)} paid ${getDisplayName(item.to_member, item.to_name)}`
+                        }
+                      </h3>
                       <p className="text-sm text-ink-soft m-0 truncate">
                         {item.type === 'expense' ? (
                           <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
                         ) : (
-                          <>{getDisplayName(item.from_member, item.from_name)} paid {getDisplayName(item.to_member, item.to_name)}</>
+                          'Settlement'
                         )}
                       </p>
                     </div>
