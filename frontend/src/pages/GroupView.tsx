@@ -12,6 +12,7 @@ import EditSettlementModal from '../components/modals/EditSettlementModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import ShareModal from '../components/modals/ShareModal';
 import { simplifyDebts } from '../utils/balances';
+import { useLedgerMutation } from '../hooks/useLedgerMutation';
 import { GroupViewSkeleton } from '../components/Skeleton';
 import { GroupHeader } from '../components/group/GroupHeader';
 import { BalancesSidebar } from '../components/group/BalancesSidebar';
@@ -36,7 +37,32 @@ export default function GroupView() {
   
     
   
+
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
+  
+  const deleteMutation = useLedgerMutation({
+    mutationFn: (item: ActivityResponse) => apiClient.delete(`groups/${id}/expenses/${item.id}`),
+    onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
+    onMutateBalances: (item, members) => {
+      const changes: { member_id: string, net_change: number }[] = [];
+      members.forEach((m: any) => {
+        let netChange = 0;
+        if (item.splits && item.splits.length > 0) {
+            if (m.id === item.paid_by) netChange -= item.amount;
+            const split = item.splits?.find((s: any) => s.member_id === m.id);
+            if (split) netChange += Number(split.share_amount);
+        } else {
+            const share = item.amount / members.length;
+            if (m.id === item.paid_by) netChange -= item.amount;
+            netChange += share;
+        }
+        changes.push({ member_id: m.id, net_change: netChange });
+      });
+      return changes;
+    },
+    onError: () => showAlert('Error', 'Failed to delete expense.')
+  });
+
   const [editingSettlement, setEditingSettlement] = useState<ActivityResponse | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -125,50 +151,7 @@ export default function GroupView() {
                                   onClick={async () => {
                                     setOpenMenuId(null);
                                     if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
-                                      queryClient.setQueryData(['group-activity', id], (old: any) =>
-                                        old?.filter((a: ActivityResponse) => a.id !== item.id)
-                                      );
-                                      queryClient.setQueryData(['group', id], (old: any) => {
-                                        if (!old) return old;
-                                        const newGroup = JSON.parse(JSON.stringify(old));
-                                        
-                                        if (item.splits && item.splits.length > 0) {
-                                            newGroup.members.forEach((m: any) => {
-                                                let netChange = 0;
-                                                if (m.id === item.paid_by) netChange -= item.amount;
-                                                const split = item.splits?.find((s: any) => s.member_id === m.id);
-                                                if (split) netChange += Number(split.share_amount);
-                                                m.balance = (Number(m.balance) + netChange).toString();
-                                            });
-                                        } else {
-                                            const share = item.amount / newGroup.members.length;
-                                            newGroup.members.forEach((m: any) => {
-                                                let netChange = 0;
-                                                if (m.id === item.paid_by) netChange -= item.amount;
-                                                netChange += share;
-                                                m.balance = (Number(m.balance) + netChange).toString();
-                                            });
-                                        }
-                                        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-                                        return newGroup;
-                                      });
-                                      
-                                      const oldActivity = queryClient.getQueryData(['group-activity', id]);
-                                      queryClient.setQueryData(['group-activity', id], (old: any) => {
-                                        if (!old) return old;
-                                        return old.filter((a: any) => a.id !== item.id);
-                                      });
-                                      
-                                      apiClient.delete(`groups/${id}/expenses/${item.id}`)
-                                        .then(() => {
-                                          queryClient.invalidateQueries({ queryKey: ['group', id] });
-                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                                        })
-                                        .catch(() => {
-                                          queryClient.setQueryData(['group-activity', id], oldActivity);
-                                          queryClient.invalidateQueries({ queryKey: ['group', id] });
-                                          showAlert('Error', 'Failed to delete expense.');
-                                        });
+                                      deleteMutation.mutate(item);
                                     }
                                   }}
                                   className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"

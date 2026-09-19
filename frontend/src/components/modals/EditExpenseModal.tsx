@@ -6,6 +6,9 @@ import type { ActivityResponse, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
+import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+//
+
 
 interface Props {
   expense: ActivityResponse;
@@ -27,85 +30,59 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
   );
   const [error, setError] = useState('');
 
-  const mutation = useMutation({
+  const mutation = useLedgerMutation({
     mutationFn: (updated: any) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
-    onMutate: async (updated) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      await queryClient.cancelQueries({ queryKey: ['group', id] });
-
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
+    onMutateActivity: (old, updated) => {
       const payer = group.members.find(m => m.id === updated.paid_by);
-
       const parts = updated.participant_ids || group.members.map((m: any) => m.id);
       const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
         ...s,
         name: group.members.find((m: any) => m.id === s.member_id)?.name || 'Unknown'
       }));
 
-      queryClient.setQueryData(['group-activity', id], (old: any) =>
-        old?.map((item: ActivityResponse) =>
+      onClose();
+      return old.map((item: ActivityResponse) =>
           item.id === expense.id
             ? { ...item, description: updated.description, amount: updated.amount, paid_by_name: payer?.name ?? item.paid_by_name, paid_by: updated.paid_by, splits: fakeSplits }
             : item
-        )
       );
-
-      queryClient.setQueryData(['group', id], (old: any) => {
-        if (!old) return old;
-        const newGroup = JSON.parse(JSON.stringify(old));
+    },
+    onMutateBalances: (updated, members) => {
+      const changes: { member_id: string, net_change: number }[] = [];
+      
+      members.forEach((m: any) => {
+        let netChange = 0;
         
         // 1. Revert old expense
         if (expense.splits && expense.splits.length > 0) {
-            newGroup.members.forEach((m: any) => {
-                let netChange = 0;
-                if (m.id === expense.paid_by) netChange -= expense.amount;
-                const split = expense.splits?.find((s: any) => s.member_id === m.id);
-                if (split) netChange += Number(split.share_amount);
-                m.balance = (Number(m.balance) + netChange).toString();
-            });
+            if (m.id === expense.paid_by) netChange -= expense.amount;
+            const split = expense.splits?.find((s: any) => s.member_id === m.id);
+            if (split) netChange += Number(split.share_amount);
         } else {
-            const share = expense.amount / newGroup.members.length;
-            newGroup.members.forEach((m: any) => {
-                let netChange = 0;
-                if (m.id === expense.paid_by) netChange -= expense.amount;
-                netChange += share;
-                m.balance = (Number(m.balance) + netChange).toString();
-            });
+            const share = expense.amount / members.length;
+            if (m.id === expense.paid_by) netChange -= expense.amount;
+            netChange += share;
         }
 
         // 2. Apply new expense
         if (updated.split_type === 'equal') {
-            const parts = updated.participant_ids || newGroup.members.map((m: any) => m.id);
+            const parts = updated.participant_ids || members.map((mem: any) => mem.id);
             if (parts.length > 0) {
-                const share = updated.amount / parts.length;
-                newGroup.members.forEach((m: any) => {
-                    let netChange = 0;
-                    if (m.id === updated.paid_by) netChange += updated.amount;
-                    if (parts.includes(m.id)) netChange -= share;
-                    m.balance = (Number(m.balance) + netChange).toString();
-                });
+                const fakeSplits = calculateEqualSplits(updated.amount, parts);
+                if (m.id === updated.paid_by) netChange += updated.amount;
+                const split = fakeSplits.find(s => s.member_id === m.id);
+                if (split) netChange -= Number(split.share_amount);
             }
         }
         
-        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-        return newGroup;
+        changes.push({ member_id: m.id, net_change: netChange });
       });
-
-      onClose();
-      return { previousActivity };
+      return changes;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-    },
-    onError: (err: any, _vars: any, context: any) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-        queryClient.invalidateQueries({ queryKey: ['group', id] });
-      }
+    onError: (err: any) => {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');
-    },
+    }
   });
 
   return (

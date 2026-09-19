@@ -41,7 +41,7 @@ def test_simplify_debts_floating_point():
 from app.balances import process_expense_splits
 from app.models import Expense, Member, ExpenseSplit
 from app.schemas import ExpenseCreate, SplitInput
-from fastapi import HTTPException
+from app.exceptions import InvalidSplitError
 import pytest
 
 class MockResult:
@@ -103,5 +103,5 @@ async def test_process_expense_exact_validation():
         SplitInput(member_id="m1", value=4.0),
         SplitInput(member_id="m2", value=5.0) # Adds up to 9, not 10
     ])
-    with pytest.raises(HTTPException):
+    with pytest.raises(InvalidSplitError):
         await process_expense_splits(db, "g1", expense, payload)

@@ -7,6 +7,9 @@ import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
+import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+//
+
 
 export default function AddExpenseModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -20,14 +23,9 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   const [participants, setParticipants] = useState<string[]>(group.members.map(m => m.id));
   const [error, setError] = useState('');
   
-  const mutation = useMutation({
+  const mutation = useLedgerMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
-    onMutate: async (newExpense) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      await queryClient.cancelQueries({ queryKey: ['group', id] });
-      
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
+    onMutateActivity: (old, newExpense) => {
       const payer = group.members.find(m => m.id === newExpense.paid_by);
       const fakeId = `temp-${Date.now()}`;
       
@@ -48,47 +46,33 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
         split_type: newExpense.split_type,
         splits: fakeSplits
       };
-
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        return old ? [optimisticActivity, ...old] : [optimisticActivity];
-      });
-
-      queryClient.setQueryData(['group', id], (old: any) => {
-        if (!old) return old;
-        const newGroup = JSON.parse(JSON.stringify(old));
-        if (newExpense.split_type === 'equal') {
-            const parts = newExpense.participant_ids || newGroup.members.map((m: any) => m.id);
-            if (parts.length > 0) {
-              newGroup.members.forEach((m: any) => {
-                  let netChange = 0;
-                  if (m.id === newExpense.paid_by) netChange += newExpense.amount;
-                  const split = fakeSplits.find(s => s.member_id === m.id);
-                  if (split) netChange -= Number(split.share_amount);
-                  m.balance = (Number(m.balance) + netChange).toString();
-              });
-            }
-        }
-        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-        return newGroup;
-      });
-
+      
       closeAddExpense();
       setDescription('');
       setAmount('');
       setError('');
       setParticipants(group.members.map(m => m.id));
-
-      return { previousActivity };
+      
+      return [optimisticActivity, ...old];
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-    },
-    onError: (err: any, _newExpense: any, context: any) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-        queryClient.invalidateQueries({ queryKey: ['group', id] });
+    onMutateBalances: (newExpense, members) => {
+      const changes: { member_id: string, net_change: number }[] = [];
+      if (newExpense.split_type === 'equal') {
+          const parts = newExpense.participant_ids || members.map((m: any) => m.id);
+          if (parts.length > 0) {
+            const fakeSplits = calculateEqualSplits(newExpense.amount, parts);
+            members.forEach((m: any) => {
+                let netChange = 0;
+                if (m.id === newExpense.paid_by) netChange += newExpense.amount;
+                const split = fakeSplits.find(s => s.member_id === m.id);
+                if (split) netChange -= Number(split.share_amount);
+                changes.push({ member_id: m.id, net_change: netChange });
+            });
+          }
       }
+      return changes;
+    },
+    onError: (err: any) => {
       openAddExpense();
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'Failed to save expense'));

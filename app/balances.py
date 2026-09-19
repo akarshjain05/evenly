@@ -3,7 +3,7 @@ from typing import Dict, List
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from fastapi import HTTPException
+from .exceptions import InvalidSplitError
 from . import models, schemas
 
 EXACT_SPLIT_TOLERANCE = Decimal('0.02')
@@ -58,14 +58,14 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
     valid_ids = {m.id for m in result.scalars().all()}
     
     if payload.paid_by not in valid_ids:
-        raise HTTPException(status_code=400, detail="Payer is not in this tab")
+        raise InvalidSplitError("Payer is not in this tab")
 
     splits = []
     
     if payload.split_type == "equal":
         participants = [p for p in (payload.participant_ids or list(valid_ids)) if p in valid_ids]
         if not participants:
-            raise HTTPException(status_code=400, detail="Pick at least one person to split with")
+            raise InvalidSplitError("Pick at least one person to split with")
         
         num = Decimal(len(participants))
         share = (payload.amount / num).quantize(Decimal('0.01'))
@@ -76,28 +76,28 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
 
     elif payload.split_type == "exact":
         if not payload.splits:
-            raise HTTPException(status_code=400, detail="Exact split needs an amount per person")
+            raise InvalidSplitError("Exact split needs an amount per person")
         
         total = sum(s.value for s in payload.splits)
         if abs(total - payload.amount) > EXACT_SPLIT_TOLERANCE:
-            raise HTTPException(status_code=400, detail=f"Splits add up to {total}, not {payload.amount}")
+            raise InvalidSplitError(f"Splits add up to {total}, not {payload.amount}")
             
         for s in payload.splits:
             if s.member_id not in valid_ids:
-                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
+                raise InvalidSplitError("Split includes someone outside this tab")
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=s.value.quantize(Decimal('0.01'))))
 
     elif payload.split_type == "percentage":
         if not payload.splits:
-            raise HTTPException(status_code=400, detail="Percentage split needs a % per person")
+            raise InvalidSplitError("Percentage split needs a % per person")
             
         total_pct = sum(s.value for s in payload.splits)
         if abs(total_pct - Decimal("100")) > PERCENTAGE_TOLERANCE:
-            raise HTTPException(status_code=400, detail=f"Percentages add up to {total_pct}%, not 100%")
+            raise InvalidSplitError(f"Percentages add up to {total_pct}%, not 100%")
             
         for s in payload.splits:
             if s.member_id not in valid_ids:
-                raise HTTPException(status_code=400, detail="Split includes someone outside this tab")
+                raise InvalidSplitError("Split includes someone outside this tab")
             amt = (payload.amount * s.value / Decimal('100')).quantize(Decimal('0.01'))
             splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=s.member_id, share_amount=amt))
 

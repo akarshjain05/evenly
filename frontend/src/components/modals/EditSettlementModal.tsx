@@ -6,6 +6,9 @@ import type { GroupDetailResponse, ActivityResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { simplifyDebts } from '../../utils/balances';
+import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+// 
+
 
 interface Props {
   settlement: ActivityResponse;
@@ -22,60 +25,30 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
   const [amount, setAmount] = useState(String(settlement.amount));
   const [error, setError] = useState('');
   
-  const mutation = useMutation({
+  const mutation = useLedgerMutation({
     mutationFn: (updated: any) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
-    onMutate: async (updated: any) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      await queryClient.cancelQueries({ queryKey: ['group', id] });
-      
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
+    onMutateActivity: (old, updated) => {
       const fromMemberObj = group.members.find(m => m.id === updated.from_member);
       const toMemberObj = group.members.find(m => m.id === updated.to_member);
       
-      queryClient.setQueryData(['group-activity', id], (old: any) =>
-        old?.map((item: ActivityResponse) =>
+      onClose();
+      
+      return old.map((item: ActivityResponse) =>
           item.id === settlement.id
             ? { ...item, amount: updated.amount, from_member: updated.from_member, to_member: updated.to_member, from_name: fromMemberObj?.name || 'Unknown', to_name: toMemberObj?.name || 'Unknown', paid_by_name: fromMemberObj?.name || 'Unknown' }
             : item
-        )
       );
-
-      queryClient.setQueryData(['group', id], (old: any) => {
-        if (!old) return old;
-        const newGroup = JSON.parse(JSON.stringify(old));
-        
-        // 1. Revert old settlement
-        newGroup.members.forEach((m: any) => {
-            if (m.id === settlement.from_member) m.balance = (Number(m.balance) - settlement.amount).toString();
-            if (m.id === settlement.to_member) m.balance = (Number(m.balance) + settlement.amount).toString();
-        });
-
-        // 2. Apply new settlement
-        newGroup.members.forEach((m: any) => {
-            if (m.id === updated.from_member) m.balance = (Number(m.balance) + updated.amount).toString();
-            if (m.id === updated.to_member) m.balance = (Number(m.balance) - updated.amount).toString();
-        });
-        
-        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-        return newGroup;
-      });
-
-      onClose();
-      return { previousActivity };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-    },
-    onError: (err: any, _vars: any, context: any) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-        queryClient.invalidateQueries({ queryKey: ['group', id] });
-      }
+    onMutateBalances: (updated) => [
+      { member_id: settlement.from_member, net_change: -settlement.amount },
+      { member_id: settlement.to_member, net_change: settlement.amount },
+      { member_id: updated.from_member, net_change: updated.amount },
+      { member_id: updated.to_member, net_change: -updated.amount }
+    ],
+    onError: (err: any) => {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update settlement');
-    },
+    }
   });
 
   return (

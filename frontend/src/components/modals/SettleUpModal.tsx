@@ -7,6 +7,9 @@ import type { GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { simplifyDebts } from '../../utils/balances';
+import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+// 
+
 
 export default function SettleUpModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -19,14 +22,9 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   
-  const mutation = useMutation({
+  const mutation = useLedgerMutation({
     mutationFn: (settlement: any) => apiClient.post(`groups/${id}/settlements`, settlement),
-    onMutate: async (settlement: any) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      await queryClient.cancelQueries({ queryKey: ['group', id] });
-      
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
+    onMutateActivity: (old, settlement) => {
       const fromMemberObj = group.members.find(m => m.id === settlement.from_member);
       const toMemberObj = group.members.find(m => m.id === settlement.to_member);
       const fakeId = `temp-${Date.now()}`;
@@ -44,40 +42,17 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
         created_at: new Date().toISOString(),
       };
 
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        return old ? [optimisticActivity, ...old] : [optimisticActivity];
-      });
-
-      queryClient.setQueryData(['group', id], (old: any) => {
-        if (!old) return old;
-        const newGroup = JSON.parse(JSON.stringify(old));
-        newGroup.members.forEach((m: any) => {
-            if (m.id === settlement.from_member) {
-                m.balance = (Number(m.balance) + settlement.amount).toString();
-            }
-            if (m.id === settlement.to_member) {
-                m.balance = (Number(m.balance) - settlement.amount).toString();
-            }
-        });
-        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-        return newGroup;
-      });
-
       closeSettleUp();
       setAmount('');
       setError('');
 
-      return { previousActivity };
+      return [optimisticActivity, ...old];
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-    },
-    onError: (err: any, _settlement: any, context: any) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-        queryClient.invalidateQueries({ queryKey: ['group', id] });
-      }
+    onMutateBalances: (settlement) => [
+      { member_id: settlement.from_member, net_change: settlement.amount },
+      { member_id: settlement.to_member, net_change: -settlement.amount }
+    ],
+    onError: (err: any) => {
       openSettleUp();
       setError(err.response?.data?.detail || 'Failed to record settlement');
     }
