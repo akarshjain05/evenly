@@ -116,22 +116,36 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
         db.add(split)
 
 async def apply_expense(db: AsyncSession, expense: models.Expense):
-    from sqlalchemy import update
+    from sqlalchemy import update, case
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
     result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
     splits = result.scalars().all()
     await db.flush()
-    for split in splits:
-        await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance - split.share_amount))
+    if splits:
+        whens = {split.member_id: split.share_amount for split in splits}
+        member_ids = list(whens.keys())
+        share_case = case(whens, value=models.Member.id)
+        await db.execute(
+            update(models.Member)
+            .filter(models.Member.id.in_(member_ids))
+            .values(balance=models.Member.balance - share_case)
+        )
 
 async def revert_expense(db: AsyncSession, expense: models.Expense):
-    from sqlalchemy import update
+    from sqlalchemy import update, case
     await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance - expense.amount))
     result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
     splits = result.scalars().all()
     await db.flush()
-    for split in splits:
-        await db.execute(update(models.Member).filter(models.Member.id == split.member_id).values(balance=models.Member.balance + split.share_amount))
+    if splits:
+        whens = {split.member_id: split.share_amount for split in splits}
+        member_ids = list(whens.keys())
+        share_case = case(whens, value=models.Member.id)
+        await db.execute(
+            update(models.Member)
+            .filter(models.Member.id.in_(member_ids))
+            .values(balance=models.Member.balance + share_case)
+        )
 
 async def apply_settlement(db: AsyncSession, settlement: models.Settlement):
     from sqlalchemy import update
