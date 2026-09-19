@@ -292,3 +292,30 @@ async def export_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.post("/{group_id}/reconcile", response_model=schemas.GroupDetailResponse)
+async def reconcile_balances(group_id: str, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Admin endpoint to recalculate all member balances directly from the underlying ledger
+    (expenses and settlements). Fixes any drift caused by aborted transactions or manual edits.
+    """
+    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
+    group = result.scalars().first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Tab not found")
+        
+    # Security: check if user is admin of the group
+    member_res = await db.execute(
+        select(models.Member)
+        .filter(models.Member.group_id == group_id, models.Member.user_id == user.id)
+    )
+    member = member_res.scalars().first()
+    if not member or not member.is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can manually reconcile the ledger")
+
+    await balances.recompute_balances_from_ledger(db, group_id)
+    await db.commit()
+    
+    # Return the fully refreshed group details
+    return await group_service.get_group_details(group_id, db)
