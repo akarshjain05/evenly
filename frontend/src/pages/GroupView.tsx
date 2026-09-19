@@ -73,7 +73,7 @@ export default function GroupView() {
   const settlements = activities?.filter(a => a.type === 'settlement') || [];
 
   const renderActivityItem = (item: any) => (
-                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative">
+                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
                   <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
                     <div className="space-y-1 min-w-0 flex-1">
                       <h3 className="font-medium text-ink m-0 truncate">
@@ -224,7 +224,7 @@ export default function GroupView() {
             </button>
           </div>
 
-          <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
+          <div className="bg-paper rounded-2xl border border-line-paper overflow-visible">
             <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-line-paper flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <h2 className="text-xl font-semibold m-0 text-ink">Activity</h2>
                
