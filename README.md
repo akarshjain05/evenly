@@ -19,7 +19,7 @@ Built with **FastAPI + SQLAlchemy** on the backend and **React + TypeScript + Ta
 
 ## How it works, in short
 
-- Anyone can create an account and start a tab, which generates a 6-character invite code.
+- Anyone can create an account and start a tab, which generates a 10-character invite code.
 - They share the code (or a link containing it) with their group.
 - The group registers for free accounts and joins the tab. 
 - Expenses can be split equally, by exact amount, or by percentage.
@@ -76,6 +76,24 @@ npm run dev
 ```
 The React application will run on `http://localhost:5173`. Open this URL in your browser.
 
+
+## Running Tests
+
+Evenly includes a comprehensive test suite for both the backend and frontend to ensure safety against regressions.
+
+### Backend Tests (Pytest)
+```bash
+pytest tests/
+```
+The backend test suite runs entirely in-memory using SQLite and validates authentication, permissions, edge cases, and the correctness of the ledger's balance mutations.
+
+### Frontend Tests (Vitest)
+```bash
+cd frontend
+npm run test
+```
+The frontend suite leverages React Testing Library and Vitest to validate complex client-side debt simplification logic, accessibility (WAI-ARIA) features, and component behavior.
+
 ## Shipping it — Vercel (hosting) + Supabase (database)
 
 This project is configured via `vercel.json` to deploy **both** the React frontend and the FastAPI backend instantly on Vercel as a single monorepo app, backed by a free Supabase Postgres database. Total cost: **$0**.
@@ -113,7 +131,7 @@ gh repo create evenly --source=. --public --push
    - **`CORS_ORIGINS`:** `https://your-vercel-domain.vercel.app`
 6. Click **Deploy**.
 
-Vercel will build the React app and deploy the FastAPI backend simultaneously.
+Vercel will build the React app and deploy the FastAPI backend simultaneously. (Database migrations via Alembic are run automatically during the build step!).
 
 ## Inviting your group
 
