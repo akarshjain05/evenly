@@ -24,7 +24,25 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import { useEffect } from 'react';
+import { useUIStore } from './store/uiStore';
+
 function App() {
+  const setInstallPromptEvent = useUIStore((state) => state.setInstallPromptEvent);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setInstallPromptEvent(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, [setInstallPromptEvent]);
+
   return (
     <>
       <Routes>

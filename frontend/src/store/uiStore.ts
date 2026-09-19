@@ -23,12 +23,14 @@ interface UIState {
   isSettleUpOpen: boolean;
   activeGroupId: string | null;
   dialog: DialogState;
+  installPromptEvent: any | null;
   
   openAddExpense: () => void;
   closeAddExpense: () => void;
   openSettleUp: () => void;
   closeSettleUp: () => void;
   setActiveGroup: (id: string | null) => void;
+  setInstallPromptEvent: (event: any) => void;
   
   showAlert: (title: string, message?: string) => Promise<void>;
   showConfirm: (title: string, message?: string, options?: { confirmText?: string; danger?: boolean }) => Promise<boolean>;
@@ -41,12 +43,14 @@ export const useUIStore = create<UIState>((set) => ({
   isSettleUpOpen: false,
   activeGroupId: null,
   dialog: { isOpen: false, config: null, resolve: null },
+  installPromptEvent: null,
 
   openAddExpense: () => set({ isAddExpenseOpen: true }),
   closeAddExpense: () => set({ isAddExpenseOpen: false }),
   openSettleUp: () => set({ isSettleUpOpen: true }),
   closeSettleUp: () => set({ isSettleUpOpen: false }),
   setActiveGroup: (id) => set({ activeGroupId: id }),
+  setInstallPromptEvent: (event) => set({ installPromptEvent: event }),
 
   showAlert: (title, message) => {
     return new Promise((resolve) => {

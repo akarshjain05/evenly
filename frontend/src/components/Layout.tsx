@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
-import { Settings, Menu, X } from 'lucide-react';
+import { Settings, Menu, X, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import Logo from './ui/Logo';
+import { useUIStore } from '../store/uiStore';
 
 export default function Layout() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const installPromptEvent = useUIStore(state => state.installPromptEvent);
+  const setInstallPromptEvent = useUIStore(state => state.setInstallPromptEvent);
 
   const { data: user } = useQuery({
     queryKey: ['me'],
@@ -63,7 +66,21 @@ export default function Layout() {
         <div className="flex-1 overflow-y-auto">
           <Sidebar />
         </div>
-        <div className="p-4 shrink-0 border-t border-line-dark md:border-t-0">
+        <div className="p-4 shrink-0 border-t border-line-dark md:border-t-0 space-y-3">
+          {installPromptEvent && (
+            <button 
+              onClick={async () => {
+                installPromptEvent.prompt();
+                const { outcome } = await installPromptEvent.userChoice;
+                if (outcome === 'accepted') {
+                  setInstallPromptEvent(null);
+                }
+              }}
+              className="w-full flex justify-center items-center gap-2 p-3 bg-primary text-white font-medium rounded-[16px] shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              <Download size={18} /> Install App
+            </button>
+          )}
           <button 
             onClick={() => navigate('/settings')} 
             className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
