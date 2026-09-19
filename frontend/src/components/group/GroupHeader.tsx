@@ -39,11 +39,21 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
               setShowMenu(false);
               const newName = await showPrompt("Rename Tab", group.name);
               if (newName && newName !== group.name) {
+                const oldGroup = queryClient.getQueryData(['group', id]);
+                const oldGroups = queryClient.getQueryData(['groups']);
+                
+                // Optimistic UI Update
+                queryClient.setQueryData(['group', id], (old: any) => old ? { ...old, name: newName } : old);
+                queryClient.setQueryData(['groups'], (old: any) => old ? old.map((g: any) => g.id === id ? { ...g, name: newName } : g) : old);
+                
                 try {
                   await apiClient.put(`groups/${id}`, { name: newName });
                   queryClient.invalidateQueries({ queryKey: ['group', id] });
                   queryClient.invalidateQueries({ queryKey: ['groups'] });
                 } catch (e: any) {
+                  // Revert on failure
+                  queryClient.setQueryData(['group', id], oldGroup);
+                  queryClient.setQueryData(['groups'], oldGroups);
                   showAlert('Error', e.response?.data?.detail || 'Failed to rename tab.');
                 }
               }
