@@ -67,20 +67,7 @@ export default function Layout() {
           <Sidebar />
         </div>
         <div className="p-4 shrink-0 border-t border-line-dark md:border-t-0 space-y-3">
-          {installPromptEvent && (
-            <button 
-              onClick={async () => {
-                installPromptEvent.prompt();
-                const { outcome } = await installPromptEvent.userChoice;
-                if (outcome === 'accepted') {
-                  setInstallPromptEvent(null);
-                }
-              }}
-              className="w-full flex justify-center items-center gap-2 p-3 bg-primary text-white font-medium rounded-[16px] shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              <Download size={18} /> Install App
-            </button>
-          )}
+
           <button 
             onClick={() => navigate('/settings')} 
             className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
@@ -99,6 +86,34 @@ export default function Layout() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {installPromptEvent && (
+          <div className="bg-primary text-white px-4 py-3 flex items-center justify-between shrink-0 shadow-sm animate-fade-in z-40">
+            <div className="flex items-center gap-2 font-medium text-[15px]">
+              <Download size={18} />
+              Install Evenly for a better experience
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async () => {
+                  installPromptEvent.prompt();
+                  const { outcome } = await installPromptEvent.userChoice;
+                  if (outcome === 'accepted') {
+                    setInstallPromptEvent(null);
+                  }
+                }}
+                className="bg-white text-primary px-3 py-1.5 rounded-lg font-semibold text-[14px] hover:bg-opacity-90 transition-opacity cursor-pointer border-none"
+              >
+                Install
+              </button>
+              <button 
+                onClick={() => setInstallPromptEvent(null)}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors cursor-pointer border-none"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Mobile Header */}
         <header className="md:hidden flex items-center gap-3 p-4 border-b border-line-dark bg-bg shrink-0">
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-ink p-1 cursor-pointer -ml-1">
