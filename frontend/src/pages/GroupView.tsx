@@ -150,13 +150,21 @@ export default function GroupView() {
                                         newGroup.simplified_debts = simplifyDebts(newGroup.members);
                                         return newGroup;
                                       });
+                                      
+                                      const oldActivity = queryClient.getQueryData(['group-activity', id]);
+                                      queryClient.setQueryData(['group-activity', id], (old: any) => {
+                                        if (!old) return old;
+                                        return old.filter((a: any) => a.id !== item.id);
+                                      });
+                                      
                                       apiClient.delete(`groups/${id}/expenses/${item.id}`)
                                         .then(() => {
                                           queryClient.invalidateQueries({ queryKey: ['group', id] });
                                           queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
                                         })
                                         .catch(() => {
-                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                          queryClient.setQueryData(['group-activity', id], oldActivity);
+                                          queryClient.invalidateQueries({ queryKey: ['group', id] });
                                           showAlert('Error', 'Failed to delete expense.');
                                         });
                                     }
