@@ -59,6 +59,32 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+
+    // Generic error message sanitizer for UI consumption (preventing internal code leaks)
+    if (error.response?.data?.detail) {
+      const d = error.response.data.detail;
+      if (typeof d === 'string') {
+        const lower = d.toLowerCase();
+        if (lower.includes('csrf')) {
+          error.response.data.detail = "A secure connection error occurred. Please refresh the page and try again.";
+        } else if (lower.includes('internal server error')) {
+          error.response.data.detail = "Our servers are experiencing a temporary issue. Please try again later.";
+        } else if ((lower.includes('validation') || lower.includes('type error')) && !lower.includes('email') && !lower.includes('password')) {
+          error.response.data.detail = "Invalid data provided. Please check your inputs.";
+        } else if (lower.includes('sqlite') || lower.includes('database') || lower.includes('unreachable')) {
+          error.response.data.detail = "A system error occurred. Please try again.";
+        }
+      } else if (Array.isArray(d)) {
+        error.response.data.detail = "Invalid data provided. Please check your inputs.";
+      }
+    } else if (error.message === "Network Error" || !error.response) {
+       error.response = { 
+           ...(error.response || {}), 
+           data: { detail: "Unable to reach the server. Please check your internet connection." } 
+       };
+    }
+
     return Promise.reject(error);
+
   }
 );
