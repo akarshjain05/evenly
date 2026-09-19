@@ -37,10 +37,7 @@ export function GroupViewSkeleton() {
           <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
             <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-line-paper flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <Skeleton className="h-6 w-24" />
-              <div className="flex bg-bg-soft rounded-full p-1 gap-1 w-full sm:w-auto min-w-[220px] border border-line-dark shadow-sm">
-                <Skeleton className="flex-1 h-[32px] rounded-full" />
-                <Skeleton className="flex-1 h-[32px] rounded-full" />
-              </div>
+              <Skeleton className="w-full sm:w-auto min-w-[220px] h-[42px] rounded-full" />
             </div>
             <div className="divide-y divide-line-dark">
               {[1, 2, 3, 4, 5].map((i) => (
