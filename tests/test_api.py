@@ -15,17 +15,34 @@ from app.main import app
 from app.database import Base, get_db
 from app import models
 
-# Use an in-memory SQLite database for tests
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-from sqlalchemy.pool import StaticPool
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+# Use a file-based SQLite database so Alembic can run without losing the StaticPool
+import os
+import atexit
+
+TEST_DB_PATH = "./test_app.db"
+if os.path.exists(TEST_DB_PATH):
+    os.remove(TEST_DB_PATH)
+
+def cleanup():
+    if os.path.exists(TEST_DB_PATH):
+        try:
+            os.remove(TEST_DB_PATH)
+        except:
+            pass
+atexit.register(cleanup)
+
+SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+import app.database as app_db
+app_db.engine = engine
 
-asyncio.run(init_db())
+from alembic import command
+from alembic.config import Config
+alembic_cfg = Config("alembic.ini")
+command.upgrade(alembic_cfg, "head")
+
 
 async def override_get_db():
     async with TestingSessionLocal() as db:
