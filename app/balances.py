@@ -14,6 +14,10 @@ async def compute_net_balances(db: AsyncSession, group_id: str) -> Dict[str, Dec
     members = result.scalars().all()
     return {m.id: m.balance.quantize(Decimal('0.01')) for m in members}
 
+# IMPORTANT: The debt-simplification algorithm is duplicated intentionally for Optimistic UI!
+# This Python implementation (using min-heaps) MUST be kept in sync with the TypeScript 
+# implementation in `frontend/src/utils/balances.ts`.
+# Any changes to rounding, thresholds, or matching logic must be mirrored there.
 def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
     creditors: List[tuple] = []
     debtors: List[tuple] = []
