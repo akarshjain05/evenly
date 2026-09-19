@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import { Settings, Menu, X, Download } from 'lucide-react';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import Logo from './ui/Logo';
+import { Skeleton } from './Skeleton';
 import { useUIStore } from '../store/uiStore';
 
 export default function Layout() {
@@ -15,7 +16,7 @@ export default function Layout() {
   const installPromptEvent = useUIStore(state => state.installPromptEvent);
   const setInstallPromptEvent = useUIStore(state => state.setInstallPromptEvent);
 
-  const { data: user } = useCurrentUser({ enabled: isAuthenticated });
+  const { data: user, isLoading: isLoadingUser } = useCurrentUser({ enabled: isAuthenticated });
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -60,19 +61,30 @@ export default function Layout() {
         </div>
         <div className="p-4 shrink-0 border-t border-line-dark md:border-t-0 space-y-3">
 
-          <button 
-            onClick={() => navigate('/settings')} 
-            className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-medium text-[15px] shrink-0">
-              {initials}
+          {isLoadingUser ? (
+            <div className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm">
+              <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2 py-1">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <Skeleton className="w-5 h-5 rounded-md shrink-0 opacity-50" />
             </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="font-semibold text-ink text-[15px] truncate">{displayName}</div>
-              <div className="text-[13px] text-on-dark-soft truncate">Personal settings</div>
-            </div>
-            <Settings size={20} className="text-on-dark-soft group-hover:text-ink transition-colors shrink-0" />
-          </button>
+          ) : (
+            <button 
+              onClick={() => navigate('/settings')} 
+              className="w-full flex items-center gap-3 p-3 bg-paper border border-line-dark rounded-[16px] shadow-sm hover:border-brass transition-colors cursor-pointer text-left group"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-medium text-[15px] shrink-0">
+                {initials}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="font-semibold text-ink text-[15px] truncate">{displayName}</div>
+                <div className="text-[13px] text-on-dark-soft truncate">Personal settings</div>
+              </div>
+              <Settings size={20} className="text-on-dark-soft group-hover:text-ink transition-colors shrink-0" />
+            </button>
+          )}
         </div>
       </aside>
 
