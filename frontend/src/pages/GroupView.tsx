@@ -53,7 +53,6 @@ export default function GroupView() {
     enabled: !!id,
   });
   
-  const currentMember = group?.members?.find((m: any) => m.user_id === user?.id);
 
   const getDisplayName = (memberId: string | null | undefined, fallbackName: string | null | undefined) => {
     if (!memberId) return fallbackName || 'Unknown';
@@ -105,7 +104,6 @@ export default function GroupView() {
                         </div>
                       </div>
                       
-                      { currentMember || true ? (
                         <div className="relative -mt-0.5 -mr-1.5">
                           <button
                             onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
@@ -181,9 +179,6 @@ export default function GroupView() {
                             </>
                           )}
                         </div>
-                      ) : (
-                        <div className="w-[24px]"></div>
-                      )}
                     </div>
                   </div>
                 </div>
