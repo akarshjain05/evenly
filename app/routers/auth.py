@@ -6,6 +6,10 @@ from app import models, schemas, deps, auth, balances
 from app.database import get_db
 from app.rate_limiter import rate_limit_auth
 
+# 7 days in seconds, matching the JWT expiration
+COOKIE_MAX_AGE_SEC = 7 * 24 * 60 * 60
+
+
 router = APIRouter(prefix='/api/auth', tags=['auth'])
 
 @router.post("/register")
@@ -21,7 +25,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
     await db.refresh(user)
     
     access_token = auth.create_access_token(data={"sub": user.id})
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=31536000)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     return {"user": {"email": user.email}}
 
 @router.post("/login")
@@ -32,7 +36,7 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     access_token = auth.create_access_token(data={"sub": user.id})
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=31536000)
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     return {"user": {"email": user.email}}
 
 @router.post("/logout")

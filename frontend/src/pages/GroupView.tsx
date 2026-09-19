@@ -101,6 +101,13 @@ export default function GroupView() {
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];
 
+  const handleDeleteActivity = async (item: any) => {
+    setOpenMenuId(null);
+    if (await showConfirm('Delete Activity', 'Are you sure you want to delete this?', { danger: true })) {
+      deleteMutation.mutate(item);
+    }
+  };
+
   const renderActivityItem = (item: any) => (
                 <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
                   <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
@@ -148,12 +155,7 @@ export default function GroupView() {
                                   <Pencil size={13} /> Edit
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    setOpenMenuId(null);
-                                    if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
-                                      deleteMutation.mutate(item);
-                                    }
-                                  }}
+                                  onClick={() => handleDeleteActivity(item)}
                                   className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
                                 >
                                   <Trash2 size={13} /> Delete

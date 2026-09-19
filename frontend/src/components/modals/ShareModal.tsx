@@ -14,12 +14,19 @@ export default function ShareModal({ group, onClose }: Props) {
   const handleShareLink = () => {
     if (navigator.share) {
       navigator.share({ title: `Join ${group.name} on Evenly`, url: inviteUrl })
-        .catch(() => {});
+        .then(() => onClose())
+        .catch((err) => {
+          if (err.name !== 'AbortError') {
+            navigator.clipboard.writeText(inviteUrl);
+            showAlert("Copied!", "Invite link copied to clipboard.");
+          }
+          onClose();
+        });
     } else {
       navigator.clipboard.writeText(inviteUrl);
       showAlert("Copied!", "Invite link copied to clipboard.");
+      onClose();
     }
-    onClose();
   };
 
   const handleCopyCode = () => {

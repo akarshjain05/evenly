@@ -3,6 +3,9 @@ import json
 import asyncio
 from sqlalchemy import select
 from pywebpush import webpush, WebPushException
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app import models
 from app.database import AsyncSessionLocal
@@ -27,3 +30,7 @@ async def send_web_push(user_ids: list, title: str, body: str):
                 if e.response and e.response.status_code in [404, 410]:
                     await db.delete(sub)
                     await db.commit()
+                else:
+                    logger.error(f"WebPushException sending push to {sub.user_id}: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(f"Unexpected error sending push to {sub.user_id}: {e}", exc_info=True)
