@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Query
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from app.services import group_service
 from app.rate_limiter import rate_limit_invite
 
 router = APIRouter(prefix='/api/groups', tags=['groups'])
+logger = logging.getLogger(__name__)
 
 @router.post("", response_model=schemas.CreateJoinResponse)
 async def create_group(payload: schemas.GroupCreate, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
@@ -42,8 +44,10 @@ async def update_group(group_id: str, payload: schemas.GroupUpdate, member: mode
     
     result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
     group = result.scalars().first()
+    user_id = member.user_id
     group.name = payload.name
     await db.commit()
+    logger.info(f"User {user_id} renamed group {group_id} to '{payload.name}'")
     return {"ok": True}
 
 @router.delete("/{group_id}", response_model=schemas.BasicResponse)
@@ -73,7 +77,7 @@ async def delete_group(group_id: str, member: models.Member = Depends(deps.get_c
 async def get_activity(
     group_id: str, 
     limit: int = Query(50, le=100), 
-    last_seen: str = None, 
+    last_seen: str | None = None, 
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -94,8 +98,9 @@ async def add_expense(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
+    user_id = user.id
     await group_service.process_and_add_expense(payload, group_id, user, member, db, background_tasks)
-
+    logger.info(f"User {user_id} added expense to group {group_id} for amount {payload.amount}")
     return {"ok": True}
 
 @router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
@@ -184,7 +189,9 @@ async def update_settlement(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
+    user_id = member.user_id
     await group_service.process_and_update_settlement(group_id, settlement_id, payload, db)
+    logger.info(f"User {user_id} updated settlement {settlement_id} in group {group_id}")
     return {"ok": True}
 
 @router.delete("/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)

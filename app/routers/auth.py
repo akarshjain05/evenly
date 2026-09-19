@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,6 +12,7 @@ COOKIE_MAX_AGE_SEC = 7 * 24 * 60 * 60
 
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
+logger = logging.getLogger(__name__)
 
 @router.post("/register")
 async def register(payload: schemas.UserCreate, response: Response, db: AsyncSession = Depends(get_db), _=Depends(rate_limit_auth)):
@@ -26,6 +28,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
     
     access_token = auth.create_access_token(data={"sub": user.id})
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
+    logger.info(f"User {user.id} ({user.email}) logged in successfully")
     return {"user": {"email": user.email}}
 
 @router.post("/login")
@@ -37,6 +40,7 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
     
     access_token = auth.create_access_token(data={"sub": user.id})
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
+    logger.info(f"User {user.id} ({user.email}) logged in successfully")
     return {"user": {"email": user.email}}
 
 @router.post("/logout")
