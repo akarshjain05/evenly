@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import GroupView from './pages/GroupView'
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from './pages/NotFoundPage'
+import JoinGroupPage from './pages/JoinGroupPage'
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isLoggedIn = getAuthStatus();
@@ -55,6 +57,8 @@ function App() {
         <Route path="/new" element={<Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/group/:id" element={<GroupView />} />
+        <Route path="/join/:code" element={<JoinGroupPage />} />
+
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
