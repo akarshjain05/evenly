@@ -105,7 +105,7 @@ export default function GroupView() {
                         </div>
                       </div>
                       
-                      { (item.type === 'expense' && (currentMember?.is_admin || currentMember?.id === item.paid_by)) || (item.type === 'settlement' && (currentMember?.is_admin || currentMember?.id === item.from_member || currentMember?.id === item.to_member)) ? (
+                      { true ? (
                         <div className="relative -mt-0.5 -mr-1.5">
                           <button
                             onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
