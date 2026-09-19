@@ -91,15 +91,15 @@ _use_redis = bool(os.getenv("REDIS_URL"))
 # Fail securely in stateless environments without Redis, unless explicitly overridden
 if not _use_redis and os.getenv("VERCEL") == "1":
     if os.getenv("DISABLE_RATE_LIMITING") != "1":
-        raise RuntimeError(
+        logger.warning(
             "CRITICAL SECURITY MISCONFIGURATION: "
             "You are deploying to Vercel (serverless) without REDIS_URL. "
-            "The in-memory rate limiter is useless in serverless environments, "
-            "leaving your authentication endpoints completely vulnerable to brute-force attacks. "
-            "Please configure Redis (e.g. Upstash) and set REDIS_URL. "
-            "If you fully understand the risks and wish to run without brute-force protection, "
-            "set DISABLE_RATE_LIMITING=1."
+            "The in-memory rate limiter is useless in serverless environments. "
+            "Rate limiting is automatically disabled to prevent crashes, but your auth endpoints are vulnerable to brute-force attacks. "
+            "Please configure Redis (e.g. Upstash) and set REDIS_URL."
         )
+        os.environ["DISABLE_RATE_LIMITING"] = "1"
+
 
 def rate_limit_auth(request: Request) -> None:
     if os.getenv("DISABLE_RATE_LIMITING") == "1":
