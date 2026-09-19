@@ -51,7 +51,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
       { member_id: settlement.from_member, net_change: settlement.amount },
       { member_id: settlement.to_member, net_change: -settlement.amount }
     ],
-    onError: (err: any) => {
+    onError: (err: Error | any) => {
       openSettleUp();
       setError(err.response?.data?.detail || 'Failed to record settlement');
     }

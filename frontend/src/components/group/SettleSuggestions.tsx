@@ -1,6 +1,7 @@
+import type { GroupDetailResponse } from '../../types/api';
 import { formatCurrency } from '../../utils/currency';
 
-export const SettleSuggestions = ({ group, getDisplayName }: any) => {
+export const SettleSuggestions = ({ group, getDisplayName }: { group: GroupDetailResponse, getDisplayName: (id: string, defaultName: string) => string }) => {
   if (!group.simplified_debts || group.simplified_debts.length === 0) return null;
   return (
     <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
@@ -8,7 +9,7 @@ export const SettleSuggestions = ({ group, getDisplayName }: any) => {
         <h2 className="text-xl font-semibold m-0 text-ink">How to settle up</h2>
       </div>
       <div className="p-5 space-y-4">
-        {group.simplified_debts.map((debt: any, i: number) => (
+        {group.simplified_debts.map((debt: GroupDetailResponse['simplified_debts'][0], i: number) => (
           <div key={i} className="text-sm text-ink-soft flex justify-between items-center">
             <span>
               <span className="font-semibold text-ink">{getDisplayName(debt.from_member, debt.from_name)}</span> {getDisplayName(debt.from_member, debt.from_name) === 'You' ? 'owe' : 'owes'} <span className="font-semibold text-ink">{getDisplayName(debt.to_member, debt.to_name)}</span>

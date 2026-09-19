@@ -34,10 +34,10 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
     mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
     onMutateActivity: (old, updated: ExpenseCreate) => {
       const payer = group.members.find(m => m.id === updated.paid_by);
-      const parts = updated.participant_ids || group.members.map((m: any) => m.id);
+      const parts = updated.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
       const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
         ...s,
-        name: group.members.find((m: any) => m.id === s.member_id)?.name || 'Unknown'
+        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown'
       }));
 
       onClose();
@@ -50,7 +50,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
     onMutateBalances: (updated: ExpenseCreate, members) => {
       const changes: { member_id: string, net_change: number }[] = [];
       
-      members.forEach((m: any) => {
+      members.forEach((m: GroupDetailResponse['members'][0]) => {
         let netChange = 0;
         
         // 1. Revert old expense
@@ -66,7 +66,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
 
         // 2. Apply new expense
         if (updated.split_type === 'equal') {
-            const parts = updated.participant_ids || members.map((mem: any) => mem.id);
+            const parts = updated.participant_ids || members.map((mem: GroupDetailResponse['members'][0]) => mem.id);
             if (parts.length > 0) {
                 const fakeSplits = calculateEqualSplits(updated.amount, parts);
                 if (m.id === updated.paid_by) netChange += updated.amount;

@@ -45,11 +45,11 @@ export default function GroupView() {
     onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
     onMutateBalances: (item, members) => {
       const changes: { member_id: string, net_change: number }[] = [];
-      members.forEach((m: any) => {
+      members.forEach((m: GroupDetailResponse['members'][0]) => {
         let netChange = 0;
         if (item.splits && item.splits.length > 0) {
             if (m.id === item.paid_by) netChange -= item.amount;
-            const split = item.splits?.find((s: any) => s.member_id === m.id);
+            const split = item.splits?.find((s: NonNullable<ActivityResponse['splits']>[0]) => s.member_id === m.id);
             if (split) netChange += Number(split.share_amount);
         } else {
             const share = item.amount / members.length;
@@ -101,14 +101,14 @@ export default function GroupView() {
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];
 
-  const handleDeleteActivity = async (item: any) => {
+  const handleDeleteActivity = async (item: ActivityResponse) => {
     setOpenMenuId(null);
     if (await showConfirm('Delete Activity', 'Are you sure you want to delete this?', { danger: true })) {
       deleteMutation.mutate(item);
     }
   };
 
-  const renderActivityItem = (item: any) => (
+  const renderActivityItem = (item: ActivityResponse) => (
                 <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
                   <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
                     <div className="space-y-1 min-w-0 flex-1">

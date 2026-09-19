@@ -29,10 +29,10 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       const payer = group.members.find(m => m.id === newExpense.paid_by);
       const fakeId = `temp-${Date.now()}`;
       
-      const parts = newExpense.participant_ids || group.members.map((m: any) => m.id);
+      const parts = newExpense.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
       const fakeSplits = calculateEqualSplits(newExpense.amount, parts).map(s => ({
         ...s,
-        name: group.members.find((m: any) => m.id === s.member_id)?.name || 'Unknown'
+        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown'
       }));
       
       const optimisticActivity = {
@@ -58,10 +58,10 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
     onMutateBalances: (newExpense, members) => {
       const changes: { member_id: string, net_change: number }[] = [];
       if (newExpense.split_type === 'equal') {
-          const parts = newExpense.participant_ids || members.map((m: any) => m.id);
+          const parts = newExpense.participant_ids || members.map((m: GroupDetailResponse['members'][0]) => m.id);
           if (parts.length > 0) {
             const fakeSplits = calculateEqualSplits(newExpense.amount, parts);
-            members.forEach((m: any) => {
+            members.forEach((m: GroupDetailResponse['members'][0]) => {
                 let netChange = 0;
                 if (m.id === newExpense.paid_by) netChange += newExpense.amount;
                 const split = fakeSplits.find(s => s.member_id === m.id);

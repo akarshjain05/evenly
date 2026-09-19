@@ -14,7 +14,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
   const navigate = useNavigate();
 
   const { data: user } = useCurrentUser();
-  const currentMember = group?.members?.find((m: any) => m.user_id === user?.id);
+  const currentMember = group?.members?.find((m: GroupDetailResponse['members'][0]) => m.user_id === user?.id);
   const isAdmin = currentMember?.is_admin;
 
   return (
@@ -47,7 +47,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
                 const oldGroups = queryClient.getQueryData(['groups']);
                 
                 // Optimistic UI Update
-                queryClient.setQueryData(['group', id], (old: any) => old ? { ...old, name: newName } : old);
+                queryClient.setQueryData(['group', id], (old: GroupDetailResponse | undefined) => old ? { ...old, name: newName } : old);
                 queryClient.setQueryData(['groups'], (old: any) => old ? old.map((g: any) => g.id === id ? { ...g, name: newName } : g) : old);
                 
                 try {

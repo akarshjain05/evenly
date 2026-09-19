@@ -44,7 +44,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
       { member_id: updated.from_member, net_change: updated.amount },
       { member_id: updated.to_member, net_change: -updated.amount }
     ],
-    onError: (err: any) => {
+    onError: (err: Error | any) => {
       const detail = err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update settlement');
     }
@@ -85,7 +85,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             <Select
               value={fromMember}
               onChange={setFromMember}
-              options={group.members.map((m: any) => ({ value: m.id, label: m.name }))}
+              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.name }))}
             />
           </div>
 
@@ -94,7 +94,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             <Select
               value={toMember}
               onChange={setToMember}
-              options={group.members.map((m: any) => ({ value: m.id, label: m.name }))}
+              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.name }))}
             />
           </div>
 
