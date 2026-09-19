@@ -17,29 +17,19 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function SettingsPage() {
   const { logout } = useAuth();
-  const { showAlert, showConfirm } = useUIStore();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
+  
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
+    
     if ('Notification' in window) {
       setIsNotificationsEnabled(Notification.permission === 'granted');
     }
   }, []);
 
-  const toggleDarkMode = () => {
-    const isDark = !isDarkMode;
-    setIsDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-    }
-  };
+  
 
   const toggleNotifications = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {

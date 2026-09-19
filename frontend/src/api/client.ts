@@ -1,3 +1,4 @@
+import { setAuthStatus } from '../utils/auth';
 import axios from 'axios';
 
 // We use relative /api because Vercel routes /api to the backend in prod.
@@ -17,7 +18,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('is_logged_in');
+      setAuthStatus(false);
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }

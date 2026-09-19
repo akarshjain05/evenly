@@ -28,10 +28,14 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(database
     return user
 
 async def get_current_member(
-    group_id: str,
+    request: Request,
     user: models.User = Depends(get_current_user),
     db: AsyncSession = Depends(database.get_db),
 ) -> models.Member:
+    group_id = request.path_params.get("group_id") or request.path_params.get("id")
+    if not group_id:
+        raise HTTPException(status_code=400, detail="Group ID missing from path parameters")
+        
     result = await db.execute(select(models.Member).filter(models.Member.user_id == user.id, models.Member.group_id == group_id))
     member = result.scalars().first()
     if not member:

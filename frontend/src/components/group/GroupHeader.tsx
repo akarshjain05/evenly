@@ -6,23 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
 
 export const GroupHeader = ({ group, id, setIsShareOpen }: any) => {
-  const [isDarkMode, setIsDarkMode] = useState(document.documentElement.classList.contains('dark'));
+  
   const [showMenu, setShowMenu] = useState(false);
-  const { showPrompt, showAlert, showConfirm } = useUIStore();
+  const { showPrompt, showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const toggleDarkMode = () => {
-    const isDark = !isDarkMode;
-    setIsDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-    }
-  };
+  
 
   return (
     <div className="flex justify-between items-start mb-8">

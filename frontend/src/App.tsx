@@ -1,3 +1,4 @@
+import { getAuthStatus } from './utils/auth';
 import DialogModal from "./components/modals/DialogModal";
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AuthPage from './pages/AuthPage'
@@ -8,7 +9,7 @@ import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from './pages/NotFoundPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isLoggedIn = localStorage.getItem('is_logged_in') === 'true';
+  const isLoggedIn = getAuthStatus();
   const location = useLocation();
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -17,7 +18,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const isLoggedIn = localStorage.getItem('is_logged_in') === 'true';
+  const isLoggedIn = getAuthStatus();
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
@@ -29,6 +30,8 @@ import { useUIStore } from './store/uiStore';
 
 function App() {
   const setInstallPromptEvent = useUIStore((state) => state.setInstallPromptEvent);
+  const initTheme = useUIStore((state) => state.initTheme);
+  useEffect(() => { initTheme(); }, [initTheme]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
