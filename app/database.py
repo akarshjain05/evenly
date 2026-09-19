@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./evenly.db")
 
@@ -17,6 +18,7 @@ if DATABASE_URL.startswith("sqlite"):
     engine = create_async_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},
+        poolclass=NullPool,
     )
 else:
     # Supabase PgBouncer in transaction mode doesn't support asyncpg prepared statements.
@@ -24,6 +26,7 @@ else:
     engine = create_async_engine(
         DATABASE_URL,
         connect_args={"statement_cache_size": 0},
+        poolclass=NullPool,
     )
 
 AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)

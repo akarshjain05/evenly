@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Query
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
@@ -72,7 +72,7 @@ async def delete_group(group_id: str, member: models.Member = Depends(deps.get_c
 @router.get("/{group_id}/activity")
 async def get_activity(
     group_id: str, 
-    limit: int = 50, 
+    limit: int = Query(50, le=100), 
     last_seen: str = None, 
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)

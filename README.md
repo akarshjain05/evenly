@@ -105,6 +105,7 @@ gh repo create evenly --source=. --public --push
 4. Add the following required environment variables:
    - **`DATABASE_URL`:** *(your Supabase connection string from Step 1)*
    - **`JWT_SECRET_KEY`:** *(run `openssl rand -hex 32` in a terminal to generate a secure random string)*
+   - **`REDIS_URL`:** *(required for production deployments to prevent brute-force attacks on auth routes, e.g., Upstash Redis. If omitted, Vercel's stateless serverless functions will reset the rate limiter on every invocation, bypassing protection)*
 5. (Optional) Add variables to enable Web Push Notifications and secure CORS:
    - **`VAPID_PRIVATE_KEY`:** *(run `npx web-push generate-vapid-keys` to generate)*
    - **`VAPID_PUBLIC_KEY`:** *(from the same command)*
