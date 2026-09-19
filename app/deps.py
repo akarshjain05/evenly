@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from . import models, database, auth
 
-async def get_current_user(request: Request, db: AsyncSession = Depends(database.get_db)):
+import secrets
+from fastapi import Response
+
+async def get_current_user(request: Request, response: Response, db: AsyncSession = Depends(database.get_db)):
 
     if request.method in ["POST", "PUT", "DELETE", "PATCH"] and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
         csrf_cookie = request.cookies.get("csrf_token")
@@ -15,7 +18,13 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(database
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="CSRF token validation failed",
             )
+
+    if request.method == "GET" and not request.cookies.get("csrf_token") and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
+        new_token = secrets.token_urlsafe(32)
+        response.set_cookie(key="csrf_token", value=new_token, httponly=False, secure=True, samesite="lax", max_age=7*24*60*60)
+    
     token = request.cookies.get("access_token")
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

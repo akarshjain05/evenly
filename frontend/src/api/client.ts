@@ -33,11 +33,27 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Generic interceptor for catching 401s globally
+// Generic interceptor for catching 401s globally and retrying legacy CSRF failures
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Auto-retry once if a legacy session encounters a missing CSRF token
+    if (error.response?.status === 403 && error.response?.data?.detail === "CSRF token validation failed" && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        // This GET request will trigger the backend to seamlessly issue a new CSRF cookie
+        await apiClient.get('/users/me');
+        // Retry the original request (the request interceptor will pull the newly minted cookie)
+        return apiClient(originalRequest);
+      } catch (retryError) {
+        return Promise.reject(retryError);
+      }
+    }
+
     if (error.response?.status === 401) {
+
       setAuthStatus(false);
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
