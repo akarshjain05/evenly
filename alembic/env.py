@@ -65,7 +65,7 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 async def run_async_migrations():
-    connectable = create_async_engine(DATABASE_URL, poolclass=pool.NullPool)
+    from app.database import engine as connectable
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
