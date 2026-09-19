@@ -37,19 +37,19 @@ export function GroupViewSkeleton() {
           <div className="bg-paper rounded-2xl border border-line-paper overflow-hidden">
             <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-line-paper flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <Skeleton className="h-6 w-24" />
-              <Skeleton className="w-full sm:w-auto min-w-[220px] h-[42px] rounded-full" />
+              <Skeleton className="w-full sm:w-[220px] h-[42px] rounded-full" />
             </div>
             <div className="divide-y divide-line-dark">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="p-4 sm:p-6 flex items-start gap-4">
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-5 w-48 max-w-[70%]" />
-                    <Skeleton className="h-4 w-32 max-w-[50%]" />
+                    <Skeleton className="h-5 w-[60%]" />
+                    <Skeleton className="h-4 w-[40%]" />
                   </div>
                   <div className="flex items-start gap-2 shrink-0">
                     <div className="text-right space-y-2">
-                       <Skeleton className="h-4 w-16" />
-                       <Skeleton className="h-3 w-20" />
+                       <Skeleton className="h-4 w-12 sm:w-16" />
+                       <Skeleton className="h-3 w-16 sm:w-20" />
                     </div>
                     <Skeleton className="w-6 h-6 rounded-full" />
                   </div>

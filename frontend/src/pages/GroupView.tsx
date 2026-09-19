@@ -219,7 +219,7 @@ export default function GroupView() {
             <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-line-paper flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <h2 className="text-xl font-semibold m-0 text-ink">Activity</h2>
                
-               <div className="flex bg-bg-soft rounded-full p-1 gap-1 w-full sm:w-auto min-w-[220px] border border-line-dark shadow-sm">
+               <div className="flex bg-bg-soft rounded-full p-1 gap-1 w-full sm:w-auto  border border-line-dark shadow-sm">
                 <button 
                   onClick={() => setActiveActivityTab('expenses')}
                   className={`flex-1 sm:px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors border-none cursor-pointer ${activeActivityTab === 'expenses' ? 'bg-primary text-white shadow-sm' : 'text-ink-soft hover:text-ink bg-transparent'}`}
