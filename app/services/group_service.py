@@ -138,7 +138,7 @@ async def remove_member_transaction(group_id: str, target_member_id: str, member
     net = await balances.compute_net_balances(db, group_id)
     target_balance = net.get(target_member_id, 0.0)
     
-    if abs(target_balance) > 0.01:
+    if abs(target_balance) > balances.SETTLEMENT_TOLERANCE:
         msg = "You cannot leave the tab with an unsettled balance" if member.id == target_member_id else "Cannot remove member with an unsettled balance"
         raise HTTPException(status_code=400, detail=msg)
         

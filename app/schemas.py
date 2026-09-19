@@ -13,11 +13,6 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
 class GroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=60)
     your_name: Optional[str] = None

@@ -50,8 +50,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-PALETTE = ["#B4863A", "#4F7D5A", "#A8483A", "#5C7A8A", "#8A5C7A", "#7A8A4F"]
-
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(groups.router)

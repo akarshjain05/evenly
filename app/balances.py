@@ -9,6 +9,9 @@ from . import models, schemas
 EXACT_SPLIT_TOLERANCE = Decimal('0.02')
 PERCENTAGE_TOLERANCE = Decimal('0.5')
 
+# Minimum threshold for a debt to be considered non-zero
+SETTLEMENT_TOLERANCE = Decimal('0.01')
+
 async def compute_net_balances(db: AsyncSession, group_id: str) -> Dict[str, Decimal]:
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     members = result.scalars().all()
@@ -23,9 +26,9 @@ def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
     debtors: List[tuple] = []
 
     for member_id, amount in net.items():
-        if amount > Decimal('0.01'):
+        if amount > SETTLEMENT_TOLERANCE:
             heapq.heappush(creditors, (-amount, member_id))
-        elif amount < Decimal('-0.01'):
+        elif amount < -SETTLEMENT_TOLERANCE:
             heapq.heappush(debtors, (amount, member_id))
 
     transactions: List[dict] = []
@@ -37,15 +40,15 @@ def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
         debt_amt = -neg_debt
 
         pay = min(credit_amt, debt_amt).quantize(Decimal('0.01'))
-        if pay > Decimal('0.01'):
+        if pay > SETTLEMENT_TOLERANCE:
             transactions.append({"from_member": debtor_id, "to_member": creditor_id, "amount": pay})
 
         remaining_credit = (credit_amt - pay).quantize(Decimal('0.01'))
         remaining_debt = (debt_amt - pay).quantize(Decimal('0.01'))
 
-        if remaining_credit > Decimal('0.01'):
+        if remaining_credit > SETTLEMENT_TOLERANCE:
             heapq.heappush(creditors, (-remaining_credit, creditor_id))
-        if remaining_debt > Decimal('0.01'):
+        if remaining_debt > SETTLEMENT_TOLERANCE:
             heapq.heappush(debtors, (-remaining_debt, debtor_id))
 
     return transactions

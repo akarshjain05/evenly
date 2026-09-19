@@ -21,7 +21,7 @@ async def send_web_push(user_ids: list, title: str, body: str):
                     subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
                     data=json.dumps({"title": title, "body": body}),
                     vapid_private_key=vapid_priv,
-                    vapid_claims={"sub": "mailto:admin@evenly.app"}
+                    vapid_claims={"sub": os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:admin@evenly.app")}
                 )
             except WebPushException as e:
                 if e.response and e.response.status_code in [404, 410]:

@@ -1,11 +1,13 @@
+export const SETTLEMENT_TOLERANCE = 0.01;
+
 export function simplifyDebts(members: { id: string, name: string, balance: string | number }[]) {
   const creditors: { amount: number, id: string, name: string }[] = [];
   const debtors: { amount: number, id: string, name: string }[] = [];
 
   for (const m of members) {
     const bal = Number(m.balance);
-    if (bal > 0.01) creditors.push({ amount: bal, id: m.id, name: m.name });
-    else if (bal < -0.01) debtors.push({ amount: Math.abs(bal), id: m.id, name: m.name });
+    if (bal > SETTLEMENT_TOLERANCE) creditors.push({ amount: bal, id: m.id, name: m.name });
+    else if (bal < -SETTLEMENT_TOLERANCE) debtors.push({ amount: Math.abs(bal), id: m.id, name: m.name });
   }
 
   creditors.sort((a, b) => b.amount - a.amount);
@@ -21,7 +23,7 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
 
     const pay = Math.min(c.amount, d.amount);
     
-    if (pay > 0.01) {
+    if (pay > SETTLEMENT_TOLERANCE) {
       transactions.push({
         from_member: d.id,
         to_member: c.id,
@@ -36,7 +38,7 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
 
     // We don't really need to constantly re-sort if we just do standard pointers, 
     // but to perfectly mimic the python heap we can re-sort the remaining items
-    if (c.amount < 0.01) cIdx++;
+    if (c.amount < SETTLEMENT_TOLERANCE) cIdx++;
     else {
         // Re-sort the rest of the array starting from cIdx
         const rest = creditors.splice(cIdx);
@@ -44,7 +46,7 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
         creditors.push(...rest);
     }
 
-    if (d.amount < 0.01) dIdx++;
+    if (d.amount < SETTLEMENT_TOLERANCE) dIdx++;
     else {
         const rest = debtors.splice(dIdx);
         rest.sort((a, b) => b.amount - a.amount);

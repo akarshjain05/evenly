@@ -133,4 +133,3 @@ Once installed it opens full-screen, no browser bar, like a normal native app th
 - **Deleting an expense:** For safety, only the tab creator (admin) or the person who paid the expense is allowed to delete it.
 - **Exporting Data:** You can export the entire tab's ledger to a CSV file. The backend streams the CSV chunk-by-chunk to prevent memory bloat on large groups.
 - **Syncing across devices:** Your account identity is securely tied to your email and password via HttpOnly cookies. Log in from any phone or computer and your tabs will instantly sync.
-- **Audit Trails:** Every ledger transaction records exactly which `user_id` created it in the database for secure auditing.
