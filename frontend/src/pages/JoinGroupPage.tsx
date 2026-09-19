@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient from '../api/client';
-import { useUIStore } from '../store/uiStore';
+import { apiClient } from '../api/client';
 import { Loader2 } from 'lucide-react';
 
 export default function JoinGroupPage() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { showAlert } = useUIStore();
-  const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
   const attempted = useRef(false);
 
   useEffect(() => {
