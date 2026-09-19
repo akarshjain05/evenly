@@ -36,10 +36,18 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
       const previousActivity = queryClient.getQueryData(['group-activity', id]);
       const payer = group.members.find(m => m.id === updated.paid_by);
 
+      const parts = updated.participant_ids || group.members.map((m: any) => m.id);
+      const share = parts.length > 0 ? updated.amount / parts.length : 0;
+      const fakeSplits = parts.map((pid: string) => ({
+        member_id: pid,
+        name: group.members.find(m => m.id === pid)?.name || 'Unknown',
+        share_amount: share.toFixed(2)
+      }));
+
       queryClient.setQueryData(['group-activity', id], (old: any) =>
         old?.map((item: ActivityResponse) =>
           item.id === expense.id
-            ? { ...item, description: updated.description, amount: updated.amount, paid_by_name: payer?.name ?? item.paid_by_name, paid_by: updated.paid_by }
+            ? { ...item, description: updated.description, amount: updated.amount, paid_by_name: payer?.name ?? item.paid_by_name, paid_by: updated.paid_by, splits: fakeSplits }
             : item
         )
       );

@@ -31,6 +31,14 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       const payer = group.members.find(m => m.id === newExpense.paid_by);
       const fakeId = `temp-${Date.now()}`;
       
+      const parts = newExpense.participant_ids || group.members.map((m: any) => m.id);
+      const share = parts.length > 0 ? newExpense.amount / parts.length : 0;
+      const fakeSplits = parts.map((pid: string) => ({
+        member_id: pid,
+        name: group.members.find(m => m.id === pid)?.name || 'Unknown',
+        share_amount: share.toFixed(2)
+      }));
+      
       const optimisticActivity = {
         id: fakeId,
         type: 'expense',
@@ -40,6 +48,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
         paid_by_name: payer ? payer.name : 'Unknown',
         created_at: new Date().toISOString(),
         split_type: newExpense.split_type,
+        splits: fakeSplits
       };
 
       queryClient.setQueryData(['group-activity', id], (old: any) => {
