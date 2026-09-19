@@ -23,9 +23,12 @@ export default function SettingsPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
-    
-    if ('Notification' in window) {
-      setIsNotificationsEnabled(Notification.permission === 'granted');
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          setIsNotificationsEnabled(!!sub);
+        });
+      });
     }
   }, []);
 
@@ -38,21 +41,13 @@ export default function SettingsPage() {
     }
 
     if (isNotificationsEnabled) {
-      // Optimistically turn off
+      // Optimistically turn off, fire and forget
       setIsNotificationsEnabled(false);
-      setIsSubscribing(true);
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await subscription.unsubscribe();
-        }
-      } catch (err: any) {
-        setIsNotificationsEnabled(true); // Revert on failure
-        showAlert('Error', 'Failed to disable notifications: ' + err.message);
-      } finally {
-        setIsSubscribing(false);
-      }
+      navigator.serviceWorker.ready.then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          if (sub) sub.unsubscribe().catch(() => {});
+        }).catch(() => {});
+      }).catch(() => {});
       return;
     }
 
