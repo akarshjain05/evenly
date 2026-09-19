@@ -88,8 +88,23 @@ def cleanup_memory() -> None:
 
 _use_redis = bool(os.getenv("REDIS_URL"))
 
+# Fail securely in stateless environments without Redis, unless explicitly overridden
+if not _use_redis and os.getenv("VERCEL") == "1":
+    if os.getenv("DISABLE_RATE_LIMITING") != "1":
+        raise RuntimeError(
+            "CRITICAL SECURITY MISCONFIGURATION: "
+            "You are deploying to Vercel (serverless) without REDIS_URL. "
+            "The in-memory rate limiter is useless in serverless environments, "
+            "leaving your authentication endpoints completely vulnerable to brute-force attacks. "
+            "Please configure Redis (e.g. Upstash) and set REDIS_URL. "
+            "If you fully understand the risks and wish to run without brute-force protection, "
+            "set DISABLE_RATE_LIMITING=1."
+        )
 
 def rate_limit_auth(request: Request) -> None:
+    if os.getenv("DISABLE_RATE_LIMITING") == "1":
+        return
+        
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
     client_ip = request.client.host if request.client else "unknown"
     path_suffix = request.url.path.strip('/').split('/')[-1]
@@ -100,8 +115,12 @@ def rate_limit_auth(request: Request) -> None:
         _check_memory(f"{limit_key}:{client_ip}", "auth")
 
 def rate_limit_invite(request: Request) -> None:
+    if os.getenv("DISABLE_RATE_LIMITING") == "1":
+        return
+        
     client_ip = request.client.host if request.client else "unknown"
     if _use_redis:
         _check_redis(client_ip, "invite")
     else:
         _check_memory(client_ip, "invite")
+
