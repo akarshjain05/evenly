@@ -8,6 +8,7 @@ import { useUIStore } from '../store/uiStore';
 import { Plus, Handshake, Trash2, Pencil, MoreVertical } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
 import EditExpenseModal from '../components/modals/EditExpenseModal';
+import EditSettlementModal from '../components/modals/EditSettlementModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import ShareModal from '../components/modals/ShareModal';
 import { simplifyDebts } from '../utils/balances';
@@ -36,6 +37,7 @@ export default function GroupView() {
     
   
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
+  const [editingSettlement, setEditingSettlement] = useState<ActivityResponse | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeActivityTab, setActiveActivityTab] = useState<'expenses' | 'settlements'>('expenses');
@@ -103,7 +105,7 @@ export default function GroupView() {
                         </div>
                       </div>
                       
-                      {item.type === 'expense' && (currentMember?.is_admin || currentMember?.id === item.paid_by) ? (
+                      { (item.type === 'expense' && (currentMember?.is_admin || currentMember?.id === item.paid_by)) || (item.type === 'settlement' && (currentMember?.is_admin || currentMember?.id === item.from_member || currentMember?.id === item.to_member)) ? (
                         <div className="relative -mt-0.5 -mr-1.5">
                           <button
                             onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
@@ -196,6 +198,13 @@ export default function GroupView() {
           expense={editingExpense}
           group={group}
           onClose={() => setEditingExpense(null)}
+        />
+      )}
+      {editingSettlement && (
+        <EditSettlementModal
+          settlement={editingSettlement}
+          group={group}
+          onClose={() => setEditingSettlement(null)}
         />
       )}
       {isShareOpen && (
