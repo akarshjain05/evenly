@@ -92,10 +92,12 @@ _use_redis = bool(os.getenv("REDIS_URL"))
 def rate_limit_auth(request: Request) -> None:
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
     client_ip = request.client.host if request.client else "unknown"
+    path_suffix = request.url.path.strip('/').split('/')[-1]
+    limit_key = f"auth_{path_suffix}"
     if _use_redis:
-        _check_redis(client_ip, "auth")
+        _check_redis(client_ip, limit_key)
     else:
-        _check_memory(client_ip, "auth")
+        _check_memory(f"{limit_key}:{client_ip}", "auth")
 
 def rate_limit_invite(request: Request) -> None:
     client_ip = request.client.host if request.client else "unknown"

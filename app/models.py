@@ -14,8 +14,8 @@ def gen_id() -> str:
 
 
 def gen_invite_code() -> str:
-    # 6 hex characters, e.g. "a1b2c3" - short enough to read over text/WhatsApp
-    return secrets.token_hex(3)
+    # 10 hex characters, e.g. "a1b2c3" - short enough to read over text/WhatsApp
+    return secrets.token_hex(5)
 
 
 

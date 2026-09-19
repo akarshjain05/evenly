@@ -9,7 +9,7 @@ Say goodbye to ads, per-user subscription fees, and bloated interfaces. Evenly i
 ### Key Features
 - **Secure Accounts & Sync:** Features HttpOnly, Secure, SameSite=Lax JWT cookie authentication to prevent XSS attacks, ensuring your data is safely backed up and synced.
 - **Blazing Fast Architecture:** Built on modern asynchronous Python (FastAPI + asyncpg/aiosqlite) with optimized O(1) memory footprint SQL pipelines (UNION ALL, streaming CSV exports) to handle massive group histories.
-- **Advanced Debt Simplification:** The core financial engine automatically calculates the absolute fewest number of payments required to settle all debts in the group.
+- **Advanced Debt Simplification:** The core financial engine automatically calculates a minimized number of payments required to settle all debts in the group.
 - **Flexible Splitting:** Split expenses equally, by exact amounts, or by custom percentages.
 - **Export & Ownership:** Your data is yours. Export any tab's ledger to CSV at any time.
 - **Push Notifications:** Real-time Web Push Notifications keep everyone in the loop when expenses are added or settled.
