@@ -224,7 +224,7 @@ export default function GroupView() {
             </button>
             <button
               onClick={openSettleUp}
-              className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-primary text-primary rounded-xl hover:bg-primary/10 font-medium transition-colors cursor-pointer bg-transparent"
+              className="flex-1 flex justify-center items-center gap-2 px-4 py-3 border border-primary text-primary rounded-xl hover:opacity-70 font-medium transition-colors cursor-pointer bg-transparent"
             >
               <Handshake size={18} /> Settle Up
             </button>
