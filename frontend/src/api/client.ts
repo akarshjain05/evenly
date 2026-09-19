@@ -13,6 +13,26 @@ export const apiClient = axios.create({
   },
 });
 
+
+function getCookie(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
+// Attach CSRF token to all state-mutating requests
+apiClient.interceptors.request.use((config) => {
+  const method = config.method?.toUpperCase();
+  if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const csrfToken = getCookie('csrf_token');
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+  return config;
+});
+
 // Generic interceptor for catching 401s globally
 apiClient.interceptors.response.use(
   (response) => response,

@@ -1,5 +1,6 @@
 import os
 os.environ['DISABLE_RATE_LIMITING'] = '1'
+os.environ['DISABLE_CSRF_PROTECTION'] = '1'
 import pytest
 from app import rate_limiter
 
@@ -541,3 +542,34 @@ def test_cross_group_settlement_update_validation():
     
     assert res_update.status_code == 400
     assert "both people must be in this tab" in res_update.json()["detail"].lower()
+
+def test_csrf_validation_blocks_mutations():
+    # Setup user
+    res_reg = client.post("/api/auth/register", json={"name": "CSRF User", "email": "csrf@example.com", "password": "password123"})
+    assert res_reg.status_code == 200
+    token = res_reg.cookies.get("access_token")
+    csrf = res_reg.cookies.get("csrf_token")
+    assert csrf is not None
+    
+    # Try a GET request without CSRF (should succeed because it's not a mutation)
+    # Note: We must temporarily re-enable CSRF for this specific test
+    import os
+    os.environ["DISABLE_CSRF_PROTECTION"] = "0"
+    
+    res_get = client.get("/api/users/me", cookies={"access_token": token})
+    assert res_get.status_code == 200
+    
+    # Try a POST request without the CSRF header (should fail)
+    res_post_missing = client.post("/api/groups", json={"name": "CSRF Group", "your_name": "CSRF User"}, cookies={"access_token": token, "csrf_token": csrf})
+    assert res_post_missing.status_code == 403
+    assert "csrf" in res_post_missing.json()["detail"].lower()
+    
+    # Try a POST request with an invalid CSRF header (should fail)
+    res_post_invalid = client.post("/api/groups", json={"name": "CSRF Group", "your_name": "CSRF User"}, cookies={"access_token": token, "csrf_token": csrf}, headers={"x-csrf-token": "wrong_token"})
+    assert res_post_invalid.status_code == 403
+    
+    # Try a POST request with the valid CSRF header (should succeed)
+    res_post_valid = client.post("/api/groups", json={"name": "CSRF Group", "your_name": "CSRF User"}, cookies={"access_token": token, "csrf_token": csrf}, headers={"x-csrf-token": csrf})
+    assert res_post_valid.status_code == 200
+    
+    os.environ["DISABLE_CSRF_PROTECTION"] = "1"
