@@ -8,27 +8,28 @@ def clear_rate_limits():
 import os
 os.environ["JWT_SECRET_KEY"] = "test-secret-that-is-at-least-32-bytes-long-for-security"
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.main import app
 from app.database import Base, get_db
 from app import models
 
 # Use an in-memory SQLite database for tests
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 from sqlalchemy.pool import StaticPool
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
-Base.metadata.create_all(bind=engine)
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
+asyncio.run(init_db())
+
+async def override_get_db():
+    async with TestingSessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 app.dependency_overrides[get_db] = override_get_db
 
@@ -36,32 +37,32 @@ client = TestClient(app)
 
 def test_auth_and_group_flow():
     # 1. Register a new user
-    res = client.post("/api/auth/register", json={"email": "test@example.com", "password": "password123"})
+    res = client.post("/api/auth/register", json={"name": "Test User", "email": "test@example.com", "password": "password123"})
     assert res.status_code == 200
-    token = res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    token = res.cookies.get("access_token")
+    headers = {"access_token": token}
 
     # 2. Create a group
-    res = client.post("/api/groups", json={"name": "Test Trip", "your_name": "Alice"}, headers=headers)
+    res = client.post("/api/groups", json={"name": "Test Trip", "your_name": "Alice"}, cookies=headers)
     assert res.status_code == 200
     group_data = res.json()
     group_id = group_data["group"]["id"]
     invite_code = group_data["group"]["invite_code"]
 
     # 3. Register User 2
-    res2 = client.post("/api/auth/register", json={"email": "bob@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    headers2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    headers2 = {"access_token": token2}
 
     # 4. User 2 joins the group
-    res2 = client.post(f"/api/groups/by-code/{invite_code}/join", json={"name": "Bob"}, headers=headers2)
+    res2 = client.post(f"/api/groups/by-code/{invite_code}/join", json={"name": "Bob"}, cookies=headers2)
     assert res2.status_code == 200
 
     # 5. Add an equal expense (Alice pays 30, split equally between Alice and Bob)
     alice_id = group_data["member"]["id"]
     
     # We need Bob's ID to split equally
-    res_b = client.get(f"/api/groups/{group_id}", headers=headers)
+    res_b = client.get(f"/api/groups/{group_id}", cookies=headers)
     bob_id = [m["id"] for m in res_b.json()["members"] if m["name"] == "Bob"][0]
     
     res = client.post(f"/api/groups/{group_id}/expenses", json={
@@ -70,11 +71,11 @@ def test_auth_and_group_flow():
         "paid_by": alice_id,
         "split_type": "equal",
         "participant_ids": [alice_id, bob_id]
-    }, headers=headers)
+    }, cookies=headers)
     assert res.status_code == 200
 
     # 6. Check balances (Bob should owe Alice 15)
-    res = client.get(f"/api/groups/{group_id}", headers=headers)
+    res = client.get(f"/api/groups/{group_id}", cookies=headers)
     assert res.status_code == 200
     transactions = res.json()["simplified_debts"]
     assert len(transactions) == 1
@@ -86,19 +87,19 @@ def test_invalid_token():
 
 def test_unauthorized_expense_delete():
     # Setup test
-    res1 = client.post("/api/auth/register", json={"email": "alice2@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice2@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
     
-    group_data = client.post("/api/groups", json={"name": "Test Delete", "your_name": "Alice"}, headers=h1).json()
+    group_data = client.post("/api/groups", json={"name": "Test Delete", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     alice_id = group_data["member"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"email": "bob2@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    h2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob2@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
     
-    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2)
+    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2)
     
     # Alice adds an expense
     client.post(f"/api/groups/{group_id}/expenses", json={
@@ -107,31 +108,31 @@ def test_unauthorized_expense_delete():
         "paid_by": alice_id,
         "split_type": "equal",
         "participant_ids": [alice_id]
-    }, headers=h1)
+    }, cookies=h1)
     
     # Get expense ID
-    expenses = client.get(f"/api/groups/{group_id}/activity", headers=h1).json()
+    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
     expense_id = expenses[0]["id"]
     
     # Bob tries to delete Alice's expense (Bob is not admin and didn't pay)
-    del_res = client.delete(f"/api/groups/{group_id}/expenses/{expense_id}", headers=h2)
+    del_res = client.delete(f"/api/groups/{group_id}/expenses/{expense_id}", cookies=h2)
     assert del_res.status_code == 403
 
 def test_leave_group_with_balance():
     # Setup
-    res1 = client.post("/api/auth/register", json={"email": "alice3@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice3@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
     
-    group_data = client.post("/api/groups", json={"name": "Test Leave", "your_name": "Alice"}, headers=h1).json()
+    group_data = client.post("/api/groups", json={"name": "Test Leave", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     alice_id = group_data["member"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"email": "bob3@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    h2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob3@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
     
-    bob_join = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2).json()
+    bob_join = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2).json()
     bob_id = bob_join["member"]["id"]
     
     # Alice adds expense split with Bob (so Bob owes Alice)
@@ -141,40 +142,40 @@ def test_leave_group_with_balance():
         "paid_by": alice_id,
         "split_type": "equal",
         "participant_ids": [alice_id, bob_id]
-    }, headers=h1)
+    }, cookies=h1)
     
     # Bob tries to leave the group
-    leave_res = client.delete(f"/api/groups/{group_id}/members/{bob_id}", headers=h2)
+    leave_res = client.delete(f"/api/groups/{group_id}/members/{bob_id}", cookies=h2)
     assert leave_res.status_code == 400
     assert "unsettled balance" in leave_res.json()["detail"]
 
 def test_csv_export():
-    res1 = client.post("/api/auth/register", json={"email": "alice4@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
-    group_data = client.post("/api/groups", json={"name": "Export Test", "your_name": "Alice"}, headers=h1).json()
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice4@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
+    group_data = client.post("/api/groups", json={"name": "Export Test", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     
-    export_res = client.get(f"/api/groups/{group_id}/export/csv", headers=h1)
+    export_res = client.get(f"/api/groups/{group_id}/export/csv", cookies=h1)
     assert export_res.status_code == 200
     assert "text/csv" in export_res.headers["content-type"]
     assert "Date,Type,Category,Description,Amount,Paid By,Details" in export_res.text
 
 
 def test_edit_expense_permissions():
-    res1 = client.post("/api/auth/register", json={"email": "alice_edit@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_edit@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
     
-    group_data = client.post("/api/groups", json={"name": "Test Edit", "your_name": "Alice"}, headers=h1).json()
+    group_data = client.post("/api/groups", json={"name": "Test Edit", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     alice_id = group_data["member"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"email": "bob_edit@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    h2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob_edit@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
     
-    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2)
+    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2)
     
     # Alice adds an expense
     client.post(f"/api/groups/{group_id}/expenses", json={
@@ -184,9 +185,9 @@ def test_edit_expense_permissions():
         "split_type": "equal",
         "category": "Food",
         "participant_ids": [alice_id]
-    }, headers=h1)
+    }, cookies=h1)
     
-    expenses = client.get(f"/api/groups/{group_id}/activity", headers=h1).json()
+    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
     expense_id = [e for e in expenses if e["type"] == "expense"][0]["id"]
     
     # Bob tries to edit Alice's expense
@@ -197,29 +198,29 @@ def test_edit_expense_permissions():
         "split_type": "equal",
         "category": "Food",
         "participant_ids": [alice_id]
-    }, headers=h2)
+    }, cookies=h2)
     assert edit_res.status_code == 403
 
 def test_invalid_group_or_member():
-    res = client.post("/api/auth/register", json={"email": "invalid_test@example.com", "password": "password123"})
-    token = res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    res = client.post("/api/auth/register", json={"name": "Test User", "email": "invalid_test@example.com", "password": "password123"})
+    token = res.cookies.get("access_token")
+    headers = {"access_token": token}
     
     # Try getting a group that doesn't exist
-    res_get = client.get("/api/groups/nonexistent_group_id", headers=headers)
+    res_get = client.get("/api/groups/nonexistent_group_id", cookies=headers)
     assert res_get.status_code in [403, 404]
     
 def test_notifications_subscribe():
-    res = client.post("/api/auth/register", json={"email": "notify_test@example.com", "password": "password123"})
-    token = res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    res = client.post("/api/auth/register", json={"name": "Test User", "email": "notify_test@example.com", "password": "password123"})
+    token = res.cookies.get("access_token")
+    headers = {"access_token": token}
     
     # Test subscribe
     sub_res = client.post("/api/notifications/subscribe", json={
         "endpoint": "https://example.com/push",
         "p256dh": "test_p256dh",
         "auth": "test_auth"
-    }, headers=headers)
+    }, cookies=headers)
     assert sub_res.status_code == 200
 
 def test_vapid_public():
@@ -230,65 +231,65 @@ def test_vapid_public():
 
 
 def test_group_edit_and_delete_permissions():
-    res1 = client.post("/api/auth/register", json={"email": "alice_grp@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_grp@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
     
-    group_data = client.post("/api/groups", json={"name": "Test Group Edit", "your_name": "Alice"}, headers=h1).json()
+    group_data = client.post("/api/groups", json={"name": "Test Group Edit", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"email": "bob_grp@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    h2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob_grp@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
     
-    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2)
+    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2)
     
     # Bob tries to edit the group (should fail, only admin)
-    edit_res = client.put(f"/api/groups/{group_id}", json={"name": "Hacked Group"}, headers=h2)
+    edit_res = client.put(f"/api/groups/{group_id}", json={"name": "Hacked Group"}, cookies=h2)
     assert edit_res.status_code == 403
     
     # Alice edits the group (should succeed)
-    edit_res2 = client.put(f"/api/groups/{group_id}", json={"name": "Alice Group"}, headers=h1)
+    edit_res2 = client.put(f"/api/groups/{group_id}", json={"name": "Alice Group"}, cookies=h1)
     assert edit_res2.status_code == 200
     
     # Bob tries to delete the group (should fail)
-    del_res = client.delete(f"/api/groups/{group_id}", headers=h2)
+    del_res = client.delete(f"/api/groups/{group_id}", cookies=h2)
     assert del_res.status_code == 403
     
     # Alice deletes the group (should succeed)
-    del_res2 = client.delete(f"/api/groups/{group_id}", headers=h1)
+    del_res2 = client.delete(f"/api/groups/{group_id}", cookies=h1)
     assert del_res2.status_code == 200
 
 def test_settlement_permissions():
-    res1 = client.post("/api/auth/register", json={"email": "alice_stl@example.com", "password": "password123"})
-    token1 = res1.json()["access_token"]
-    h1 = {"Authorization": f"Bearer {token1}"}
+    res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_stl@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
     
-    group_data = client.post("/api/groups", json={"name": "Test Settlements", "your_name": "Alice"}, headers=h1).json()
+    group_data = client.post("/api/groups", json={"name": "Test Settlements", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
     alice_id = group_data["member"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"email": "bob_stl@example.com", "password": "password123"})
-    token2 = res2.json()["access_token"]
-    h2 = {"Authorization": f"Bearer {token2}"}
+    res2 = client.post("/api/auth/register", json={"name": "Test User", "email": "bob_stl@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
     
-    bob_join = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, headers=h2).json()
+    bob_join = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2).json()
     bob_id = bob_join["member"]["id"]
     
     # Add a third user to test 403 errors
-    res3 = client.post("/api/auth/register", json={"email": "charlie_stl@example.com", "password": "password123"})
-    token3 = res3.json()["access_token"]
-    h3 = {"Authorization": f"Bearer {token3}"}
-    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Charlie"}, headers=h3)
+    res3 = client.post("/api/auth/register", json={"name": "Test User", "email": "charlie_stl@example.com", "password": "password123"})
+    token3 = res3.cookies.get("access_token")
+    h3 = {"access_token": token3}
+    client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Charlie"}, cookies=h3)
     
     # Alice records a settlement (Bob paid Alice)
     client.post(f"/api/groups/{group_id}/settlements", json={
         "from_member": bob_id,
         "to_member": alice_id,
         "amount": 20.0
-    }, headers=h1)
+    }, cookies=h1)
     
-    activity = client.get(f"/api/groups/{group_id}/activity", headers=h1).json()
+    activity = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
     settlements = [a for a in activity if a["type"] == "settlement"]
     assert len(settlements) == 1
     s_id = settlements[0]["id"]
@@ -298,7 +299,7 @@ def test_settlement_permissions():
         "from_member": bob_id,
         "to_member": alice_id,
         "amount": 30.0
-    }, headers=h3)
+    }, cookies=h3)
     assert edit_res.status_code == 403
     
     # Bob tries to edit (should succeed, Bob is involved)
@@ -306,14 +307,14 @@ def test_settlement_permissions():
         "from_member": bob_id,
         "to_member": alice_id,
         "amount": 30.0
-    }, headers=h2)
+    }, cookies=h2)
     assert edit_res2.status_code == 200
     
     # Charlie tries to delete (should fail)
-    del_res = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", headers=h3)
+    del_res = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", cookies=h3)
     assert del_res.status_code == 403
     
     # Alice deletes (should succeed, Alice is admin AND involved)
-    del_res2 = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", headers=h1)
+    del_res2 = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", cookies=h1)
     assert del_res2.status_code == 200
 

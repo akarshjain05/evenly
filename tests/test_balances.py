@@ -44,51 +44,59 @@ from app.schemas import ExpenseCreate, SplitInput
 from fastapi import HTTPException
 import pytest
 
-class MockQuery:
+class MockResult:
     def __init__(self, members):
         self.members = members
-    def filter(self, *args):
-        return self
-    def all(self):
-        return self.members
+    def scalars(self):
+        class MockScalars:
+            def __init__(self, items):
+                self.items = items
+            def all(self):
+                return self.items
+        return MockScalars(self.members)
 
 class MockSession:
     def __init__(self):
         self.added = []
         self.members = [
-            Member(id="m1", group_id="g1", name="Alice"),
-            Member(id="m2", group_id="g1", name="Bob"),
-            Member(id="m3", group_id="g1", name="Charlie")
+            Member(id="m1", group_id="g1", name="Alice", balance=Decimal("0")),
+            Member(id="m2", group_id="g1", name="Bob", balance=Decimal("0")),
+            Member(id="m3", group_id="g1", name="Charlie", balance=Decimal("0"))
         ]
-    def query(self, model):
-        return MockQuery(self.members)
+    async def flush(self):
+        pass
+    async def execute(self, statement):
+        return MockResult(self.members)
     def add(self, obj):
         self.added.append(obj)
 
-def test_process_expense_equal():
+@pytest.mark.asyncio
+async def test_process_expense_equal():
     db = MockSession()
     expense = Expense(id="e1", amount=10.0)
     payload = ExpenseCreate(description="Test", amount=10.0, paid_by="m1", split_type="equal", participant_ids=["m1", "m2", "m3"])
-    process_expense_splits(db, "g1", expense, payload)
+    await process_expense_splits(db, "g1", expense, payload)
     
     assert len(db.added) == 3
     amounts = [s.share_amount for s in db.added]
     assert sorted(amounts) == [Decimal('3.33'), Decimal('3.33'), Decimal('3.34')]
 
-def test_process_expense_exact():
+@pytest.mark.asyncio
+async def test_process_expense_exact():
     db = MockSession()
     expense = Expense(id="e1", amount=10.0)
     payload = ExpenseCreate(description="Test", amount=10.0, paid_by="m1", split_type="exact", splits=[
         SplitInput(member_id="m1", value=4.0),
         SplitInput(member_id="m2", value=6.0)
     ])
-    process_expense_splits(db, "g1", expense, payload)
+    await process_expense_splits(db, "g1", expense, payload)
     
     assert len(db.added) == 2
     assert db.added[0].share_amount == 4.0
     assert db.added[1].share_amount == 6.0
 
-def test_process_expense_exact_validation():
+@pytest.mark.asyncio
+async def test_process_expense_exact_validation():
     db = MockSession()
     expense = Expense(id="e1", amount=10.0)
     payload = ExpenseCreate(description="Test", amount=10.0, paid_by="m1", split_type="exact", splits=[
@@ -96,4 +104,4 @@ def test_process_expense_exact_validation():
         SplitInput(member_id="m2", value=5.0) # Adds up to 9, not 10
     ])
     with pytest.raises(HTTPException):
-        process_expense_splits(db, "g1", expense, payload)
+        await process_expense_splits(db, "g1", expense, payload)
