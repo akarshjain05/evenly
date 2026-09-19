@@ -1,3 +1,4 @@
+import { formatCurrency } from '../utils/currency';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -93,7 +94,7 @@ export default function GroupView() {
                     <div className="flex items-start gap-1 shrink-0">
                       <div className="text-right space-y-1">
                         <div className={`font-semibold leading-none ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
-                          ₹{Number(item.amount).toFixed(2)}
+                          {formatCurrency(item.amount)}
                         </div>
                         <div className="text-[13px] text-ink-soft leading-none">
                           {new Date(item.created_at).toLocaleDateString()}

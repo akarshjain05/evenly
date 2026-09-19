@@ -1,3 +1,4 @@
+import { formatCurrency } from '../../utils/currency';
 
 export const SettleSuggestions = ({ group, getDisplayName }: any) => {
   if (!group.simplified_debts || group.simplified_debts.length === 0) return null;
@@ -12,7 +13,7 @@ export const SettleSuggestions = ({ group, getDisplayName }: any) => {
             <span>
               <span className="font-semibold text-ink">{getDisplayName(debt.from_member, debt.from_name)}</span> {getDisplayName(debt.from_member, debt.from_name) === 'You' ? 'owe' : 'owes'} <span className="font-semibold text-ink">{getDisplayName(debt.to_member, debt.to_name)}</span>
             </span>
-            <span className="font-semibold text-ink">₹{Number(debt.amount).toFixed(2)}</span>
+            <span className="font-semibold text-ink">{formatCurrency(debt.amount)}</span>
           </div>
         ))}
       </div>

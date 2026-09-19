@@ -15,7 +15,7 @@ interface DialogConfig {
 interface DialogState {
   isOpen: boolean;
   config: DialogConfig | null;
-  resolve: ((value: any) => void) | null;
+  resolve: ((value: boolean | string | null | void) => void) | null;
 }
 
 interface UIState {
@@ -80,7 +80,7 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   showAlert: (title, message) => {
     return new Promise((resolve) => {
-      set({ dialog: { isOpen: true, config: { type: 'alert', title, message }, resolve } });
+      set({ dialog: { isOpen: true, config: { type: 'alert', title, message }, resolve: resolve as any } });
     });
   },
   
@@ -90,7 +90,7 @@ export const useUIStore = create<UIState>((set, get) => ({
         dialog: { 
           isOpen: true, 
           config: { type: 'confirm', title, message, ...options }, 
-          resolve 
+          resolve: resolve as any 
         } 
       });
     });
@@ -98,7 +98,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   
   showPrompt: (title, defaultValue) => {
     return new Promise((resolve) => {
-      set({ dialog: { isOpen: true, config: { type: 'prompt', title, defaultValue }, resolve } });
+      set({ dialog: { isOpen: true, config: { type: 'prompt', title, defaultValue }, resolve: resolve as any } });
     });
   },
   

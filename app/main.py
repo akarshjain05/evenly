@@ -55,8 +55,6 @@ app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(notifications.router)
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 
 @app.get("/api/health")
 def health():
