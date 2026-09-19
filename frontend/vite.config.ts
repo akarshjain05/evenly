@@ -26,8 +26,8 @@ export default defineConfig({
         name: 'Evenly',
         short_name: 'Evenly',
         description: 'A private running tab for a small group - split costs, see who owes who, settle up.',
-        theme_color: '#FAF9F6',
-        background_color: '#FAF9F6',
+        theme_color: '#1C2723',
+        background_color: '#1C2723',
         display: 'standalone',
         icons: [
           {
