@@ -105,7 +105,7 @@ export default function GroupView() {
                         </div>
                       </div>
                       
-                      { true ? (
+                      { currentMember || true ? (
                         <div className="relative -mt-0.5 -mr-1.5">
                           <button
                             onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
