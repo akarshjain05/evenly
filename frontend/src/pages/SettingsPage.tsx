@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUIStore } from '../store/uiStore';
 import { apiClient } from '../api/client';
@@ -20,7 +20,8 @@ export default function SettingsPage() {
   const { showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
   
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const targetState = useRef<boolean | null>(null);
+  const isSyncing = useRef(false);
 
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -32,65 +33,75 @@ export default function SettingsPage() {
     }
   }, []);
 
-  
+  const syncPushState = async () => {
+    if (isSyncing.current) return;
+    isSyncing.current = true;
+    
+    try {
+      while (targetState.current !== null) {
+        const target = targetState.current;
+        targetState.current = null; // Consume target
+        
+        if (target) {
+            // TURN ON
+            try {
+              const permission = await Notification.requestPermission();
+              if (permission !== 'granted') {
+                setIsNotificationsEnabled(false);
+                showAlert('Error', 'Notification permission was denied.');
+                continue;
+              }
 
-  const toggleNotifications = async () => {
+              const registration = await navigator.serviceWorker.ready;
+              const { data } = await apiClient.get<{ public_key: string | null }>('notifications/vapid-public');
+              
+              if (!data.public_key) {
+                setIsNotificationsEnabled(false);
+                showAlert('Error', 'Push notifications are not configured on the server.');
+                continue;
+              }
+
+              const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(data.public_key)
+              });
+              
+              const subJson = subscription.toJSON();
+              await apiClient.post('notifications/subscribe', {
+                endpoint: subJson.endpoint,
+                p256dh: subJson.keys?.p256dh,
+                auth: subJson.keys?.auth
+              });
+            } catch (err: any) {
+              setIsNotificationsEnabled(false);
+              showAlert('Error', 'Failed to enable notifications: ' + err.message);
+            }
+        } else {
+            // TURN OFF
+            try {
+              const reg = await navigator.serviceWorker.ready;
+              const sub = await reg.pushManager.getSubscription();
+              if (sub) await sub.unsubscribe();
+            } catch (err) {
+              // Ignore unsubscribe errors
+            }
+        }
+      }
+    } finally {
+      isSyncing.current = false;
+    }
+  };
+
+  const toggleNotifications = () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       showAlert('Error', 'Push notifications are not supported in this browser.');
       return;
     }
 
-    if (isNotificationsEnabled) {
-      // Optimistically turn off, fire and forget
-      setIsNotificationsEnabled(false);
-      navigator.serviceWorker.ready.then(reg => {
-        reg.pushManager.getSubscription().then(sub => {
-          if (sub) sub.unsubscribe().catch(() => {});
-        }).catch(() => {});
-      }).catch(() => {});
-      return;
-    }
-
-    // Optimistically turn on
-    setIsNotificationsEnabled(true);
-    setIsSubscribing(true);
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setIsNotificationsEnabled(false); // Revert
-        setIsSubscribing(false);
-        showAlert('Error', 'Notification permission was denied.');
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      const { data } = await apiClient.get<{ public_key: string | null }>('notifications/vapid-public');
-      
-      if (!data.public_key) {
-        setIsNotificationsEnabled(false); // Revert
-        setIsSubscribing(false);
-        showAlert('Error', 'Push notifications are not configured on the server.');
-        return;
-      }
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(data.public_key)
-      });
-      
-      const subJson = subscription.toJSON();
-      await apiClient.post('notifications/subscribe', {
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys?.p256dh,
-        auth: subJson.keys?.auth
-      });
-      // Removed the success popup to keep the UX instantly responsive
-    } catch (err: any) {
-      setIsNotificationsEnabled(false); // Revert on failure
-      showAlert('Error', 'Failed to enable notifications: ' + err.message);
-    } finally {
-      setIsSubscribing(false);
-    }
+    const newState = !isNotificationsEnabled;
+    setIsNotificationsEnabled(newState);
+    targetState.current = newState;
+    syncPushState();
   };
 
   return (
@@ -131,7 +142,6 @@ export default function SettingsPage() {
           </div>
           <button 
             onClick={toggleNotifications}
-            disabled={isSubscribing}
             className={`shrink-0 w-12 h-6 rounded-full transition-colors relative cursor-pointer border-none ${isNotificationsEnabled ? 'bg-primary' : 'bg-[#D0D0D0]'}`}
           >
             <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${isNotificationsEnabled ? 'translate-x-6' : ''}`} />
