@@ -104,8 +104,7 @@ async def update_expense(
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    if not member.is_admin and expense.paid_by != member.id:
-        raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can edit this expense")
+    
         
     await balances.revert_expense(db, expense)
     from sqlalchemy import delete
@@ -134,8 +133,7 @@ async def delete_expense(
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    if not member.is_admin and expense.paid_by != member.id:
-        raise HTTPException(status_code=403, detail="Only the tab creator or the person who paid can delete this expense")
+    
     await balances.revert_expense(db, expense)
     await db.delete(expense)
     await db.commit()
@@ -184,8 +182,7 @@ async def update_settlement(
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
-    if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
-        raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can edit this settlement")
+    
     
     res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     valid_ids = {m.id for m in res.scalars().all()}
@@ -213,8 +210,7 @@ async def delete_settlement(
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
-    if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
-        raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can delete this settlement")
+    
         
     await balances.revert_settlement(db, settlement)
     await db.delete(settlement)
