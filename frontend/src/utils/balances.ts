@@ -56,3 +56,36 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
 
   return transactions;
 }
+
+export function calculateEqualSplits(amount: number, participantIds: string[]): { member_id: string, name: string, share_amount: string }[] {
+  if (participantIds.length === 0) return [];
+  
+  const num = participantIds.length;
+  // Use Banker's Rounding to match Python's decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+  const rawShare = amount / num;
+  let shareCents = Math.round(rawShare * 100);
+  
+  // Apply half-even rounding if it falls exactly on the .5 cent mark
+  if (Math.abs((rawShare * 100) % 1) === 0.5) {
+      const floor = Math.floor(rawShare * 100);
+      shareCents = (floor % 2 === 0) ? floor : Math.ceil(rawShare * 100);
+  }
+  
+  const shareFloat = shareCents / 100;
+  
+  // In Javascript, to fixed floats can be nasty. We calculate remainder carefully.
+  // We recreate exactly what Python does: remainder = amount - (share * num)
+  const remainder = Math.round((amount - (shareFloat * num)) * 100) / 100;
+  
+  return participantIds.map((id, index) => {
+    let amt = shareFloat;
+    if (index === 0) {
+      amt = Math.round((amt + remainder) * 100) / 100;
+    }
+    return {
+      member_id: id,
+      name: '',
+      share_amount: amt.toFixed(2)
+    };
+  });
+}

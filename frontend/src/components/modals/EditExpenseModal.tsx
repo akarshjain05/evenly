@@ -5,7 +5,7 @@ import { apiClient } from '../../api/client';
 import type { ActivityResponse, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts } from '../../utils/balances';
+import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
 
 interface Props {
   expense: ActivityResponse;
@@ -37,11 +37,9 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
       const payer = group.members.find(m => m.id === updated.paid_by);
 
       const parts = updated.participant_ids || group.members.map((m: any) => m.id);
-      const share = parts.length > 0 ? updated.amount / parts.length : 0;
-      const fakeSplits = parts.map((pid: string) => ({
-        member_id: pid,
-        name: group.members.find(m => m.id === pid)?.name || 'Unknown',
-        share_amount: share.toFixed(2)
+      const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
+        ...s,
+        name: group.members.find((m: any) => m.id === s.member_id)?.name || 'Unknown'
       }));
 
       queryClient.setQueryData(['group-activity', id], (old: any) =>

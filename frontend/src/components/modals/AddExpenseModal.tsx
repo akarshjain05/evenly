@@ -6,7 +6,7 @@ import { apiClient } from '../../api/client';
 import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { simplifyDebts } from '../../utils/balances';
+import { simplifyDebts, calculateEqualSplits } from '../../utils/balances';
 
 export default function AddExpenseModal({ group }: { group: GroupDetailResponse }) {
   const { id } = useParams<{ id: string }>();
@@ -32,11 +32,9 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       const fakeId = `temp-${Date.now()}`;
       
       const parts = newExpense.participant_ids || group.members.map((m: any) => m.id);
-      const share = parts.length > 0 ? newExpense.amount / parts.length : 0;
-      const fakeSplits = parts.map((pid: string) => ({
-        member_id: pid,
-        name: group.members.find(m => m.id === pid)?.name || 'Unknown',
-        share_amount: share.toFixed(2)
+      const fakeSplits = calculateEqualSplits(newExpense.amount, parts).map(s => ({
+        ...s,
+        name: group.members.find((m: any) => m.id === s.member_id)?.name || 'Unknown'
       }));
       
       const optimisticActivity = {
@@ -61,11 +59,11 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
         if (newExpense.split_type === 'equal') {
             const parts = newExpense.participant_ids || newGroup.members.map((m: any) => m.id);
             if (parts.length > 0) {
-              const share = newExpense.amount / parts.length;
               newGroup.members.forEach((m: any) => {
                   let netChange = 0;
                   if (m.id === newExpense.paid_by) netChange += newExpense.amount;
-                  if (parts.includes(m.id)) netChange -= share;
+                  const split = fakeSplits.find(s => s.member_id === m.id);
+                  if (split) netChange -= Number(split.share_amount);
                   m.balance = (Number(m.balance) + netChange).toString();
               });
             }
