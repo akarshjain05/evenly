@@ -48,6 +48,8 @@ export default function SettingsPage() {
     }
 
     if (isNotificationsEnabled) {
+      // Optimistically turn off
+      setIsNotificationsEnabled(false);
       setIsSubscribing(true);
       try {
         const registration = await navigator.serviceWorker.ready;
@@ -55,8 +57,8 @@ export default function SettingsPage() {
         if (subscription) {
           await subscription.unsubscribe();
         }
-        setIsNotificationsEnabled(false);
       } catch (err: any) {
+        setIsNotificationsEnabled(true); // Revert on failure
         showAlert('Error', 'Failed to disable notifications: ' + err.message);
       } finally {
         setIsSubscribing(false);
@@ -64,37 +66,42 @@ export default function SettingsPage() {
       return;
     }
 
+    // Optimistically turn on
+    setIsNotificationsEnabled(true);
     setIsSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const registration = await navigator.serviceWorker.ready;
-        const { data } = await apiClient.get<{ public_key: string | null }>('notifications/vapid-public');
-        
-        if (!data.public_key) {
-          showAlert('Error', 'Push notifications are not configured on the server.');
-          setIsSubscribing(false);
-          return;
-        }
-
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(data.public_key)
-        });
-        
-        const subJson = subscription.toJSON();
-        await apiClient.post('notifications/subscribe', {
-          endpoint: subJson.endpoint,
-          p256dh: subJson.keys?.p256dh,
-          auth: subJson.keys?.auth
-        });
-        
-        setIsNotificationsEnabled(true);
-        showAlert('Success', 'Notifications enabled successfully!');
-      } else {
+      if (permission !== 'granted') {
+        setIsNotificationsEnabled(false); // Revert
+        setIsSubscribing(false);
         showAlert('Error', 'Notification permission was denied.');
+        return;
       }
+
+      const registration = await navigator.serviceWorker.ready;
+      const { data } = await apiClient.get<{ public_key: string | null }>('notifications/vapid-public');
+      
+      if (!data.public_key) {
+        setIsNotificationsEnabled(false); // Revert
+        setIsSubscribing(false);
+        showAlert('Error', 'Push notifications are not configured on the server.');
+        return;
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(data.public_key)
+      });
+      
+      const subJson = subscription.toJSON();
+      await apiClient.post('notifications/subscribe', {
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys?.p256dh,
+        auth: subJson.keys?.auth
+      });
+      // Removed the success popup to keep the UX instantly responsive
     } catch (err: any) {
+      setIsNotificationsEnabled(false); // Revert on failure
       showAlert('Error', 'Failed to enable notifications: ' + err.message);
     } finally {
       setIsSubscribing(false);
