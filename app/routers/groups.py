@@ -193,7 +193,18 @@ async def update_settlement(
     if not member.is_admin and settlement.from_member != member.id and settlement.to_member != member.id:
         raise HTTPException(status_code=403, detail="Only the sender, receiver, or admin can edit this settlement")
     
+    res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
+    valid_ids = {m.id for m in res.scalars().all()}
+    if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
+        raise HTTPException(status_code=400, detail="Both people must be in this tab")
+        
+    await balances.revert_settlement(db, settlement)
+    
     settlement.amount = payload.amount
+    settlement.from_member = payload.from_member
+    settlement.to_member = payload.to_member
+    
+    await balances.apply_settlement(db, settlement)
     await db.commit()
     return {"ok": True}
 
