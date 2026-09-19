@@ -1,40 +1,43 @@
-
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import Logo from '../components/ui/Logo';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
-  
-  // Generating a pseudo-random ID to match the UI style in the screenshot
-  const randomId = `bom1::p${Math.random().toString(36).substring(2, 6)}-${Date.now()}-${Math.random().toString(16).substring(2, 10)}`;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans relative selection:bg-gray-800">
-      
-      <div className="max-w-md w-full px-6 flex flex-col items-start text-left">
-        <h1 className="text-2xl font-bold tracking-tight mb-3">This page doesn't exist</h1>
-        <p className="text-[#a1a1aa] mb-6 text-[15px] leading-relaxed">
-          It may have been moved, removed, or<br/>never existed.
-        </p>
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-center">
+      <div className="bg-paper border border-line-dark rounded-[24px] p-10 max-w-md w-full shadow-sm flex flex-col items-center gap-6">
+        <div className="text-brass">
+          <Logo className="w-16 h-16 mx-auto" />
+        </div>
         
-        <button 
-          onClick={() => navigate(-1)} 
-          className="bg-white text-black px-4 py-1.5 rounded-md text-[14px] font-medium hover:bg-gray-200 transition-colors mb-6"
-        >
-          Go back
-        </button>
-        
-        <div className="text-[12px] font-mono text-[#52525b] leading-tight uppercase">
-          <div>404 NOT_FOUND</div>
-          <div className="lowercase mt-1">{randomId}</div>
+        <div>
+          <h1 className="font-display text-[32px] font-semibold text-ink m-0 leading-tight">
+            404
+          </h1>
+          <h2 className="text-[20px] font-medium text-ink mt-2 mb-0">
+            Page not found
+          </h2>
+          <p className="text-ink-soft text-[15px] mt-3 leading-snug max-w-[260px] mx-auto">
+            The page you're looking for doesn't exist or has been moved.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex-1 btn-secondary"
+          >
+            Go Back
+          </button>
+          <Link 
+            to="/" 
+            className="flex-1 btn-primary no-underline"
+          >
+            Go to Dashboard
+          </Link>
         </div>
       </div>
-
-      <div className="absolute bottom-10 w-full flex justify-center text-[11px] font-mono tracking-widest text-[#52525b]">
-        <a href="#" className="hover:text-gray-300 transition-colors">VIEW DOCUMENTATION</a>
-        <span className="mx-3">/</span>
-        <a href="#" className="hover:text-gray-300 transition-colors">COPY DEBUG PROMPT</a>
-      </div>
-      
     </div>
   );
 }
