@@ -1,3 +1,5 @@
+import os
+os.environ['DISABLE_RATE_LIMITING'] = '1'
 import pytest
 from app import rate_limiter
 
@@ -172,11 +174,44 @@ def test_csv_export():
     h1 = {"access_token": token1}
     group_data = client.post("/api/groups", json={"name": "Export Test", "your_name": "Alice"}, cookies=h1).json()
     group_id = group_data["group"]["id"]
+    m1_id = group_data["member"]["id"]
+    invite_code = group_data["group"]["invite_code"]
+
+    res2 = client.post("/api/auth/register", json={"name": "Bob User", "email": "bob4@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
+    j_res = client.post(f"/api/groups/by-code/{invite_code}/join", json={"name": "Bob"}, cookies=h2).json()
+    m2_id = j_res["member"]["id"]
     
+    # Add an expense
+    client.post(f"/api/groups/{group_id}/expenses", json={
+        "description": "Lunch",
+        "amount": 100,
+        "paid_by": m1_id,
+        "split_type": "equal",
+        "category": "Food",
+        "splits": []
+    }, cookies=h1)
+    
+    # Add a settlement
+    client.post(f"/api/groups/{group_id}/settlements", json={
+        "from_member": m2_id,
+        "to_member": m1_id,
+        "amount": 50
+    }, cookies=h2)
+
     export_res = client.get(f"/api/groups/{group_id}/export/csv", cookies=h1)
     assert export_res.status_code == 200
     assert "text/csv" in export_res.headers["content-type"]
-    assert "Date,Type,Category,Description,Amount,Paid By,Details" in export_res.text
+    lines = export_res.text.strip().split("\n")
+    assert "Date,Type,Category,Description,Amount,Paid By,Details" in lines[0]
+    
+    # The output should have 2 rows, plus the header
+    assert len(lines) == 3
+    
+    content_text = export_res.text
+    assert "Expense,Food,Lunch,100.00,Alice,Split: equal" in content_text
+    assert "Settlement,-,Settlement,50.00,Bob,Paid to: Alice" in content_text
 
 
 def test_edit_expense_permissions():
@@ -344,8 +379,8 @@ def test_edit_expense_balances():
     client.post("/api/auth/register", json={"email": "u2_edit@test.com", "password": "password123", "name": "U2"})
     l2 = client.post("/api/auth/login", json={"email": "u2_edit@test.com", "password": "password123"})
     c2 = {"access_token": l2.cookies.get("access_token")}
-    j_res = client.post(f"/api/groups/by-code/{g_res.json()["group"]["invite_code"]}/join", json={"name": "U2"}, cookies=c2)
-    m2_id = j_res.json()["member"]["id"]
+    j_res = client.post(f"/api/groups/by-code/{g_res.json()['group']['invite_code']}/join", json={"name": "U2"}, cookies=c2)
+    assert j_res.status_code == 200
     
     # Create expense of 100 paid by U1, split equal (U1: 50, U2: 50). U1 balance should be +50, U2 should be -50.
     e_res = client.post(f"/api/groups/{group_id}/expenses", json={
@@ -356,6 +391,7 @@ def test_edit_expense_balances():
         "category": "General",
         "splits": []
     }, cookies=c1)
+    assert e_res.status_code == 200
     
     g_info = client.get(f"/api/groups/{group_id}", cookies=c1)
     m1_bal = next(m["balance"] for m in g_info.json()["members"] if m["id"] == m1_id)
@@ -435,7 +471,9 @@ def test_reconcile_ledger():
     res2 = client.post("/api/auth/register", json={"name": "Reconcile Member", "email": "member_recon@example.com", "password": "password123"})
     token2 = res2.cookies.get("access_token")
     h2 = {"access_token": token2}
-    join_data = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Member"}, cookies=h2).json()
+    join_res = client.post(f"/api/groups/by-code/{group_data['group']['invite_code']}/join", json={"name": "Member"}, cookies=h2)
+    join_data = join_res.json()
+    if 'member' not in join_data: raise ValueError(f'JOIN FAILED: {join_data}')
     member_id = join_data["member"]["id"]
     
     # Add an expense: Admin paid 100, split equally (Admin 50, Member 50)
@@ -463,3 +501,43 @@ def test_reconcile_ledger():
     # Only admin can reconcile
     recon_res2 = client.post(f"/api/groups/{group_id}/reconcile", cookies=h2)
     assert recon_res2.status_code == 403
+
+def test_cross_group_settlement_update_validation():
+    # Setup Group A with users Alice and Bob
+    res1 = client.post("/api/auth/register", json={"name": "Alice", "email": "alice_cross@example.com", "password": "password123"})
+    token1 = res1.cookies.get("access_token")
+    h1 = {"access_token": token1}
+    gA = client.post("/api/groups", json={"name": "Group A", "your_name": "Alice"}, cookies=h1).json()
+    groupA_id = gA["group"]["id"]
+    aliceA_id = gA["member"]["id"]
+    
+    res2 = client.post("/api/auth/register", json={"name": "Bob", "email": "bob_cross@example.com", "password": "password123"})
+    token2 = res2.cookies.get("access_token")
+    h2 = {"access_token": token2}
+    bobA = client.post(f"/api/groups/by-code/{gA['group']['invite_code']}/join", json={"name": "Bob"}, cookies=h2).json()
+    bobA_id = bobA["member"]["id"]
+    
+    # Add a valid settlement in Group A
+    setA = client.post(f"/api/groups/{groupA_id}/settlements", json={
+        "from_member": bobA_id,
+        "to_member": aliceA_id,
+        "amount": 50
+    }, cookies=h1).json()
+    settlement_id = client.get(f"/api/groups/{groupA_id}/activity", cookies=h1).json()[0]["id"]
+    
+    # Setup Group B with Charlie
+    res3 = client.post("/api/auth/register", json={"name": "Charlie", "email": "charlie_cross@example.com", "password": "password123"})
+    token3 = res3.cookies.get("access_token")
+    h3 = {"access_token": token3}
+    gB = client.post("/api/groups", json={"name": "Group B", "your_name": "Charlie"}, cookies=h3).json()
+    charlieB_id = gB["member"]["id"]
+    
+    # Now try to update the Group A settlement using Charlie from Group B
+    res_update = client.put(f"/api/groups/{groupA_id}/settlements/{settlement_id}", json={
+        "from_member": charlieB_id,  # Invalid! Not in Group A
+        "to_member": aliceA_id,
+        "amount": 50
+    }, cookies=h1)
+    
+    assert res_update.status_code == 400
+    assert "both people must be in this tab" in res_update.json()["detail"].lower()

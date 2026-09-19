@@ -258,7 +258,10 @@ async def export_csv(
         
         async_result = await db.stream(query, {"group_id": group_id})
         async for row in async_result:
-            date_str = row.created_at.strftime("%Y-%m-%d %H:%M")
+            if isinstance(row.created_at, str):
+                date_str = row.created_at[:16].replace('T', ' ')
+            else:
+                date_str = row.created_at.strftime("%Y-%m-%d %H:%M")
             if row.type == 'Expense':
                 details = f"Split: {row.extra}"
                 desc = row.description
