@@ -20,6 +20,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    conn = op.get_context().bind
+    from sqlalchemy import inspect
+    inspector = inspect(conn)
+    expense_indexes = [i['name'] for i in inspector.get_indexes('expenses')]
+    if 'ix_expenses_group_created' in expense_indexes:
+        print("Index already exists. Skipping.")
+        return
+
     op.create_index('ix_expenses_group_created', 'expenses', ['group_id', 'created_at'])
     op.create_index('ix_settlements_group_created', 'settlements', ['group_id', 'created_at'])
 
