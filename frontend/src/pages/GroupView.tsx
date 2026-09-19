@@ -77,6 +77,114 @@ export default function GroupView() {
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
   if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
 
+  const expenses = activities?.filter(a => a.type === 'expense') || [];
+  const settlements = activities?.filter(a => a.type === 'settlement') || [];
+
+  const renderActivityItem = (item: any) => (
+                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative">
+                  <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <h3 className="font-medium text-ink m-0 truncate">
+                        {item.type === 'expense' 
+                          ? item.description 
+                          : `${getDisplayName(item.from_member, item.from_name)} paid ${getDisplayName(item.to_member, item.to_name)}`
+                        }
+                      </h3>
+                      <p className="text-sm text-ink-soft m-0 truncate">
+                        {item.type === 'expense' ? (
+                          <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
+                        ) : (
+                          'Settlement'
+                        )}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-start gap-1 shrink-0">
+                      <div className="text-right space-y-1">
+                        <div className={`font-semibold leading-none ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
+                          ₹{Number(item.amount).toFixed(2)}
+                        </div>
+                        <div className="text-[13px] text-ink-soft leading-none">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      
+                      {item.type === 'expense' ? (
+                        <div className="relative -mt-0.5 -mr-1.5">
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+                            className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuId === item.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                              <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
+                                <button
+                                  onClick={() => { setOpenMenuId(null); setEditingExpense(item); }}
+                                  className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
+                                >
+                                  <Pencil size={13} /> Edit
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    setOpenMenuId(null);
+                                    if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
+                                      queryClient.setQueryData(['group-activity', id], (old: any) =>
+                                        old?.filter((a: ActivityResponse) => a.id !== item.id)
+                                      );
+                                      queryClient.setQueryData(['group', id], (old: any) => {
+                                        if (!old) return old;
+                                        const newGroup = JSON.parse(JSON.stringify(old));
+                                        
+                                        if (item.splits && item.splits.length > 0) {
+                                            newGroup.members.forEach((m: any) => {
+                                                let netChange = 0;
+                                                if (m.id === item.paid_by) netChange -= item.amount;
+                                                const split = item.splits?.find((s: any) => s.member_id === m.id);
+                                                if (split) netChange += Number(split.share_amount);
+                                                m.balance = (Number(m.balance) + netChange).toString();
+                                            });
+                                        } else {
+                                            const share = item.amount / newGroup.members.length;
+                                            newGroup.members.forEach((m: any) => {
+                                                let netChange = 0;
+                                                if (m.id === item.paid_by) netChange -= item.amount;
+                                                netChange += share;
+                                                m.balance = (Number(m.balance) + netChange).toString();
+                                            });
+                                        }
+                                        newGroup.simplified_debts = simplifyDebts(newGroup.members);
+                                        return newGroup;
+                                      });
+                                      apiClient.delete(`groups/${id}/expenses/${item.id}`)
+                                        .then(() => {
+                                          queryClient.invalidateQueries({ queryKey: ['group', id] });
+                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                        })
+                                        .catch(() => {
+                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+                                          showAlert('Error', 'Failed to delete expense.');
+                                        });
+                                    }
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
+                                >
+                                  <Trash2 size={13} /> Delete
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-[24px]"></div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+  );
+
   return (
     <div className="max-w-4xl mx-auto pb-20">
       <AddExpenseModal group={group} />
@@ -226,114 +334,25 @@ export default function GroupView() {
             <div className="px-6 py-5 border-b border-line-paper flex justify-between items-center">
                <h2 className="text-xl font-semibold m-0 text-ink">Activity</h2>
             </div>
+                        
+            <div className="bg-bg-soft px-6 py-2 border-b border-line-paper">
+              <h3 className="text-[13px] font-semibold text-ink-soft tracking-wider uppercase m-0">Normal Payments</h3>
+            </div>
             <div className="divide-y divide-line-paper">
-              {activities?.length === 0 && (
-                <p className="text-ink-soft italic text-center py-8">No expenses yet.</p>
+              {expenses.length === 0 && (
+                <p className="text-ink-soft italic text-center py-6 text-[15px]">No normal payments yet.</p>
               )}
-              {activities?.map((item) => (
-                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative">
-                  <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <h3 className="font-medium text-ink m-0 truncate">
-                        {item.type === 'expense' 
-                          ? item.description 
-                          : `${getDisplayName(item.from_member, item.from_name)} paid ${getDisplayName(item.to_member, item.to_name)}`
-                        }
-                      </h3>
-                      <p className="text-sm text-ink-soft m-0 truncate">
-                        {item.type === 'expense' ? (
-                          <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
-                        ) : (
-                          'Settlement'
-                        )}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-start gap-1 shrink-0">
-                      <div className="text-right space-y-1">
-                        <div className={`font-semibold leading-none ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
-                          ₹{Number(item.amount).toFixed(2)}
-                        </div>
-                        <div className="text-[13px] text-ink-soft leading-none">
-                          {new Date(item.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      
-                      {item.type === 'expense' ? (
-                        <div className="relative -mt-0.5 -mr-1.5">
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
-                            className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {openMenuId === item.id && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                              <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
-                                <button
-                                  onClick={() => { setOpenMenuId(null); setEditingExpense(item); }}
-                                  className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
-                                >
-                                  <Pencil size={13} /> Edit
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    setOpenMenuId(null);
-                                    if (await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?', { danger: true })) {
-                                      queryClient.setQueryData(['group-activity', id], (old: any) =>
-                                        old?.filter((a: ActivityResponse) => a.id !== item.id)
-                                      );
-                                      queryClient.setQueryData(['group', id], (old: any) => {
-                                        if (!old) return old;
-                                        const newGroup = JSON.parse(JSON.stringify(old));
-                                        
-                                        if (item.splits && item.splits.length > 0) {
-                                            newGroup.members.forEach((m: any) => {
-                                                let netChange = 0;
-                                                if (m.id === item.paid_by) netChange -= item.amount;
-                                                const split = item.splits?.find((s: any) => s.member_id === m.id);
-                                                if (split) netChange += Number(split.share_amount);
-                                                m.balance = (Number(m.balance) + netChange).toString();
-                                            });
-                                        } else {
-                                            const share = item.amount / newGroup.members.length;
-                                            newGroup.members.forEach((m: any) => {
-                                                let netChange = 0;
-                                                if (m.id === item.paid_by) netChange -= item.amount;
-                                                netChange += share;
-                                                m.balance = (Number(m.balance) + netChange).toString();
-                                            });
-                                        }
-                                        newGroup.simplified_debts = simplifyDebts(newGroup.members);
-                                        return newGroup;
-                                      });
-                                      apiClient.delete(`groups/${id}/expenses/${item.id}`)
-                                        .then(() => {
-                                          queryClient.invalidateQueries({ queryKey: ['group', id] });
-                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                                        })
-                                        .catch(() => {
-                                          queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
-                                          showAlert('Error', 'Failed to delete expense.');
-                                        });
-                                    }
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
-                                >
-                                  <Trash2 size={13} /> Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-[24px]"></div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {expenses.map(renderActivityItem)}
+            </div>
+
+            <div className="bg-bg-soft px-6 py-2 border-y border-line-paper mt-2">
+              <h3 className="text-[13px] font-semibold text-ink-soft tracking-wider uppercase m-0">Settlements</h3>
+            </div>
+            <div className="divide-y divide-line-paper">
+              {settlements.length === 0 && (
+                <p className="text-ink-soft italic text-center py-6 text-[15px]">No settlements yet.</p>
+              )}
+              {settlements.map(renderActivityItem)}
             </div>
           </div>
         </div>
