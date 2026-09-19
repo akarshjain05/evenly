@@ -3,7 +3,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Boolean, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Boolean, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -81,6 +81,10 @@ class Expense(Base):
 
     group = relationship("Group", back_populates="expenses")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('ix_expenses_group_created', 'group_id', 'created_at'),
+    )
 
 
 class ExpenseSplit(Base):
@@ -106,6 +110,10 @@ class Settlement(Base):
     created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="settlements")
+    
+    __table_args__ = (
+        Index('ix_settlements_group_created', 'group_id', 'created_at'),
+    )
 
 
 class PushSubscription(Base):

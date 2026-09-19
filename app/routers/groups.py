@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from typing import List
 import io
@@ -73,11 +73,11 @@ async def delete_group(group_id: str, member: models.Member = Depends(deps.get_c
 async def get_activity(
     group_id: str, 
     limit: int = 50, 
-    offset: int = 0, 
+    last_seen: str = None, 
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)
 ):
-    return await group_service.get_activity_list(group_id, limit, offset, db)
+    return await group_service.get_activity_list(group_id, limit, last_seen, db)
 
 @router.post("/{group_id}/expenses", response_model=schemas.BasicResponse)
 async def add_expense(
@@ -234,37 +234,7 @@ async def export_csv(
     members = result.scalars().all()
     name_lookup = {m.id: m.name for m in members}
 
-    result = await db.execute(select(models.Expense).filter(models.Expense.group_id == group_id))
-    expenses = result.scalars().all()
-    
-    result = await db.execute(select(models.Settlement).filter(models.Settlement.group_id == group_id))
-    settlements = result.scalars().all()
-
-    items = []
-    for e in expenses:
-        items.append({
-            "Date": e.created_at.strftime("%Y-%m-%d %H:%M"),
-            "Type": "Expense",
-            "Category": e.category or "General",
-            "Description": e.description,
-            "Amount": f"{e.amount:.2f}",
-            "Paid By": name_lookup.get(e.paid_by, "?"),
-            "Details": f"Split: {e.split_type}"
-        })
-    for s in settlements:
-        items.append({
-            "Date": s.created_at.strftime("%Y-%m-%d %H:%M"),
-            "Type": "Settlement",
-            "Category": "-",
-            "Description": "Settlement",
-            "Amount": f"{s.amount:.2f}",
-            "Paid By": name_lookup.get(s.from_member, "?"),
-            "Details": f"Paid to: {name_lookup.get(s.to_member, '?')}"
-        })
-
-    items.sort(key=lambda x: x["Date"])
-
-    def iter_csv():
+    async def iter_csv():
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=["Date", "Type", "Category", "Description", "Amount", "Paid By", "Details"])
         writer.writeheader()
@@ -272,8 +242,50 @@ async def export_csv(
         output.seek(0)
         output.truncate(0)
         
-        for item in items:
-            writer.writerow(item)
+        query = text('''
+            SELECT 
+                created_at, 
+                'Expense' as type, 
+                category,
+                description, 
+                amount, 
+                paid_by, 
+                split_type as extra
+            FROM expenses WHERE group_id = :group_id
+            UNION ALL
+            SELECT 
+                created_at, 
+                'Settlement' as type, 
+                NULL as category,
+                NULL as description, 
+                amount, 
+                from_member as paid_by, 
+                to_member as extra
+            FROM settlements WHERE group_id = :group_id
+            ORDER BY created_at ASC
+        ''')
+        
+        async_result = await db.stream(query, {"group_id": group_id})
+        async for row in async_result:
+            date_str = row.created_at.strftime("%Y-%m-%d %H:%M")
+            if row.type == 'Expense':
+                details = f"Split: {row.extra}"
+                desc = row.description
+                cat = row.category or "General"
+            else:
+                details = f"Paid to: {name_lookup.get(row.extra, '?')}"
+                desc = "Settlement"
+                cat = "-"
+
+            writer.writerow({
+                "Date": date_str,
+                "Type": row.type,
+                "Category": cat,
+                "Description": desc,
+                "Amount": f"{row.amount:.2f}",
+                "Paid By": name_lookup.get(row.paid_by, "?"),
+                "Details": details
+            })
             yield output.getvalue()
             output.seek(0)
             output.truncate(0)

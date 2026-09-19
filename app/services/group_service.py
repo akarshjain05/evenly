@@ -145,19 +145,29 @@ async def remove_member_transaction(group_id: str, target_member_id: str, member
     await db.delete(target)
     await db.commit()
 
-async def get_activity_list(group_id: str, limit: int, offset: int, db: AsyncSession):
+async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db: AsyncSession):
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     members = result.scalars().all()
     name_lookup = {m.id: m.name for m in members}
 
-    query = text("""
-        SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
-        UNION ALL
-        SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
-        ORDER BY created_at DESC
-        LIMIT :limit OFFSET :offset
-    """)
-    results = (await db.execute(query, {"group_id": group_id, "limit": limit, "offset": offset})).fetchall()
+    if last_seen:
+        query = text('''
+            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id AND created_at < :last_seen
+            UNION ALL
+            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id AND created_at < :last_seen
+            ORDER BY created_at DESC
+            LIMIT :limit
+        ''')
+        results = (await db.execute(query, {"group_id": group_id, "limit": limit, "last_seen": last_seen})).fetchall()
+    else:
+        query = text('''
+            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
+            UNION ALL
+            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
+            ORDER BY created_at DESC
+            LIMIT :limit
+        ''')
+        results = (await db.execute(query, {"group_id": group_id, "limit": limit})).fetchall()
 
     expense_ids = [r.id for r in results if r.type == 'expense']
     settlement_ids = [r.id for r in results if r.type == 'settlement']
