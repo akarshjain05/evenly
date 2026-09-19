@@ -96,7 +96,7 @@ export default function GroupView() {
   });
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
-  if (!group) return <div className="p-8 text-center text-red-500">Failed to load tab</div>;
+  if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-red-500 font-medium">Failed to load tab</div>;
 
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];

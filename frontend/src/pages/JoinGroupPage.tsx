@@ -48,7 +48,7 @@ export default function JoinGroupPage() {
   }, [code, navigate]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-fade-in pb-32">
+    <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center animate-fade-in pb-32">
       {error ? (
         <div className="bg-paper p-8 rounded-3xl border border-line-paper max-w-sm w-full shadow-sm">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">!</div>
