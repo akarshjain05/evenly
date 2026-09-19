@@ -150,21 +150,39 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
     members = result.scalars().all()
     name_lookup = {m.id: m.name for m in members}
 
-    if last_seen:
+    if last_seen and '|' in last_seen:
+        last_seen_time, last_seen_id = last_seen.split('|', 1)
         query = text('''
-            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id AND created_at < :last_seen
-            UNION ALL
-            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id AND created_at < :last_seen
-            ORDER BY created_at DESC
+            SELECT * FROM (
+                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
+                UNION ALL
+                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
+            ) AS sub
+            WHERE created_at < :last_seen_time OR (created_at = :last_seen_time AND id < :last_seen_id)
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit
+        ''')
+        results = (await db.execute(query, {"group_id": group_id, "limit": limit, "last_seen_time": last_seen_time, "last_seen_id": last_seen_id})).fetchall()
+    elif last_seen:
+        query = text('''
+            SELECT * FROM (
+                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
+                UNION ALL
+                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
+            ) AS sub
+            WHERE created_at < :last_seen
+            ORDER BY created_at DESC, id DESC
             LIMIT :limit
         ''')
         results = (await db.execute(query, {"group_id": group_id, "limit": limit, "last_seen": last_seen})).fetchall()
     else:
         query = text('''
-            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
-            UNION ALL
-            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
-            ORDER BY created_at DESC
+            SELECT * FROM (
+                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
+                UNION ALL
+                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
+            ) AS sub
+            ORDER BY created_at DESC, id DESC
             LIMIT :limit
         ''')
         results = (await db.execute(query, {"group_id": group_id, "limit": limit})).fetchall()

@@ -77,6 +77,12 @@ async def get_activity(
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)
 ):
+    # PERFORMANCE NOTE:
+    # Every group-detail fetch synchronously recomputes the full O(N) debt simplification 
+    # across all members on the fly via balances.simplify_debts.
+    # This design is optimized for "a few people" (e.g. 5-10 friends). 
+    # It will become a latency bottleneck for a "50-person shared house" since group size is currently unbounded.
+    # If scaling up, consider caching simplified_debts in the DB and updating it asynchronously.
     return await group_service.get_activity_list(group_id, limit, last_seen, db)
 
 @router.post("/{group_id}/expenses", response_model=schemas.BasicResponse)

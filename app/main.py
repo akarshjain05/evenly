@@ -12,6 +12,13 @@ from app.routers import auth, users, groups, notifications
 from app import rate_limiter
 
 async def _cleanup_rate_limiter():
+    # ARCHITECTURE NOTE:
+    # This background cleanup loop only functions meaningfully in persistent deployments 
+    # (e.g., running via `uvicorn --reload` locally or on a standard VM).
+    # In the Vercel serverless deployment path, each invocation is a fresh, short-lived process 
+    # that terminates almost immediately after the response is sent. 
+    # Therefore, this 300-second sleep cycle will never complete in production on Vercel.
+    # Do not rely on this for actual memory cleanup in serverless environments.
     """Periodically prune the in-memory rate-limit store.
     Only needed when Redis is NOT configured (Redis uses key TTLs instead)."""
     while True:
