@@ -3,7 +3,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 from app import models, schemas, balances
-from app.routers.notifications import send_web_push
+from app.services.notification_service import send_web_push
 import random
 from typing import List, Dict, Any
 from decimal import Decimal
