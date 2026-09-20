@@ -1,6 +1,7 @@
 import os
 os.environ['DISABLE_RATE_LIMITING'] = '1'
 os.environ['DISABLE_CSRF_PROTECTION'] = '1'
+os.environ['TESTING'] = '1'
 import pytest
 from app import rate_limiter
 

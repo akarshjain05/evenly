@@ -8,6 +8,10 @@ from . import models, database, auth
 import secrets
 from fastapi import Response
 
+if os.environ.get("DISABLE_CSRF_PROTECTION") == "1" and not os.environ.get("TESTING"):
+    raise RuntimeError("DISABLE_CSRF_PROTECTION must not be set in production")
+
+
 async def get_current_user(request: Request, response: Response, db: AsyncSession = Depends(database.get_db)):
 
     if request.method in ["POST", "PUT", "DELETE", "PATCH"] and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
