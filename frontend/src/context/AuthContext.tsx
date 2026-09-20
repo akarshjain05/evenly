@@ -3,6 +3,7 @@ import { createContext, useContext, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { UserLogin, UserCreate } from '../types/api';
 import { apiClient } from '../api/client';
+import { useUIStore } from '../store/uiStore';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -30,7 +31,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    try { await apiClient.post('auth/logout'); } catch (e) {}
+    try {
+      await apiClient.post('auth/logout');
+    } catch (e) {
+      console.warn('Logout failed to cleanly clear server session:', e);
+      useUIStore.getState().showAlert('Logout Error', 'Failed to securely clear session from the server.');
+    }
     setAuthStatus(false);
     setIsAuthenticated(false);
     queryClient.clear();

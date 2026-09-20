@@ -1,12 +1,12 @@
 export interface UserCreate {
   email: string;
   name: string;
-  password?: string;
+  password: string;
 }
 
 export interface UserLogin {
   email: string;
-  password?: string;
+  password: string;
 }
 
 export interface Token {
