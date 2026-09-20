@@ -35,6 +35,13 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
 
+    from sqlalchemy import func
+    count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
+    member_count = count_res.scalar()
+    if member_count >= 50:
+        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members")
+
+
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="You are already in this tab")
@@ -54,6 +61,13 @@ async def get_group_details(group_id: str, db: AsyncSession):
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
+
+    from sqlalchemy import func
+    count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
+    member_count = count_res.scalar()
+    if member_count >= 50:
+        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members")
+
     
     net = await balances.compute_net_balances(db, group_id)
 
@@ -244,11 +258,13 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
 
     return items
 
-async def process_and_update_settlement(group_id: str, settlement_id: str, payload: schemas.SettlementCreate, db: AsyncSession):
+async def process_and_update_settlement(group_id: str, settlement_id: str, payload: schemas.SettlementCreate, db: AsyncSession, member=None):
     result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
+    if member and not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
         
     res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     valid_ids = {m.id for m in res.scalars().all()}

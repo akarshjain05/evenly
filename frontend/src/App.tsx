@@ -1,13 +1,15 @@
 import { getAuthStatus } from './utils/auth';
 import DialogModal from "./components/modals/DialogModal";
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import AuthPage from './pages/AuthPage'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import GroupView from './pages/GroupView'
-import SettingsPage from "./pages/SettingsPage";
-import NotFoundPage from './pages/NotFoundPage'
-import JoinGroupPage from './pages/JoinGroupPage'
+
+import { Suspense, lazy } from 'react';
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const GroupView = lazy(() => import('./pages/GroupView'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage'));
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -50,6 +52,7 @@ function App() {
 
   return (
     <>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-bg text-ink-soft">Loading...</div>}>
       <Routes>
       <Route path="/login" element={<PublicRoute><AuthPage /></PublicRoute>} />
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -62,6 +65,7 @@ function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+      </Suspense>
       <DialogModal />
     </>
   )

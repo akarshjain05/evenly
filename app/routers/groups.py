@@ -115,8 +115,9 @@ async def update_expense(
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
+    if not member.is_admin and expense.created_by_user_id != member.user_id and expense.paid_by != member.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
     
-        
     await balances.revert_expense(db, expense)
     from sqlalchemy import delete
     await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
@@ -144,7 +145,8 @@ async def delete_expense(
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    
+    if not member.is_admin and expense.created_by_user_id != member.user_id and expense.paid_by != member.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
     await balances.revert_expense(db, expense)
     await db.delete(expense)
     await db.commit()
@@ -190,7 +192,7 @@ async def update_settlement(
     db: AsyncSession = Depends(get_db),
 ):
     user_id = member.user_id
-    await group_service.process_and_update_settlement(group_id, settlement_id, payload, db)
+    await group_service.process_and_update_settlement(group_id, settlement_id, payload, db, member)
     logger.info(f"User {user_id} updated settlement {settlement_id} in group {group_id}")
     return {"ok": True}
 
@@ -205,8 +207,8 @@ async def delete_settlement(
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
-    
-        
+    if not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
     await balances.revert_settlement(db, settlement)
     await db.delete(settlement)
     await db.commit()

@@ -1,7 +1,7 @@
 import { formatCurrency } from '../utils/currency';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
@@ -24,8 +24,9 @@ const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
   return data;
 };
 
-const fetchGroupActivity = async (id: string): Promise<ActivityResponse[]> => {
-  const { data } = await apiClient.get(`groups/${id}/activity`);
+const fetchGroupActivity = async (id: string, pageParam?: string): Promise<ActivityResponse[]> => {
+  const url = pageParam ? `groups/${id}/activity?last_seen=${encodeURIComponent(pageParam)}` : `groups/${id}/activity`;
+  const { data } = await apiClient.get(url);
   return data;
 };
 
@@ -76,11 +77,25 @@ export default function GroupView() {
     return fallbackName || member?.name || 'Unknown';
   };
 
-  const { data: activities, isLoading: isLoadingActivity } = useQuery({
+  const { 
+    data: activityData, 
+    isLoading: isLoadingActivity,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: ['group-activity', id],
-    queryFn: () => fetchGroupActivity(id!),
+    queryFn: ({ pageParam }) => fetchGroupActivity(id!, pageParam as string | undefined),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < 50) return undefined;
+      const lastItem = lastPage[lastPage.length - 1];
+      return `${lastItem.created_at}|${lastItem.id}`;
+    },
     enabled: !!id,
+    initialPageParam: undefined as string | undefined,
   });
+
+  const activities = (activityData?.pages.flat() as ActivityResponse[]) || [];
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
   if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-red-500 font-medium">Failed to load tab</div>;
@@ -237,6 +252,18 @@ export default function GroupView() {
                   )}
                   {settlements.map(renderActivityItem)}
                 </>
+              )}
+              
+              {hasNextPage && (
+                <div className="flex justify-center pt-4 pb-2">
+                  <button 
+                    onClick={() => fetchNextPage()} 
+                    disabled={isFetchingNextPage}
+                    className="btn-secondary text-[14px] px-4 py-2"
+                  >
+                    {isFetchingNextPage ? 'Loading...' : 'Load older activity'}
+                  </button>
+                </div>
               )}
             </div>
           </div>

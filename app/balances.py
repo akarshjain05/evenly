@@ -158,14 +158,8 @@ async def revert_settlement(db: AsyncSession, settlement: models.Settlement):
     await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance + settlement.amount))
 
 async def recompute_balances_from_ledger(db: AsyncSession, group_id: str):
-    """
-    Reconcile and hard-reset the denormalized Member.balance column 
-    by recomputing it from the immutable Expense and Settlement ledgers.
-    This acts as a self-healing mechanism for any potential database drift.
-    """
-    from sqlalchemy import update, case
+    from sqlalchemy import select, func, update, case
     
-    # 1. Get all members and initialize their true balances to 0
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
     members = result.scalars().all()
     if not members:
@@ -173,33 +167,50 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str):
         
     true_balances = {m.id: Decimal('0.00') for m in members}
     
-    # 2. Add expense amounts to the payer
-    expenses = (await db.execute(select(models.Expense).filter(models.Expense.group_id == group_id))).scalars().all()
-    expense_ids = []
-    for exp in expenses:
-        if exp.paid_by in true_balances:
-            true_balances[exp.paid_by] += exp.amount
-        expense_ids.append(exp.id)
+    payer_sums = (await db.execute(
+        select(models.Expense.paid_by, func.sum(models.Expense.amount))
+        .filter(models.Expense.group_id == group_id)
+        .group_by(models.Expense.paid_by)
+    )).all()
+    for member_id, amount in payer_sums:
+        if member_id in true_balances and amount:
+            true_balances[member_id] += Decimal(str(amount))
             
-    # 3. Subtract expense splits
-    if expense_ids:
-        splits = (await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id.in_(expense_ids)))).scalars().all()
-        for split in splits:
-            if split.member_id in true_balances:
-                true_balances[split.member_id] -= split.share_amount
-                
-    # 4. Process settlements
-    settlements = (await db.execute(select(models.Settlement).filter(models.Settlement.group_id == group_id))).scalars().all()
-    for stl in settlements:
-        if stl.from_member in true_balances:
-            true_balances[stl.from_member] += stl.amount
-        if stl.to_member in true_balances:
-            true_balances[stl.to_member] -= stl.amount
+    split_sums = (await db.execute(
+        select(models.ExpenseSplit.member_id, func.sum(models.ExpenseSplit.share_amount))
+        .join(models.Expense, models.Expense.id == models.ExpenseSplit.expense_id)
+        .filter(models.Expense.group_id == group_id)
+        .group_by(models.ExpenseSplit.member_id)
+    )).all()
+    for member_id, amount in split_sums:
+        if member_id in true_balances and amount:
+            true_balances[member_id] -= Decimal(str(amount))
             
-    # 5. Bulk update the denormalized columns back to reality
-    balance_case = case(true_balances, value=models.Member.id)
-    await db.execute(
-        update(models.Member)
-        .filter(models.Member.group_id == group_id)
-        .values(balance=balance_case)
-    )
+    settlement_from_sums = (await db.execute(
+        select(models.Settlement.from_member, func.sum(models.Settlement.amount))
+        .filter(models.Settlement.group_id == group_id)
+        .group_by(models.Settlement.from_member)
+    )).all()
+    for member_id, amount in settlement_from_sums:
+        if member_id in true_balances and amount:
+            true_balances[member_id] -= Decimal(str(amount))
+            
+    settlement_to_sums = (await db.execute(
+        select(models.Settlement.to_member, func.sum(models.Settlement.amount))
+        .filter(models.Settlement.group_id == group_id)
+        .group_by(models.Settlement.to_member)
+    )).all()
+    for member_id, amount in settlement_to_sums:
+        if member_id in true_balances and amount:
+            true_balances[member_id] += Decimal(str(amount))
+            
+    # Bulk update balances
+    updates = []
+    for m in members:
+        if m.balance != true_balances[m.id]:
+            updates.append({"id": m.id, "balance": true_balances[m.id]})
+            
+    if updates:
+        from sqlalchemy import bindparam
+        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance'))
+        await db.execute(stmt, [{'b_id': u['id'], 'b_balance': u['balance']} for u in updates])

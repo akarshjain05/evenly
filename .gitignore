@@ -10,3 +10,5 @@ node_modules/
 .coverage
 .pytest_cache/
 .DS_Store
+
+*.db
