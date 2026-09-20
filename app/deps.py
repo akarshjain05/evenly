@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status, Request
 import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from . import models, database, auth
+from . import models, database, auth, blocklist
 
 import secrets
 from fastapi import Response
@@ -40,6 +40,10 @@ async def get_current_user(request: Request, response: Response, db: AsyncSessio
         payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
+            raise credentials_exception
+            
+        jti = payload.get("jti")
+        if jti and blocklist.is_token_blocked(jti):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception

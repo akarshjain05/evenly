@@ -10,7 +10,7 @@ import asyncio
 from app.database import Base, engine, get_db
 from app.routers import auth, users, groups, notifications
 from app.exceptions import InvalidSplitError
-from app import rate_limiter
+from app import rate_limiter, blocklist
 
 async def _cleanup_rate_limiter():
     # ARCHITECTURE NOTE:
@@ -26,6 +26,7 @@ async def _cleanup_rate_limiter():
         await asyncio.sleep(300)
         try:
             rate_limiter.cleanup_memory()
+            blocklist.cleanup_memory()
         except Exception:
             logger.error("Rate limiter cleanup failed", exc_info=True)
 

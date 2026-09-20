@@ -51,7 +51,19 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
     return {"user": {"email": user.email}}
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    token = request.cookies.get("access_token")
+    if token:
+        import jwt
+        from app import auth, blocklist
+        try:
+            payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                blocklist.block_token(jti, exp)
+        except jwt.JWTError:
+            pass
     response.delete_cookie("access_token")
     response.delete_cookie("csrf_token")
     return {"status": "ok"}
