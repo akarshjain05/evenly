@@ -17,6 +17,7 @@ import { GroupViewSkeleton } from '../components/Skeleton';
 import { GroupHeader } from '../components/group/GroupHeader';
 import { BalancesSidebar } from '../components/group/BalancesSidebar';
 import { SettleSuggestions } from '../components/group/SettleSuggestions';
+import { calculateExpenseBalanceChanges } from '../utils/balances';
 
 const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
   const { data } = await apiClient.get(`groups/${id}`);
@@ -44,21 +45,7 @@ export default function GroupView() {
     mutationFn: (item: ActivityResponse) => apiClient.delete(`groups/${id}/expenses/${item.id}`),
     onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
     onMutateBalances: (item, members) => {
-      const changes: { member_id: string, net_change: number }[] = [];
-      members.forEach((m: GroupDetailResponse['members'][0]) => {
-        let netChange = 0;
-        if (item.splits && item.splits.length > 0) {
-            if (m.id === item.paid_by) netChange -= item.amount;
-            const split = item.splits?.find((s: NonNullable<ActivityResponse['splits']>[0]) => s.member_id === m.id);
-            if (split) netChange += Number(split.share_amount);
-        } else {
-            const share = item.amount / members.length;
-            if (m.id === item.paid_by) netChange -= item.amount;
-            netChange += share;
-        }
-        changes.push({ member_id: m.id, net_change: netChange });
-      });
-      return changes;
+      return calculateExpenseBalanceChanges(members, undefined, item);
     },
     onError: () => showAlert('Error', 'Failed to delete expense.')
   });

@@ -89,3 +89,45 @@ export function calculateEqualSplits(amount: number, participantIds: string[]): 
     };
   });
 }
+
+import type { GroupDetailResponse, ExpenseCreate, ActivityResponse } from '../types/api';
+
+export function calculateExpenseBalanceChanges(
+  members: GroupDetailResponse['members'],
+  newExpense?: ExpenseCreate,
+  oldExpense?: ActivityResponse
+): { member_id: string; net_change: number }[] {
+  const changes: { member_id: string; net_change: number }[] = [];
+  
+  members.forEach((m) => {
+    let netChange = 0;
+
+    // 1. Revert old expense if provided
+    if (oldExpense) {
+      if (oldExpense.splits && oldExpense.splits.length > 0) {
+        if (m.id === oldExpense.paid_by) netChange -= oldExpense.amount;
+        const split = oldExpense.splits.find((s) => s.member_id === m.id);
+        if (split) netChange += Number(split.share_amount);
+      } else {
+        const share = oldExpense.amount / members.length;
+        if (m.id === oldExpense.paid_by) netChange -= oldExpense.amount;
+        netChange += share;
+      }
+    }
+
+    // 2. Apply new expense if provided
+    if (newExpense && newExpense.split_type === 'equal') {
+      const parts = newExpense.participant_ids || members.map((mem) => mem.id);
+      if (parts.length > 0) {
+        const fakeSplits = calculateEqualSplits(newExpense.amount, parts);
+        if (m.id === newExpense.paid_by) netChange += newExpense.amount;
+        const split = fakeSplits.find(s => s.member_id === m.id);
+        if (split) netChange -= Number(split.share_amount);
+      }
+    }
+
+    changes.push({ member_id: m.id, net_change: netChange });
+  });
+
+  return changes;
+}

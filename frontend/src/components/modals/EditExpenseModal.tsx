@@ -1,4 +1,4 @@
-import { calculateEqualSplits } from '../../utils/balances';
+import { calculateEqualSplits, calculateExpenseBalanceChanges } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -48,36 +48,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
       );
     },
     onMutateBalances: (updated: ExpenseCreate, members) => {
-      const changes: { member_id: string, net_change: number }[] = [];
-      
-      members.forEach((m: GroupDetailResponse['members'][0]) => {
-        let netChange = 0;
-        
-        // 1. Revert old expense
-        if (expense.splits && expense.splits.length > 0) {
-            if (m.id === expense.paid_by) netChange -= expense.amount;
-            const split = expense.splits?.find((s: any) => s.member_id === m.id);
-            if (split) netChange += Number(split.share_amount);
-        } else {
-            const share = expense.amount / members.length;
-            if (m.id === expense.paid_by) netChange -= expense.amount;
-            netChange += share;
-        }
-
-        // 2. Apply new expense
-        if (updated.split_type === 'equal') {
-            const parts = updated.participant_ids || members.map((mem: GroupDetailResponse['members'][0]) => mem.id);
-            if (parts.length > 0) {
-                const fakeSplits = calculateEqualSplits(updated.amount, parts);
-                if (m.id === updated.paid_by) netChange += updated.amount;
-                const split = fakeSplits.find(s => s.member_id === m.id);
-                if (split) netChange -= Number(split.share_amount);
-            }
-        }
-        
-        changes.push({ member_id: m.id, net_change: netChange });
-      });
-      return changes;
+      return calculateExpenseBalanceChanges(members, updated, expense);
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail;

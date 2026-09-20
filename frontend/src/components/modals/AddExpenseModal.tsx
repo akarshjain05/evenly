@@ -1,4 +1,4 @@
-import { calculateEqualSplits } from '../../utils/balances';
+import { calculateEqualSplits, calculateExpenseBalanceChanges } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -56,21 +56,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       return [optimisticActivity, ...old];
     },
     onMutateBalances: (newExpense, members) => {
-      const changes: { member_id: string, net_change: number }[] = [];
-      if (newExpense.split_type === 'equal') {
-          const parts = newExpense.participant_ids || members.map((m: GroupDetailResponse['members'][0]) => m.id);
-          if (parts.length > 0) {
-            const fakeSplits = calculateEqualSplits(newExpense.amount, parts);
-            members.forEach((m: GroupDetailResponse['members'][0]) => {
-                let netChange = 0;
-                if (m.id === newExpense.paid_by) netChange += newExpense.amount;
-                const split = fakeSplits.find(s => s.member_id === m.id);
-                if (split) netChange -= Number(split.share_amount);
-                changes.push({ member_id: m.id, net_change: netChange });
-            });
-          }
-      }
-      return changes;
+      return calculateExpenseBalanceChanges(members, newExpense);
     },
     onError: (err: any) => {
       openAddExpense();
