@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 
+export interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: Array<string>;
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed',
+    platform: string
+  }>;
+  prompt(): Promise<void>;
+}
+
+
 type DialogType = 'alert' | 'confirm' | 'prompt';
 
 interface DialogConfig {
@@ -23,7 +33,7 @@ interface UIState {
   isSettleUpOpen: boolean;
   activeGroupId: string | null;
   dialog: DialogState;
-  installPromptEvent: any | null;
+  installPromptEvent: BeforeInstallPromptEvent | null;
   isDarkMode: boolean;
   
   openAddExpense: () => void;
@@ -31,7 +41,7 @@ interface UIState {
   openSettleUp: () => void;
   closeSettleUp: () => void;
   setActiveGroup: (id: string | null) => void;
-  setInstallPromptEvent: (event: any) => void;
+  setInstallPromptEvent: (event: BeforeInstallPromptEvent | null) => void;
   toggleDarkMode: () => void;
   initTheme: () => void;
   

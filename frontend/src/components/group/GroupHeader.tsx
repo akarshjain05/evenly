@@ -58,7 +58,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
                   // Revert on failure
                   queryClient.setQueryData(['group', id], oldGroup);
                   queryClient.setQueryData(['groups'], oldGroups);
-                  showAlert('Error', e.response?.data?.detail || 'Failed to rename tab.');
+                  showAlert('Error', (e.response?.data?.userMessage || e.response?.data?.detail) || 'Failed to rename tab.');
                 }
               }
             }} className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors">
@@ -91,7 +91,7 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
                   queryClient.invalidateQueries({ queryKey: ['groups'] });
                   navigate('/', { replace: true });
                 } catch (e: any) {
-                  showAlert('Error', e.response?.data?.detail || 'Failed to delete tab.');
+                  showAlert('Error', (e.response?.data?.userMessage || e.response?.data?.detail) || 'Failed to delete tab.');
                 }
               }
             }} className="w-full text-left px-4 py-2 text-[14px] text-[#c81e1e] hover:bg-bg transition-colors">

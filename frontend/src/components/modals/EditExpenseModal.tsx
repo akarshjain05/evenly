@@ -37,7 +37,8 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
       const parts = updated.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
       const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
         ...s,
-        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown'
+        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown',
+        share_amount: Number(s.share_amount)
       }));
 
       onClose();
@@ -51,7 +52,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
       return calculateExpenseBalanceChanges(members, updated, expense);
     },
     onError: (err: any) => {
-      const detail = err.response?.data?.detail;
+      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');
     }
   });

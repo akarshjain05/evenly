@@ -42,7 +42,7 @@ export default function JoinGroupPage() {
         if (err.response?.status === 404) {
           setError("This invite link is invalid or has expired.");
         } else {
-          setError(err.response?.data?.detail || "Failed to join tab.");
+          setError((err.response?.data?.userMessage || err.response?.data?.detail) || "Failed to join tab.");
         }
       }
     }

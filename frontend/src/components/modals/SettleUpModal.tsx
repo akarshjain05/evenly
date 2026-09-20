@@ -53,7 +53,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
     ],
     onError: (err: Error | any) => {
       openSettleUp();
-      setError(err.response?.data?.detail || 'Failed to record settlement');
+      setError((err.response?.data?.userMessage || err.response?.data?.detail) || 'Failed to record settlement');
     }
   });
 

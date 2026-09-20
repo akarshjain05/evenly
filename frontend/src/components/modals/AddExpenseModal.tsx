@@ -32,7 +32,8 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       const parts = newExpense.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
       const fakeSplits = calculateEqualSplits(newExpense.amount, parts).map(s => ({
         ...s,
-        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown'
+        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown',
+        share_amount: Number(s.share_amount)
       }));
       
       const optimisticActivity = {
@@ -60,7 +61,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
     },
     onError: (err: any) => {
       openAddExpense();
-      const detail = err.response?.data?.detail;
+      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'Failed to save expense'));
     }
   });

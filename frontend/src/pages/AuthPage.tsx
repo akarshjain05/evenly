@@ -38,7 +38,7 @@ export default function AuthPage() {
       }
       navigate(from, { replace: true });
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
+      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'An error occurred'));
       setIsLoading(false);
     }

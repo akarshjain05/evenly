@@ -66,21 +66,23 @@ apiClient.interceptors.response.use(
       if (typeof d === 'string') {
         const lower = d.toLowerCase();
         if (lower.includes('csrf')) {
-          error.response.data.detail = "A secure connection error occurred. Please refresh the page and try again.";
+          error.response.data.userMessage = "A secure connection error occurred. Please refresh the page and try again.";
         } else if (lower.includes('internal server error')) {
-          error.response.data.detail = "Our servers are experiencing a temporary issue. Please try again later.";
+          error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
         } else if ((lower.includes('validation') || lower.includes('type error')) && !lower.includes('email') && !lower.includes('password')) {
-          error.response.data.detail = "Invalid data provided. Please check your inputs.";
+          error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
         } else if (lower.includes('sqlite') || lower.includes('database') || lower.includes('unreachable')) {
-          error.response.data.detail = "A system error occurred. Please try again.";
+          error.response.data.userMessage = "A system error occurred. Please try again.";
+        } else {
+          error.response.data.userMessage = d;
         }
       } else if (Array.isArray(d)) {
-        error.response.data.detail = "Invalid data provided. Please check your inputs.";
+        error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
       }
     } else if (error.message === "Network Error" || !error.response) {
        error.response = { 
            ...(error.response || {}), 
-           data: { detail: "Unable to reach the server. Please check your internet connection." } 
+           data: { detail: error.response?.data?.detail, userMessage: "Unable to reach the server. Please check your internet connection." } 
        };
     }
 

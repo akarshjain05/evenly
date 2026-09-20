@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { simplifyDebts } from '../utils/balances';
 import { useParams } from 'react-router-dom';
+import type { ActivityResponse, GroupDetailResponse } from '../types/api';
+import type { AxiosError } from 'axios';
 
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
-  onMutateActivity?: (oldActivity: any[], variables: TVariables) => any[];
-  onMutateBalances?: (variables: TVariables, members: any[]) => Array<{ member_id: string, net_change: number }>;
-  onError?: (err: any) => void;
+  onMutateActivity?: (oldActivity: ActivityResponse[], variables: TVariables) => ActivityResponse[];
+  onMutateBalances?: (variables: TVariables, members: GroupDetailResponse['members']) => Array<{ member_id: string, net_change: number }>;
+  onError?: (err: AxiosError | Error | any) => void;
   onSuccess?: () => void;
 }
 
@@ -30,19 +32,19 @@ export function useLedgerMutation<TVariables, TData>({
       const previousGroup = queryClient.getQueryData(['group', id]);
 
       if (onMutateActivity) {
-        queryClient.setQueryData(['group-activity', id], (old: any) => {
+        queryClient.setQueryData(['group-activity', id], (old: ActivityResponse[] | undefined) => {
            return onMutateActivity(old || [], variables);
         });
       }
 
       if (onMutateBalances) {
-        queryClient.setQueryData(['group', id], (old: any) => {
+        queryClient.setQueryData(['group', id], (old: GroupDetailResponse | undefined) => {
           if (!old) return old;
           const newGroup = JSON.parse(JSON.stringify(old));
           
           const changes = onMutateBalances(variables, newGroup.members);
           changes.forEach((change) => {
-            const member = newGroup.members.find((m: any) => m.id === change.member_id);
+            const member = newGroup.members.find((m: GroupDetailResponse['members'][0]) => m.id === change.member_id);
             if (member) {
               member.balance = (Number(member.balance) + change.net_change).toFixed(2);
             }
@@ -55,7 +57,7 @@ export function useLedgerMutation<TVariables, TData>({
 
       return { previousActivity, previousGroup };
     },
-    onError: (err: any, _variables: TVariables, context: any) => {
+    onError: (err: AxiosError | Error | any, _variables: TVariables, context: any) => {
       if (context?.previousActivity) {
         queryClient.setQueryData(['group-activity', id], context.previousActivity);
       }
