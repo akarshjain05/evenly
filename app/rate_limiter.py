@@ -15,8 +15,8 @@ from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = 10
-WINDOW_SECONDS = 60
+MAX_ATTEMPTS = int(os.environ.get("RATE_LIMIT_MAX_ATTEMPTS", "10"))
+WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
 # ---------------------------------------------------------------------------
 # Redis backend

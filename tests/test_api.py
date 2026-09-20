@@ -10,6 +10,8 @@ def clear_rate_limits():
 
 import os
 os.environ["JWT_SECRET_KEY"] = "test-secret-that-is-at-least-32-bytes-long-for-security"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_app.db"
+os.environ["CORS_ORIGINS"] = "http://localhost:3000"
 from fastapi.testclient import TestClient
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession

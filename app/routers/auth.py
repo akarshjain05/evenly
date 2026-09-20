@@ -1,3 +1,5 @@
+import os
+
 import secrets
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,7 +11,7 @@ from app.database import get_db
 from app.rate_limiter import rate_limit_auth
 
 # 7 days in seconds, matching the JWT expiration
-COOKIE_MAX_AGE_SEC = 7 * 24 * 60 * 60
+COOKIE_MAX_AGE_SEC = int(os.environ.get("COOKIE_MAX_AGE_SEC", "2592000"))  # Default 30 days
 
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
