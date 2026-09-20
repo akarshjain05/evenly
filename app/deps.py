@@ -12,8 +12,7 @@ if os.environ.get("DISABLE_CSRF_PROTECTION") == "1" and not os.environ.get("TEST
     raise RuntimeError("DISABLE_CSRF_PROTECTION must not be set in production")
 
 
-async def get_current_user(request: Request, response: Response, db: AsyncSession = Depends(database.get_db)):
-
+async def verify_csrf(request: Request, response: Response):
     if request.method in ["POST", "PUT", "DELETE", "PATCH"] and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
         csrf_cookie = request.cookies.get("csrf_token")
         csrf_header = request.headers.get("x-csrf-token")
@@ -26,6 +25,9 @@ async def get_current_user(request: Request, response: Response, db: AsyncSessio
     if request.method == "GET" and not request.cookies.get("csrf_token") and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
         new_token = secrets.token_urlsafe(32)
         response.set_cookie(key="csrf_token", value=new_token, httponly=False, secure=True, samesite="lax", max_age=7*24*60*60)
+
+
+async def get_current_user(request: Request, db: AsyncSession = Depends(database.get_db), _csrf=Depends(verify_csrf)):
     
     token = request.cookies.get("access_token")
 
