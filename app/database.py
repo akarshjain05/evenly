@@ -6,7 +6,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+import logging
+logger = logging.getLogger(__name__)
+db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    logger.warning("DATABASE_URL is not set. Falling back to in-memory/local SQLite. Data will be lost in serverless environments.")
+    db_url = "sqlite+aiosqlite:///./evenly.db"
+DATABASE_URL = db_url
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
