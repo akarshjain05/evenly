@@ -139,7 +139,7 @@ def test_unauthorized_expense_delete():
     
     # Bob tries to delete Alice's expense (Bob is not admin and didn't pay)
     del_res = client.delete(f"/api/groups/{group_id}/expenses/{expense_id}", cookies=h2)
-    assert del_res.status_code == 200
+    assert del_res.status_code == 403
 
 def test_leave_group_with_balance():
     # Setup
@@ -248,7 +248,7 @@ def test_edit_expense_permissions():
     
     # Bob tries to edit Alice's expense
     edit_res = client.put(f"/api/groups/{group_id}/expenses/{expense_id}", json={"description": "Hacked Lunch", "amount": 100.0, "paid_by": alice_id, "split_type": "equal", "participant_ids": [alice_id]}, cookies=h2)
-    assert edit_res.status_code == 200
+    assert edit_res.status_code == 403
 
 def test_invalid_group_or_member():
     res = client.post("/api/auth/register", json={"name": "Test User", "email": "invalid_test@example.com", "password": "password123"})
@@ -349,7 +349,7 @@ def test_settlement_permissions():
         "to_member": alice_id,
         "amount": 30.0
     }, cookies=h3)
-    assert edit_res.status_code == 200
+    assert edit_res.status_code == 403
     
     # Bob tries to edit (should succeed, Bob is involved)
     edit_res2 = client.put(f"/api/groups/{group_id}/settlements/{s_id}", json={
@@ -362,7 +362,7 @@ def test_settlement_permissions():
     # Charlie tries to delete (should fail)
     del_res = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", cookies=h3)
     # It gets deleted, so status code is 200
-    assert del_res.status_code == 200
+    assert del_res.status_code == 403
     
     # Alice deletes (should succeed, Alice is admin AND involved)
     del_res2 = client.delete(f"/api/groups/{group_id}/settlements/{s_id}", cookies=h1)
