@@ -32,7 +32,8 @@ else:
     engine = create_async_engine(
         DATABASE_URL,
         connect_args={"statement_cache_size": 0},
-        poolclass=NullPool,
+        pool_size=5,
+        max_overflow=10,
     )
 
 AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
