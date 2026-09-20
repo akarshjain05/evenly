@@ -9,6 +9,7 @@ import asyncio
 
 from app.database import Base, engine, get_db
 from app.routers import auth, users, groups, notifications
+from app.exceptions import InvalidSplitError
 from app import rate_limiter
 
 async def _cleanup_rate_limiter():
@@ -41,6 +42,10 @@ app = FastAPI(title="Evenly API", lifespan=lifespan)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+@app.exception_handler(InvalidSplitError)
+async def invalid_split_handler(request: Request, exc: InvalidSplitError):
+    return JSONResponse(status_code=400, content={"detail": exc.message})
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
