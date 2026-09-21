@@ -77,7 +77,7 @@ def test_unauthorized_expense_delete(client):
     }, cookies=h1)
     
     # Get expense ID
-    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
+    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()["items"]
     expense_id = expenses[0]["id"]
     
     # Bob tries to delete Alice's expense (Bob is not admin and didn't pay)
@@ -186,7 +186,7 @@ def test_edit_expense_permissions(client):
         "participant_ids": [alice_id]
     }, cookies=h1)
     
-    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
+    expenses = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()["items"]
     expense_id = [e for e in expenses if e["type"] == "expense"][0]["id"]
     
     # Bob tries to edit Alice's expense
@@ -281,7 +281,7 @@ def test_settlement_permissions(client):
         "amount": 20.0
     }, cookies=h1)
     
-    activity = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()
+    activity = client.get(f"/api/groups/{group_id}/activity", cookies=h1).json()["items"]
     settlements = [a for a in activity if a["type"] == "settlement"]
     assert len(settlements) == 1
     s_id = settlements[0]["id"]
@@ -346,7 +346,7 @@ def test_edit_expense_balances(client):
     
     # Get expense ID
     act_res = client.get(f"/api/groups/{group_id}/activity", cookies=c1)
-    expense_id = act_res.json()[0]["id"]
+    expense_id = act_res.json()["items"][0]["id"]
     
     # Edit expense to 200. U1 balance should be +100, U2 should be -100.
     client.put(f"/api/groups/{group_id}/expenses/{expense_id}", json={
@@ -391,7 +391,7 @@ def test_edit_settlement_balances(client):
     
     # Get settlement ID
     act_res = client.get(f"/api/groups/{group_id}/activity", cookies=c1)
-    settlement_id = act_res.json()[0]["id"]
+    settlement_id = act_res.json()["items"][0]["id"]
     
     # Edit settlement to 100
     client.put(f"/api/groups/{group_id}/settlements/{settlement_id}", json={
@@ -470,7 +470,7 @@ def test_cross_group_settlement_update_validation(client):
         "to_member": aliceA_id,
         "amount": 50
     }, cookies=h1).json()
-    settlement_id = client.get(f"/api/groups/{groupA_id}/activity", cookies=h1).json()[0]["id"]
+    settlement_id = client.get(f"/api/groups/{groupA_id}/activity", cookies=h1).json()["items"][0]["id"]
     
     # Setup Group B with Charlie
     res3 = client.post("/api/auth/register", json={"name": "Charlie", "email": "charlie_cross@example.com", "password": "password123"})
@@ -594,7 +594,7 @@ def test_critical_concurrent_expense_creation(client):
 
 import logging
 
-@patch("app.services.group_service.send_web_push")
+@patch("app.services.expense_service.send_web_push")
 def test_critical_push_notification_logging(mock_send_web_push, client):
     res = client.post("/api/auth/register", json={"name": "Push1", "email": "push1_de95c89c@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}

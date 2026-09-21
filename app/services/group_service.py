@@ -22,13 +22,19 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     member = models.Member(
         group_id=group.id,
         user_id=user.id,
-        name=user.name or "Unknown",
+        name=payload.your_name or user.name or "Unknown",
         is_admin=True,
         color=pick_color()
     )
+    group_id = group.id
     db.add(member)
+    await db.flush()
+    
+    group_summary = {"id": group_id, "name": payload.name, "invite_code": group.invite_code}
+    member_resp = {"id": member.id, "name": member.name, "color": member.color, "is_admin": True, "user_id": user.id}
+    
     await db.commit()
-    return await get_group_details(group.id, db)
+    return {"group": group_summary, "member": member_resp}
 
 async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest, user: models.User, db: AsyncSession):
     result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code))
@@ -38,14 +44,16 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
 
     res = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
     existing = res.scalars().first()
+    
+    group_summary = {"id": group.id, "name": group.name, "invite_code": group.invite_code}
+    
     if existing:
-        return {"group_id": group.id, "member_id": existing.id}
+        member_resp = {"id": existing.id, "name": existing.name, "color": existing.color, "is_admin": existing.is_admin, "user_id": user.id}
+        return {"group": group_summary, "member": member_resp}
 
     from sqlalchemy import func
     member_count_res = await db.execute(select(func.count()).select_from(models.Member).filter(models.Member.group_id == group.id))
     member_count = member_count_res.scalar() or 0
-    if member_count >= 50:
-        raise HTTPException(status_code=400, detail="This group has reached the maximum of 50 members.")
 
     member = models.Member(
         group_id=group.id,
@@ -53,9 +61,14 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
         name=payload.name or user.name or "Unknown",
         color=pick_color()
     )
+    group_id = group.id
     db.add(member)
+    await db.flush()
+    
+    member_resp = {"id": member.id, "name": member.name, "color": member.color, "is_admin": False, "user_id": user.id}
     await db.commit()
-    return {"group_id": group.id, "member_id": member.id}
+    
+    return {"group": group_summary, "member": member_resp}
 
 async def get_group_details(group_id: str, db: AsyncSession):
     result = await db.execute(select(models.Group).options(selectinload(models.Group.members)).filter(models.Group.id == group_id))
@@ -63,19 +76,9 @@ async def get_group_details(group_id: str, db: AsyncSession):
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    net_balances = {m.id: m.balance for m in group.members}
+    debts = balances.simplify_debts(net_balances)
     member_map = {m.id: m for m in group.members}
-
-    result = await db.execute(select(models.Expense).options(selectinload(models.Expense.splits)).filter(models.Expense.group_id == group_id))
-    expenses = result.scalars().all()
-    
-    result = await db.execute(select(models.Settlement).filter(models.Settlement.group_id == group_id))
-    settlements = result.scalars().all()
-
-    for m in group.members:
-        m.balance = Decimal(0)
-    balances.compute_net_balances(expenses, settlements, member_map)
-
-    debts = balances.simplify_debts(group.members)
     
     return {
         "id": group.id,
@@ -89,14 +92,16 @@ async def get_group_details(group_id: str, db: AsyncSession):
                 "color": m.color,
                 "is_admin": m.is_admin,
                 "user_id": m.user_id,
-                "balance": m.balance
+                "balance": m.balance.quantize(Decimal('0.01'))
             } for m in group.members
         ],
         "simplified_debts": [
             {
                 "from_member": d["from_member"],
                 "to_member": d["to_member"],
-                "amount": d["amount"]
+                "amount": d["amount"],
+                "from_name": member_map[d["from_member"]].name,
+                "to_name": member_map[d["to_member"]].name
             } for d in debts
         ]
     }
@@ -113,7 +118,7 @@ async def remove_member_transaction(group_id: str, member_id: str, db: AsyncSess
     await db.refresh(member)
     
     if abs(member.balance) > Decimal("0.01"):
-        raise HTTPException(status_code=400, detail="Cannot remove member with non-zero balance. Settle up first.")
+        raise HTTPException(status_code=400, detail="Cannot remove member with unsettled balance.")
 
     await db.delete(member)
     await db.commit()

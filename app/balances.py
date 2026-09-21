@@ -165,43 +165,25 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
         return
         
     true_balances = {m.id: Decimal('0.00') for m in members}
-    
-    payer_sums = (await db.execute(
-        select(models.Expense.paid_by, func.sum(models.Expense.amount))
-        .filter(models.Expense.group_id == group_id)
-        .group_by(models.Expense.paid_by)
-    )).all()
-    for member_id, amount in payer_sums:
-        if member_id in true_balances and amount:
-            true_balances[member_id] += Decimal(str(amount))
-            
-    split_sums = (await db.execute(
-        select(models.ExpenseSplit.member_id, func.sum(models.ExpenseSplit.share_amount))
-        .join(models.Expense, models.Expense.id == models.ExpenseSplit.expense_id)
-        .filter(models.Expense.group_id == group_id)
-        .group_by(models.ExpenseSplit.member_id)
-    )).all()
-    for member_id, amount in split_sums:
-        if member_id in true_balances and amount:
-            true_balances[member_id] -= Decimal(str(amount))
-            
-    settlement_from_sums = (await db.execute(
-        select(models.Settlement.from_member, func.sum(models.Settlement.amount))
-        .filter(models.Settlement.group_id == group_id)
-        .group_by(models.Settlement.from_member)
-    )).all()
-    for member_id, amount in settlement_from_sums:
-        if member_id in true_balances and amount:
-            true_balances[member_id] += Decimal(str(amount))
-            
-    settlement_to_sums = (await db.execute(
-        select(models.Settlement.to_member, func.sum(models.Settlement.amount))
-        .filter(models.Settlement.group_id == group_id)
-        .group_by(models.Settlement.to_member)
-    )).all()
-    for member_id, amount in settlement_to_sums:
-        if member_id in true_balances and amount:
-            true_balances[member_id] -= Decimal(str(amount))
+    from sqlalchemy import text
+    query = text('''
+        SELECT member_id, SUM(amount) as net_balance FROM (
+            SELECT paid_by as member_id, amount FROM expenses WHERE group_id = :group_id
+            UNION ALL
+            SELECT s.member_id, -s.share_amount as amount FROM expense_splits s 
+            JOIN expenses e ON e.id = s.expense_id WHERE e.group_id = :group_id
+            UNION ALL
+            SELECT from_member as member_id, amount FROM settlements WHERE group_id = :group_id
+            UNION ALL
+            SELECT to_member as member_id, -amount FROM settlements WHERE group_id = :group_id
+        ) as ledger
+        WHERE member_id IS NOT NULL
+        GROUP BY member_id
+    ''')
+    result = await db.execute(query, {"group_id": group_id})
+    for row in result.all():
+        if row.member_id in true_balances and row.net_balance is not None:
+            true_balances[row.member_id] = Decimal(str(row.net_balance))
             
     # Bulk update balances
     updates = []

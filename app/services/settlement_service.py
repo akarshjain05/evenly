@@ -14,6 +14,10 @@ async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id
     if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
         raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
 
+    group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
+    member_name = member.name
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+
     settlement = models.Settlement(
         group_id=group_id, 
         from_member=payload.from_member, 
@@ -25,10 +29,8 @@ async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id
     await balances.apply_settlement(db, settlement)
     await db.commit()
     
-    group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
-    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
     if other_user_ids and group_name:
-        background_tasks.add_task(send_web_push, other_user_ids, group_name, f"{member.name} recorded a settlement of {payload.amount}")
+        background_tasks.add_task(send_web_push, other_user_ids, group_name, f"{member_name} recorded a settlement of {payload.amount}")
 
 async def process_and_update_settlement(group_id: str, settlement_id: str, payload: schemas.SettlementCreate, db: AsyncSession, member=None):
     res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())

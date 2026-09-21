@@ -32,6 +32,9 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
   const mutation = useLedgerMutation({
     mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
     
+    onSuccess: () => {
+      onClose();
+    },
     onError: (err: any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');

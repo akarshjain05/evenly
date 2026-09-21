@@ -59,30 +59,31 @@ async def delete_group(group_id: str, member: models.Member = Depends(deps.get_c
     # Let SQLAlchemy's cascade="all, delete-orphan" handle the heavy lifting
     result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
     group = result.scalars().first()
-    if group:
-        await db.delete(group)
-        await db.commit()
+    if not group:
+        raise HTTPException(status_code=404, detail="Tab not found")
+        
+    user_id = member.user_id
+    await db.delete(group)
+    await db.commit()
+    logger.info("User %s deleted group %s", user_id, group_id)
     
     return {"ok": True}
 
 @router.get("/{group_id}/activity")
 async def get_activity(
     group_id: str, 
-    limit: int = Query(20, le=100), 
+    limit: int = Query(50, le=100), 
     last_seen: str | None = None, 
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)
 ):
-    items = await activity_service.get_activity_list(group_id, limit, last_seen, db)
-    has_more = len(items) == limit
-    next_cursor = f"{items[-1]['created_at'].isoformat()}|{items[-1]['id']}" if items else None
-    return {"items": items, "next_cursor": next_cursor if has_more else None}
+    return await activity_service.get_activity_list(group_id, limit, last_seen, db)
 
 # ---------------------------------------------------------------------------
 # Expense endpoints
 # ---------------------------------------------------------------------------
 
-@router.post("/{group_id}/expenses", response_model=schemas.BasicResponse)
+@router.post("/{group_id}/expenses", response_model=schemas.GroupDetailResponse)
 async def add_expense(
     group_id: str,
     payload: schemas.ExpenseCreate,
@@ -94,9 +95,9 @@ async def add_expense(
     user_id = user.id
     await expense_service.process_and_add_expense(payload, group_id, user, member, db, background_tasks)
     logger.info("User %s added expense to group %s for amount %s", user_id, group_id, payload.amount)
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
-@router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
+@router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.GroupDetailResponse)
 async def update_expense(
     group_id: str,
     expense_id: str,
@@ -107,9 +108,9 @@ async def update_expense(
     user_id = member.user_id
     await expense_service.process_and_update_expense(group_id, expense_id, payload, db, member)
     logger.info("User %s updated expense %s in group %s", user_id, expense_id, group_id)
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
-@router.delete("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
+@router.delete("/{group_id}/expenses/{expense_id}", response_model=schemas.GroupDetailResponse)
 async def delete_expense(
     group_id: str,
     expense_id: str,
@@ -119,14 +120,14 @@ async def delete_expense(
     user_id = member.user_id
     await expense_service.process_and_delete_expense(group_id, expense_id, db, member)
     logger.info("User %s deleted expense %s from group %s", user_id, expense_id, group_id)
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
 
 # ---------------------------------------------------------------------------
 # Settlement endpoints
 # ---------------------------------------------------------------------------
 
-@router.post("/{group_id}/settlements", response_model=schemas.BasicResponse)
+@router.post("/{group_id}/settlements", response_model=schemas.GroupDetailResponse)
 async def record_settlement(
     group_id: str,
     payload: schemas.SettlementCreate,
@@ -138,7 +139,7 @@ async def record_settlement(
     user_id = user.id
     await settlement_service.process_and_add_settlement(payload, group_id, user, member, db, background_tasks)
     logger.info("User %s recorded settlement in group %s", user_id, group_id)
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
 @router.post("/{group_id}/leave", response_model=schemas.BasicResponse)
 async def leave_group(
@@ -146,7 +147,7 @@ async def leave_group(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
-    await group_service.remove_member_transaction(group_id, member.id, member, db)
+    await group_service.remove_member_transaction(group_id, member.id, db)
     return {"ok": True}
 
 @router.delete("/{group_id}/members/{target_member_id}", response_model=schemas.BasicResponse)
@@ -156,7 +157,9 @@ async def remove_member(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
-    await group_service.remove_member_transaction(group_id, target_member_id, member, db)
+    if not member.is_admin and member.id != target_member_id:
+        raise HTTPException(status_code=403, detail="Only admins can remove members")
+    await group_service.remove_member_transaction(group_id, target_member_id, db)
     return {"ok": True}
 
 @router.put("/{group_id}/settlements/{settlement_id}", response_model=schemas.GroupDetailResponse)
@@ -168,7 +171,7 @@ async def update_settlement(
     db: AsyncSession = Depends(get_db),
 ):
     user_id = member.user_id
-    await group_service.process_and_update_settlement(group_id, settlement_id, payload, db, member)
+    await settlement_service.process_and_update_settlement(group_id, settlement_id, payload, db, member)
     logger.info("User %s updated settlement %s in group %s", user_id, settlement_id, group_id)
     return await group_service.get_group_details(group_id, db)
 
@@ -179,16 +182,9 @@ async def delete_settlement(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
-    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
-    result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
-    settlement = result.scalars().first()
-    if not settlement:
-        raise HTTPException(status_code=404, detail="Settlement not found")
-    if not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
-        raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
-    await balances.revert_settlement(db, settlement)
-    await db.delete(settlement)
-    await db.commit()
+    user_id = member.user_id
+    await settlement_service.process_and_delete_settlement(group_id, settlement_id, db, member)
+    logger.info("User %s deleted settlement %s from group %s", user_id, settlement_id, group_id)
     return await group_service.get_group_details(group_id, db)
 
 @router.get("/{group_id}/export/csv")

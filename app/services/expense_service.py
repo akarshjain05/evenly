@@ -26,7 +26,8 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
     await db.flush()
     await balances.apply_expense(db, expense)
     
-    message = f"{member.name} added a new expense: {payload.description}"
+    member_name = member.name
+    message = f"{member_name} added a new expense: {payload.description}"
     await db.commit()
 
     if other_user_ids and group_name:

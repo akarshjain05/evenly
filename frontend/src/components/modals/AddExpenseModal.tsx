@@ -25,6 +25,12 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   const mutation = useLedgerMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
     
+    onSuccess: () => {
+      closeAddExpense();
+      setDescription('');
+      setAmount('');
+      setError('');
+    },
     onError: (err: any) => {
       openAddExpense();
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;

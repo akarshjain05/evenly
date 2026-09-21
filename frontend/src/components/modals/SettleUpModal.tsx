@@ -24,6 +24,11 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   const mutation = useLedgerMutation({
     mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
     
+    onSuccess: () => {
+      closeSettleUp();
+      setAmount('');
+      setError('');
+    },
     onError: (err: Error | any) => {
       openSettleUp();
       setError((err.response?.data?.userMessage || err.response?.data?.detail) || 'Failed to record settlement');

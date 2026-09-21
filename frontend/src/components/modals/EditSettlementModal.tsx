@@ -27,6 +27,9 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
   const mutation = useLedgerMutation({
     mutationFn: (updated: SettlementCreate) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
     
+    onSuccess: () => {
+      onClose();
+    },
     onError: (err: Error | any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update settlement');
