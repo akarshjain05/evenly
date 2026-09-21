@@ -321,7 +321,7 @@ export default function GroupView() {
               {activeActivityTab === 'expenses' ? (
                 <>
                   {expenses.length === 0 && (
-                    <p className="text-ink-soft italic text-center py-8 text-[15px]">No normal payments yet.</p>
+                    <p className="text-ink-soft italic text-center py-8 text-[15px]">No payments yet.</p>
                   )}
                   {expenses.map(renderActivityItem)}
                 </>
