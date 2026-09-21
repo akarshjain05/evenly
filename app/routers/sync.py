@@ -37,6 +37,13 @@ async def get_sync(
     user: models.User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    from app.migrations.add_sync_columns import run_migration
+    try:
+        await run_migration(db)
+        await db.commit()
+    except Exception as e:
+        print(f"Migration failed lazily: {e}")
+
     result = await db.execute(
         select(models.Member.group_id).where(models.Member.user_id == user.id)
     )

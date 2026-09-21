@@ -35,7 +35,8 @@ async def run_migration(db: AsyncSession):
                 if col not in existing_cols:
                     logger.info(f"Adding column {col} to {table}")
                     if col == "updated_at":
-                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN updated_at DATETIME"))
+                        datatype = "TIMESTAMP WITH TIME ZONE" if dialect != "sqlite" else "DATETIME"
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {datatype}"))
                     elif col == "is_deleted":
                         await db.execute(text(f"ALTER TABLE {table} ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE NOT NULL"))
         except Exception as e:
