@@ -10,6 +10,7 @@ development.
 import os
 import time
 import logging
+from fastapi import Request, HTTPException
 from collections import defaultdict
 
 def _get_client_ip(request: Request) -> str:
@@ -19,7 +20,6 @@ def _get_client_ip(request: Request) -> str:
         return xff.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
-from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
 

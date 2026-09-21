@@ -114,6 +114,9 @@ async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id
     valid_ids = {m.id for m in result.scalars().all()}
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
+        
+    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
+        raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
 
     settlement = models.Settlement(
         group_id=group_id, 
@@ -263,6 +266,9 @@ async def process_and_update_settlement(group_id: str, settlement_id: str, paylo
     valid_ids = {m.id for m in res.scalars().all()}
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
+        
+    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
+        raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
         
     await balances.revert_settlement(db, settlement)
     
