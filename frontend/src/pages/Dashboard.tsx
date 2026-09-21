@@ -5,7 +5,6 @@ import { apiClient } from '../api/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { PlusCircle, Users } from 'lucide-react';
 import { Skeleton } from '../components/Skeleton';
-import { getErrorMessage } from '../utils/errors';
 
 
 

@@ -40,10 +40,11 @@ export default function JoinGroupPage() {
           }
         }
       } catch (err: unknown) {
-        if (err.response?.status === 404) {
+        const error = err as any;
+        if (error.response?.status === 404) {
           setError("This invite link is invalid or has expired.");
         } else {
-          setError((err.response?.data?.userMessage || err.response?.data?.detail) || "Failed to join tab.");
+          setError(getErrorMessage(err));
         }
       }
     }

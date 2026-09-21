@@ -26,8 +26,12 @@ export default function Layout() {
     return <Navigate to="/login" replace />;
   }
 
+  if (isLoadingUser) {
+    return <div className="flex items-center justify-center min-h-screen bg-bg text-ink-soft">Loading...</div>;
+  }
+
   // If the server fails to return a valid user identity (e.g. 500 crashes), do not fall back to a mock identity.
-  if (!isLoadingUser && !user) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-bg text-[#c81e1e] p-8 text-center font-medium">
         CRITICAL: Failed to load authenticated user identity from server. Halting application.

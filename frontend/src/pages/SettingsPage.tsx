@@ -1,4 +1,5 @@
 import { getErrorMessage } from '../utils/errors';
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUIStore } from '../store/uiStore';
@@ -75,7 +76,7 @@ export default function SettingsPage() {
               });
             } catch (err: unknown) {
               setIsNotificationsEnabled(false);
-              showAlert('Error', 'Failed to enable notifications: ' + err.message);
+              showAlert('Error', 'Failed to enable notifications: ' + getErrorMessage(err));
             }
         } else {
             // TURN OFF
