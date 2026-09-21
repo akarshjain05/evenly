@@ -39,12 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               Reload Page
             </button>
-            {this.state.error && (
-              <details className="mt-6 text-left p-4 bg-bg rounded-lg border border-line-dark overflow-auto max-h-48 text-xs text-ink-soft">
-                <summary className="cursor-pointer font-medium mb-2 text-ink">Error Details</summary>
-                {this.state.error.toString()}
-              </details>
-            )}
+            
           </div>
         </div>
       );
