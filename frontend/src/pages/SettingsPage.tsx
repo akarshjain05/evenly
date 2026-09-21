@@ -1,3 +1,4 @@
+import { getErrorMessage } from '../utils/errors';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useUIStore } from '../store/uiStore';
@@ -72,7 +73,7 @@ export default function SettingsPage() {
                 p256dh: subJson.keys?.p256dh,
                 auth: subJson.keys?.auth
               });
-            } catch (err: any) {
+            } catch (err: unknown) {
               setIsNotificationsEnabled(false);
               showAlert('Error', 'Failed to enable notifications: ' + err.message);
             }

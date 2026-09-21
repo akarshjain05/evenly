@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
     
     // Auto-retry once if a legacy session encounters a missing CSRF token
-    if (error.response?.status === 403 && error.response?.data?.detail === "CSRF token validation failed" && !originalRequest._retry) {
+    if (error.response?.status === 403 && !originalRequest._retry && error.config?.method?.toUpperCase() !== "GET") {
       originalRequest._retry = true;
       try {
         // This GET request will trigger the backend to seamlessly issue a new CSRF cookie
@@ -65,9 +65,7 @@ apiClient.interceptors.response.use(
       const d = error.response.data.detail;
       const status = error.response.status;
       if (typeof d === 'string') {
-        if (status === 403 && d.toLowerCase().includes('csrf')) {
-          error.response.data.userMessage = "A secure connection error occurred. Please refresh the page and try again.";
-        } else if (status >= 500) {
+        if (status >= 500) {
           error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
         } else if (status === 422) {
           error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
