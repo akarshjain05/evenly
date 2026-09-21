@@ -1,4 +1,4 @@
-import os
+from app.config import get_settings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 from . import models, database
 
-SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-ALGORITHM = os.environ["JWT_ALGORITHM"]
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"])
+SECRET_KEY = get_settings().jwt_secret_key
+ALGORITHM = get_settings().jwt_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = get_settings().access_token_expire_minutes
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 

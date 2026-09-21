@@ -1,4 +1,3 @@
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,8 +6,10 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 
 import logging
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
-db_url = os.environ["DATABASE_URL"]
+db_url = get_settings().database_url
 DATABASE_URL = db_url
 
 if DATABASE_URL.startswith("postgres://"):

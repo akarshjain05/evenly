@@ -16,3 +16,4 @@ pywebpush==1.14.0
 cryptography>=39.0.0
 aiosqlite==0.20.0
 alembic==1.13.3
+pydantic-settings==2.5.2
