@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // We use relative /api because Vercel routes /api to the backend in prod.
 // Locally, Vite's dev server will proxy /api to http://localhost:8000.
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -35,7 +35,13 @@ apiClient.interceptors.request.use((config) => {
 
 // Generic interceptor for catching 401s globally and retrying legacy CSRF failures
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Prevent Vercel SPA routing from silently returning 200 OK HTML pages for missing API routes
+    if (typeof response.data === 'string' && response.headers['content-type']?.includes('text/html')) {
+        return Promise.reject({ response: { status: 500, data: { detail: "API route not found (returned HTML)" } } });
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     
