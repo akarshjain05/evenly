@@ -26,7 +26,7 @@ async def verify_password(plain_password: str, hashed_password: str) -> bool:
 async def get_password_hash(password: str) -> str:
     return await asyncio.to_thread(pwd_context.hash, password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
