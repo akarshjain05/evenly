@@ -35,6 +35,11 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
+        
+    from sqlalchemy import func
+    member_count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
+    if member_count_res.scalar() >= 50:
+        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members.")
 
 
 
@@ -58,6 +63,11 @@ async def get_group_details(group_id: str, db: AsyncSession):
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
+        
+    from sqlalchemy import func
+    member_count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
+    if member_count_res.scalar() >= 50:
+        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members.")
 
 
 
@@ -87,7 +97,10 @@ async def get_group_details(group_id: str, db: AsyncSession):
 
 async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
     # Lock member balances to serialize transactions
-    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    members = members_res.scalars().all()
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+    group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
     
     expense = models.Expense(
         group_id=group_id,
@@ -103,14 +116,14 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
     await balances.process_expense_splits(db, group_id, expense, payload)
     await db.flush()
     await balances.apply_expense(db, expense)
+    
+    # Evaluate attributes before commit to avoid MissingGreenlet on expired objects
+    message = f"{member.name} added a new expense: {payload.description}"
+    
     await db.commit()
 
-    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
-    group = result.scalars().first()
-    members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    other_user_ids = [m.user_id for m in members_res.scalars().all() if m.user_id and m.id != member.id]
-    if other_user_ids:
-        background_tasks.add_task(send_web_push, other_user_ids, group.name, f"{member.name} added a new expense: {payload.description}")
+    if other_user_ids and group_name:
+        background_tasks.add_task(send_web_push, other_user_ids, group_name, message)
 
 async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
     # Lock member balances to serialize transactions

@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, status
 import jwt
 import uuid
 from passlib.context import CryptContext
+import asyncio
 from sqlalchemy.orm import Session
 
 from . import models, database
@@ -19,11 +20,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = get_settings().access_token_expire_minutes
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+async def verify_password(plain_password, hashed_password):
+    return await asyncio.to_thread(pwd_context.verify, plain_password, hashed_password)
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+async def get_password_hash(password):
+    return await asyncio.to_thread(pwd_context.hash, password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

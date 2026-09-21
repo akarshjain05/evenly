@@ -83,7 +83,7 @@ class Expense(Base):
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
     
     __table_args__ = (
-        Index('ix_expenses_group_created', 'group_id', 'created_at'),
+        Index('ix_expenses_group_created', 'group_id', 'created_at', 'id'),
     )
 
 
@@ -112,7 +112,7 @@ class Settlement(Base):
     group = relationship("Group", back_populates="settlements")
     
     __table_args__ = (
-        Index('ix_settlements_group_created', 'group_id', 'created_at'),
+        Index('ix_settlements_group_created', 'group_id', 'created_at', 'id'),
     )
 
 
