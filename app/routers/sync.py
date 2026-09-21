@@ -23,6 +23,13 @@ def serialize_row(row) -> Dict[str, Any]:
     result = {}
     for column in row.__table__.columns:
         val = getattr(row, column.name)
+        
+        # Fallback for updated_at if it's somehow missing/null on old records
+        if column.name == "updated_at" and val is None:
+            val = getattr(row, "created_at", None)
+            if val is None:
+                val = datetime(2000, 1, 1, tzinfo=timezone.utc)
+                
         if isinstance(val, Decimal):
             result[column.name] = float(val)
         elif isinstance(val, datetime):
