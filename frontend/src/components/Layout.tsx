@@ -28,7 +28,11 @@ export default function Layout() {
 
   // If the server fails to return a valid user identity (e.g. 500 crashes), do not fall back to a mock identity.
   if (!isLoadingUser && !user) {
-    throw new Error("CRITICAL: Failed to load authenticated user identity from server. Halting application.");
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-bg text-[#c81e1e] p-8 text-center font-medium">
+        CRITICAL: Failed to load authenticated user identity from server. Halting application.
+      </div>
+    );
   }
 
   // Use explicitly provided name, or derive from email
