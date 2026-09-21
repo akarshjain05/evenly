@@ -98,6 +98,12 @@ apiClient.interceptors.response.use(
            ...(error.response || {}), 
            data: { detail: error.response?.data?.detail, userMessage: "Unable to reach the server. Please check your internet connection." } 
        };
+    } else if (error.response.status >= 500) {
+       // Catch 502 Bad Gateway or 500 Internal Server Error HTML pages from Vercel crashes
+       if (typeof error.response.data !== 'object') {
+           error.response.data = {};
+       }
+       error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
     }
 
     return Promise.reject(error);
