@@ -19,287 +19,102 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     group = models.Group(name=payload.name)
     db.add(group)
     await db.flush()
-
-    member_name = payload.your_name or user.name or user.email.split('@')[0]
-    member_name = member_name.capitalize()
-
-    member = models.Member(group_id=group.id, user_id=user.id, name=member_name, color=pick_color(), is_admin=True)
+    member = models.Member(
+        group_id=group.id,
+        user_id=user.id,
+        name=user.name or "Unknown",
+        is_admin=True,
+        color=pick_color()
+    )
     db.add(member)
     await db.commit()
-    await db.refresh(group)
-    await db.refresh(member)
-    return {"group": group, "member": member}
+    return await get_group_details(group.id, db)
 
 async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest, user: models.User, db: AsyncSession):
     result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code))
     group = result.scalars().first()
     if not group:
-        raise HTTPException(status_code=404, detail="Tab not found")
-        
+        raise HTTPException(status_code=404, detail="Invalid invite link")
+
+    res = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
+    existing = res.scalars().first()
+    if existing:
+        return {"group_id": group.id, "member_id": existing.id}
 
     from sqlalchemy import func
-    member_count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
-    if member_count_res.scalar() >= 50:
-        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members.")
+    member_count_res = await db.execute(select(func.count()).select_from(models.Member).filter(models.Member.group_id == group.id))
+    member_count = member_count_res.scalar() or 0
+    if member_count >= 50:
+        raise HTTPException(status_code=400, detail="This group has reached the maximum of 50 members.")
 
-
-
-
-    result = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
-    if result.scalars().first():
-        raise HTTPException(status_code=400, detail="You are already in this tab")
-
-    member_name = payload.name or user.name or user.email.split('@')[0]
-    member_name = member_name.capitalize()
-
-    member = models.Member(group_id=group.id, user_id=user.id, name=member_name, color=pick_color(), is_admin=False)
+    member = models.Member(
+        group_id=group.id,
+        user_id=user.id,
+        name=payload.name or user.name or "Unknown",
+        color=pick_color()
+    )
     db.add(member)
     await db.commit()
-    await db.refresh(group)
-    await db.refresh(member)
-    return {"group": group, "member": member}
+    return {"group_id": group.id, "member_id": member.id}
 
 async def get_group_details(group_id: str, db: AsyncSession):
     result = await db.execute(select(models.Group).options(selectinload(models.Group.members)).filter(models.Group.id == group_id))
     group = result.scalars().first()
     if not group:
-        raise HTTPException(status_code=404, detail="Tab not found")
+        raise HTTPException(status_code=404, detail="Group not found")
 
+    member_map = {m.id: m for m in group.members}
 
-
+    result = await db.execute(select(models.Expense).options(selectinload(models.Expense.splits)).filter(models.Expense.group_id == group_id))
+    expenses = result.scalars().all()
     
-    net = await balances.compute_net_balances(db, group_id)
+    result = await db.execute(select(models.Settlement).filter(models.Settlement.group_id == group_id))
+    settlements = result.scalars().all()
 
+    for m in group.members:
+        m.balance = Decimal(0)
+    balances.compute_net_balances(expenses, settlements, member_map)
 
-    members_dict = {m.id: m.name for m in group.members}
-    debts = await asyncio.to_thread(balances.simplify_debts, net)
-    for d in debts:
-        d["from_name"] = members_dict.get(d["from_member"], "Unknown")
-        d["to_name"] = members_dict.get(d["to_member"], "Unknown")
-
-        
+    debts = balances.simplify_debts(group.members)
+    
     return {
         "id": group.id,
         "name": group.name,
         "invite_code": group.invite_code,
         "created_at": group.created_at,
         "members": [
-            {"id": m.id, "name": m.name, "color": m.color, "is_admin": m.is_admin, "user_id": m.user_id, "balance": net.get(m.id, Decimal(0))}
-            for m in group.members
+            {
+                "id": m.id, 
+                "name": m.name, 
+                "color": m.color,
+                "is_admin": m.is_admin,
+                "user_id": m.user_id,
+                "balance": m.balance
+            } for m in group.members
         ],
-        "simplified_debts": debts
+        "simplified_debts": [
+            {
+                "from_member": d["from_member"],
+                "to_member": d["to_member"],
+                "amount": d["amount"]
+            } for d in debts
+        ]
     }
 
+async def remove_member_transaction(group_id: str, member_id: str, db: AsyncSession):
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
 
-async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
-    # Lock member balances to serialize transactions
-    members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
-    members = members_res.scalars().all()
-    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
-    group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
-    
-    expense = models.Expense(
-        group_id=group_id,
-        description=payload.description,
-        amount=payload.amount,
-        paid_by=payload.paid_by,
-        category=payload.category,
-        split_type=models.SplitType(payload.split_type),
-        created_by_user_id=user.id
-    )
-    db.add(expense)
-    await db.flush()
-    member_ids = {m.id for m in members}
-    await balances.process_expense_splits(db, group_id, expense, payload, valid_ids=member_ids)
-    await db.flush()
-    await balances.apply_expense(db, expense)
-    
-    # Evaluate attributes before commit to avoid MissingGreenlet on expired objects
-    message = f"{member.name} added a new expense: {payload.description}"
-    
-    await db.commit()
-
-    if other_user_ids and group_name:
-        background_tasks.add_task(send_web_push, other_user_ids, group_name, message)
-
-async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
-    # Lock member balances to serialize transactions
-    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
-    valid_ids = {m.id for m in result.scalars().all()}
-    if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
-        raise HTTPException(status_code=400, detail="Both people must be in this tab")
-        
-    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
-        raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
-
-    settlement = models.Settlement(
-        group_id=group_id, 
-        from_member=payload.from_member, 
-        to_member=payload.to_member, 
-        amount=payload.amount,
-        created_by_user_id=user.id
-    )
-    db.add(settlement)
-    await balances.apply_settlement(db, settlement)
-    await db.commit()
-    
-    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
-    group = result.scalars().first()
-    members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    other_user_ids = [m.user_id for m in members_res.scalars().all() if m.user_id and m.id != member.id]
-    if other_user_ids:
-        background_tasks.add_task(send_web_push, other_user_ids, group.name, f"{member.name} recorded a settlement of {payload.amount}")
-
-async def remove_member_transaction(group_id: str, target_member_id: str, member: models.Member, db: AsyncSession):
-    if member.id != target_member_id and not member.is_admin:
-        raise HTTPException(status_code=403, detail="You do not have permission to remove this member")
-    
-    result = await db.execute(select(models.Member).filter(models.Member.id == target_member_id, models.Member.group_id == group_id))
-    target = result.scalars().first()
-    if not target:
+    result = await db.execute(select(models.Member).filter(models.Member.id == member_id, models.Member.group_id == group_id))
+    member = result.scalars().first()
+    if not member:
         raise HTTPException(status_code=404, detail="Member not found")
         
-    net = await balances.compute_net_balances(db, group_id)
-    target_balance = net.get(target_member_id, 0.0)
+    await balances.recompute_balances_from_ledger(db, group_id)
+    await db.refresh(member)
     
-    if abs(target_balance) > balances.SETTLEMENT_TOLERANCE:
-        msg = "You cannot leave the tab with an unsettled balance" if member.id == target_member_id else "Cannot remove member with an unsettled balance"
-        raise HTTPException(status_code=400, detail=msg)
-        
-    await db.delete(target)
+    if abs(member.balance) > Decimal("0.01"):
+        raise HTTPException(status_code=400, detail="Cannot remove member with non-zero balance. Settle up first.")
+
+    await db.delete(member)
     await db.commit()
-
-async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db: AsyncSession):
-    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    members = result.scalars().all()
-    name_lookup = {m.id: m.name for m in members}
-
-    # Build cursor WHERE clause to push inside each UNION ALL leg (enables index usage)
-    cursor_where = ""
-    params: Dict[str, Any] = {"group_id": group_id, "limit": limit}
-
-    if last_seen and '|' in last_seen:
-        last_seen_time, last_seen_id = last_seen.split('|', 1)
-        cursor_where = "AND (created_at < :last_seen_time OR (created_at = :last_seen_time AND id < :last_seen_id))"
-        params["last_seen_time"] = last_seen_time
-        params["last_seen_id"] = last_seen_id
-    elif last_seen:
-        cursor_where = "AND created_at < :last_seen"
-        params["last_seen"] = last_seen
-
-    query = text(f'''
-        SELECT * FROM (
-            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id {cursor_where}
-            UNION ALL
-            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id {cursor_where}
-        ) AS sub
-        ORDER BY created_at DESC, id DESC
-        LIMIT :limit
-    ''')
-    results = (await db.execute(query, params)).fetchall()
-
-    expense_ids = [r.id for r in results if r.type == 'expense']
-    settlement_ids = [r.id for r in results if r.type == 'settlement']
-
-    expenses_map = {}
-    if expense_ids:
-        result = await db.execute(
-            select(models.Expense).options(selectinload(models.Expense.splits)).filter(models.Expense.id.in_(expense_ids))
-        )
-        expenses_map = {e.id: e for e in result.scalars().all()}
-
-    settlements_map = {}
-    if settlement_ids:
-        result = await db.execute(select(models.Settlement).filter(models.Settlement.id.in_(settlement_ids)))
-        settlements_map = {s.id: s for s in result.scalars().all()}
-
-    items = []
-    for row in results:
-        if row.type == 'expense':
-            e = expenses_map.get(row.id)
-            if not e: continue
-            items.append(
-                {
-                    "type": "expense",
-                    "id": e.id,
-                    "description": e.description,
-                    "category": e.category,
-                    "amount": e.amount,
-                    "paid_by": e.paid_by,
-                    "paid_by_name": name_lookup.get(e.paid_by, "?"),
-                    "split_type": e.split_type.value if hasattr(e.split_type, 'value') else str(e.split_type),
-                    "created_at": e.created_at,
-                    "splits": [
-                        {"member_id": s.member_id, "name": name_lookup.get(s.member_id, "?"), "share_amount": s.share_amount}
-                        for s in e.splits
-                    ],
-                }
-            )
-        elif row.type == 'settlement':
-            s = settlements_map.get(row.id)
-            if not s: continue
-            items.append(
-                {
-                    "type": "settlement",
-                    "id": s.id,
-                    "from_member": s.from_member,
-                    "from_name": name_lookup.get(s.from_member, "?"),
-                    "to_member": s.to_member,
-                    "to_name": name_lookup.get(s.to_member, "?"),
-                    "amount": s.amount,
-                    "created_at": s.created_at,
-                    "description": "Settlement",
-                    "paid_by_name": name_lookup.get(s.from_member, "?"),
-                }
-            )
-
-    return items
-
-async def process_and_update_settlement(group_id: str, settlement_id: str, payload: schemas.SettlementCreate, db: AsyncSession, member=None):
-    # Lock member balances FIRST to match delete_settlement's lock ordering (Members → Settlement),
-    # preventing deadlock from lock ordering inversion.
-    res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
-    valid_ids = {m.id for m in res.scalars().all()}
-
-    result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
-    settlement = result.scalars().first()
-    if not settlement:
-        raise HTTPException(status_code=404, detail="Settlement not found")
-    if member and not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
-        raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
-        
-    if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
-        raise HTTPException(status_code=400, detail="Both people must be in this tab")
-        
-    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
-        raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
-        
-    await balances.revert_settlement(db, settlement)
-    
-    settlement.amount = payload.amount
-    settlement.from_member = payload.from_member
-    settlement.to_member = payload.to_member
-    
-    await balances.apply_settlement(db, settlement)
-    await db.commit()
-
-
-async def process_and_update_expense(expense: models.Expense, payload: schemas.ExpenseCreate, group_id: str, db: AsyncSession):
-    # Revert the old expense effects
-    await balances.revert_expense(db, expense)
-    
-    # Delete old splits
-    from sqlalchemy import delete
-    await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
-    
-    # Update expense record
-    expense.description = payload.description
-    expense.amount = payload.amount
-    expense.paid_by = payload.paid_by
-    expense.category = payload.category
-    expense.split_type = payload.split_type
-    
-    # Process new splits and apply new effects
-    await balances.process_expense_splits(db, group_id, expense, payload)
-    await db.flush()
-    await balances.apply_expense(db, expense)
+    return {"ok": True}

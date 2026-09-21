@@ -1,18 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import type { ActivityResponse } from '../types/api';
 import type { AxiosError } from 'axios';
 
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
-  onMutateActivity?: (oldActivity: ActivityResponse[], variables: TVariables) => ActivityResponse[];
-  onError?: (err: AxiosError | Error) => void;
+    onError?: (err: AxiosError | Error) => void;
   onSuccess?: (data?: any) => void;
 }
 
 export function useLedgerMutation<TVariables, TData>({ 
   mutationFn, 
-  onMutateActivity, 
   onError,
   onSuccess
 }: LedgerMutationOptions<TVariables, TData>) {
@@ -21,27 +18,7 @@ export function useLedgerMutation<TVariables, TData>({
 
   return useMutation({
     mutationFn,
-    onMutate: async (variables: TVariables) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      await queryClient.cancelQueries({ queryKey: ['group', id] });
-
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      const previousGroup = queryClient.getQueryData(['group', id]);
-
-      if (onMutateActivity) {
-        queryClient.setQueryData(['group-activity', id], (old: { pages: ActivityResponse[][]; pageParams: unknown[] } | ActivityResponse[] | undefined) => {
-          if (!old) return old;
-          if (Array.isArray(old)) return onMutateActivity(old, variables);
-          const newPages = [...old.pages];
-          if (newPages.length > 0) {
-            newPages[0] = onMutateActivity(newPages[0] || [], variables);
-          }
-          return { ...old, pages: newPages };
-        });
-      }
-
-      return { previousActivity, previousGroup };
-    },
+    
     onError: (err: AxiosError | Error, _variables: TVariables, context: { previousActivity?: unknown; previousGroup?: unknown } | undefined) => {
       if (context?.previousActivity) {
         queryClient.setQueryData(['group-activity', id], context.previousActivity);
@@ -53,7 +30,12 @@ export function useLedgerMutation<TVariables, TData>({
       }
       if (onError) onError(err);
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
+      // Force the background refetch of the activity list to block the onSuccess callback.
+      // This ensures the modal stays in the "Saving..." state until BOTH the balances 
+      // (which we inject directly) and the activity list (which we fetch) are fully in sync.
+      await queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+
       // If the backend returns the updated group details directly, instantly update the UI cache
       // without waiting for the background invalidation refetch.
       const payload = data?.data || data;
@@ -63,7 +45,7 @@ export function useLedgerMutation<TVariables, TData>({
       if (onSuccess) onSuccess(data);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+      // Background re-verification
       queryClient.invalidateQueries({ queryKey: ['group', id] });
     }
   });

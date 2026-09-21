@@ -23,30 +23,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   
   const mutation = useLedgerMutation({
     mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
-    onMutateActivity: (old, settlement: SettlementCreate) => {
-      const fromMemberObj = group.members.find(m => m.id === settlement.from_member);
-      const toMemberObj = group.members.find(m => m.id === settlement.to_member);
-      const fakeId = `temp-${Date.now()}`;
-      
-      const optimisticActivity = {
-        id: fakeId,
-        type: 'settlement',
-        description: 'Payment',
-        amount: settlement.amount,
-        paid_by_name: '',
-        from_name: fromMemberObj ? fromMemberObj.name : 'Unknown',
-        to_name: toMemberObj ? toMemberObj.name : 'Unknown',
-        from_member: settlement.from_member,
-        to_member: settlement.to_member,
-        created_at: new Date().toISOString(),
-      };
-
-      closeSettleUp();
-      setAmount('');
-      setError('');
-
-      return [optimisticActivity, ...old];
-    },
+    
     onError: (err: Error | any) => {
       openSettleUp();
       setError((err.response?.data?.userMessage || err.response?.data?.detail) || 'Failed to record settlement');

@@ -1,4 +1,3 @@
-import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -32,22 +31,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
 
   const mutation = useLedgerMutation({
     mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
-    onMutateActivity: (old, updated: ExpenseCreate) => {
-      const payer = group.members.find(m => m.id === updated.paid_by);
-      const parts = updated.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
-      const fakeSplits = calculateEqualSplits(updated.amount, parts).map(s => ({
-        ...s,
-        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown',
-        share_amount: Number(s.share_amount)
-      }));
-
-      onClose();
-      return old.map((item: ActivityResponse) =>
-          item.id === expense.id
-            ? { ...item, description: updated.description, amount: updated.amount, paid_by_name: payer?.name ?? item.paid_by_name, paid_by: updated.paid_by, splits: fakeSplits }
-            : item
-      );
-    },
+    
     onError: (err: any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');

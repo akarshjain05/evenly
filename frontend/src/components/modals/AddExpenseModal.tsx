@@ -1,4 +1,3 @@
-import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -25,37 +24,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   
   const mutation = useLedgerMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
-    onMutateActivity: (old, newExpense) => {
-      const payer = group.members.find(m => m.id === newExpense.paid_by);
-      const fakeId = `temp-${Date.now()}`;
-      
-      const parts = newExpense.participant_ids || group.members.map((m: GroupDetailResponse['members'][0]) => m.id);
-      const fakeSplits = calculateEqualSplits(newExpense.amount, parts).map(s => ({
-        ...s,
-        name: group.members.find((m: GroupDetailResponse['members'][0]) => m.id === s.member_id)?.name || 'Unknown',
-        share_amount: Number(s.share_amount)
-      }));
-      
-      const optimisticActivity = {
-        id: fakeId,
-        type: 'expense',
-        description: newExpense.description,
-        amount: newExpense.amount,
-        paid_by: newExpense.paid_by,
-        paid_by_name: payer ? payer.name : 'Unknown',
-        created_at: new Date().toISOString(),
-        split_type: newExpense.split_type,
-        splits: fakeSplits
-      };
-      
-      closeAddExpense();
-      setDescription('');
-      setAmount('');
-      setError('');
-      setParticipants(group.members.map(m => m.id));
-      
-      return [optimisticActivity, ...old];
-    },
+    
     onError: (err: any) => {
       openAddExpense();
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;

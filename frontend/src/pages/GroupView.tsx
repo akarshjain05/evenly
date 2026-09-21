@@ -128,7 +128,7 @@ export default function GroupView() {
       }
       return apiClient.delete(`groups/${id}/expenses/${item.id}`);
     },
-    onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
+    
     onError: (err: Error) => {
       const axiosErr = err as import('axios').AxiosError<{ userMessage?: string }>;
       showAlert('Error', axiosErr?.response?.data?.userMessage || 'Failed to delete activity.');
