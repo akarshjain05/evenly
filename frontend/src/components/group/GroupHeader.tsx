@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
+import { getErrorMessage } from '../../utils/errors';
 
 export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailResponse, id: string, setIsShareOpen: (v: boolean) => void }) => {
   const [showMenu, setShowMenu] = useState(false);

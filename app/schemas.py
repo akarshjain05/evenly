@@ -107,9 +107,6 @@ class ActivityResponse(BaseModel):
 class BasicResponse(BaseModel):
     ok: bool
 
-class ExpenseResponse(BasicResponse):
-    expense_id: str
-
 
 class PushSubscriptionCreate(BaseModel):
     endpoint: str

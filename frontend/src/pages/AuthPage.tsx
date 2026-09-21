@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import Logo from '../components/ui/Logo';
+import { getErrorMessage } from '../utils/errors';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -37,9 +38,8 @@ export default function AuthPage() {
         await register({ email, name, password });
       }
       navigate(from, { replace: true });
-    } catch (err: any) {
-      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'An error occurred'));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
       setIsLoading(false);
     }
   };

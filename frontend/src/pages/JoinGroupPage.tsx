@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Loader2 } from 'lucide-react';
+import { getErrorMessage } from '../utils/errors';
 
 export default function JoinGroupPage() {
   const { code } = useParams();
@@ -38,7 +39,7 @@ export default function JoinGroupPage() {
             throw joinErr;
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err.response?.status === 404) {
           setError("This invite link is invalid or has expired.");
         } else {

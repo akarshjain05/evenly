@@ -1,27 +1,22 @@
 import pytest
-from httpx import AsyncClient
-from app.main import app
 
-@pytest.mark.asyncio
-async def test_percentage_splits(client: AsyncClient, token_headers):
-    # create group
-    res = await client.post("/api/groups", json={"name": "Test Group"}, headers=token_headers)
-    group_id = res.json()["group"]["id"]
-    
-    # add members? Actually when we create it, we are the only member.
-    # percentage splits require at least 2 people to be interesting.
-    # Let's just create an expense with percentages anyway!
-    
+def test_percentage_splits(client, populated_group):
+    cookies = populated_group["user1"]["cookies"]
+    group_id = populated_group["group_id"]
+    m1 = populated_group["member1_id"]
+    m2 = populated_group["member2_id"]
+
     expense_data = {
         "description": "Dinner",
         "amount": 100,
-        "paid_by": res.json()["member"]["id"],
+        "paid_by": m1,
         "split_type": "percentage",
         "splits": [
-            {"member_id": res.json()["member"]["id"], "value": 100.00}
+            {"member_id": m1, "value": 60.00},
+            {"member_id": m2, "value": 40.00}
         ]
     }
-    
-    res = await client.post(f"/api/groups/{group_id}/expenses", json=expense_data, headers=token_headers)
+
+    res = client.post(f"/api/groups/{group_id}/expenses", json=expense_data, cookies=cookies)
     assert res.status_code == 200
 

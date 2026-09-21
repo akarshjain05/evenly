@@ -1,97 +1,7 @@
 import os
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_app.db"
-os.environ["CORS_ORIGINS"] = "http://localhost:3000"
-os.environ["JWT_ALGORITHM"] = "HS256"
-os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "43200"
-os.environ["COOKIE_MAX_AGE_SEC"] = "2592000"
-os.environ["RATE_LIMIT_MAX_ATTEMPTS"] = "100"
-os.environ["RATE_LIMIT_WINDOW_SECONDS"] = "60"
-os.environ["VAPID_CLAIMS_EMAIL"] = "test@example.com"
-os.environ["JWT_SECRET_KEY"] = "test-secret-key"
-os.environ['TESTING'] = '1'
-import pytest
-from app import rate_limiter
-
-@pytest.fixture(autouse=True)
-def clear_rate_limits():
-    rate_limiter._auth_attempts.clear()
-    rate_limiter._invite_attempts.clear()
-
-import os
-from fastapi.testclient import TestClient
-import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
-from app.main import app
-from app.database import Base, get_db
-from app import models
-
-# Use a file-based SQLite database so Alembic can run without losing the StaticPool
-import os
-import atexit
-
-TEST_DB_PATH = "./test_app.db"
-if os.path.exists(TEST_DB_PATH):
-    os.remove(TEST_DB_PATH)
-
-def cleanup():
-    if os.path.exists(TEST_DB_PATH):
-        try:
-            os.remove(TEST_DB_PATH)
-        except:
-            pass
-atexit.register(cleanup)
-
-SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
-
-import app.database as app_db
-app_db.engine = engine
-
-from alembic import command
-from alembic.config import Config
-alembic_cfg = Config("alembic.ini")
-command.upgrade(alembic_cfg, "head")
-
-
-async def override_get_db():
-    async with TestingSessionLocal() as db:
-        yield db
-
-app.dependency_overrides[get_db] = override_get_db
-
-client = TestClient(app)
-
-original_request = client.request
-def secure_request(method, url, **kwargs):
-    if method.upper() in ["POST", "PUT", "DELETE", "PATCH"]:
-        if not client.cookies.get("csrf_token"):
-            client.get("/") # trigger middleware to set cookie
-        headers = kwargs.get("headers") or {}
-        csrf_token = client.cookies.get("csrf_token")
-        if csrf_token and "X-CSRF-Token" not in headers:
-            headers["X-CSRF-Token"] = csrf_token
-            # Merge cookies so test doesn't overwrite it
-            req_cookies = kwargs.get("cookies") or {}
-            req_cookies["csrf_token"] = csrf_token
-            kwargs["cookies"] = req_cookies
-        kwargs["headers"] = headers
-    return original_request(method, url, **kwargs)
-client.request = secure_request
-
-
-
-@pytest.fixture(autouse=True)
-def clear_database():
-    async def _clear():
-        async with engine.begin() as conn:
-            for table in reversed(Base.metadata.sorted_tables):
-                await conn.execute(table.delete())
-    asyncio.run(_clear())
-    yield
-
-def test_auth_and_group_flow():
+import logging
+from unittest.mock import patch
+def test_auth_and_group_flow(client):
     # 1. Register a new user
     res = client.post("/api/auth/register", json={"name": "Test User", "email": "test@example.com", "password": "password123"})
     assert res.status_code == 200
@@ -137,11 +47,11 @@ def test_auth_and_group_flow():
     assert len(transactions) == 1
     assert float(transactions[0]["amount"]) == 15.0
 
-def test_invalid_token():
+def test_invalid_token(client):
     res = client.get("/api/users/me/groups", headers={"Authorization": "Bearer invalidtoken"})
     assert res.status_code == 401
 
-def test_unauthorized_expense_delete():
+def test_unauthorized_expense_delete(client):
     # Setup test
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice2@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
@@ -174,7 +84,7 @@ def test_unauthorized_expense_delete():
     del_res = client.delete(f"/api/groups/{group_id}/expenses/{expense_id}", cookies=h2)
     assert del_res.status_code == 403
 
-def test_leave_group_with_balance():
+def test_leave_group_with_balance(client):
     # Setup
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice3@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
@@ -205,7 +115,7 @@ def test_leave_group_with_balance():
     assert leave_res.status_code == 400
     assert "unsettled balance" in leave_res.json()["detail"]
 
-def test_csv_export():
+def test_csv_export(client):
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice4@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
     h1 = {"access_token": token1}
@@ -251,7 +161,7 @@ def test_csv_export():
     assert "Settlement,-,Settlement,50.00,Bob,Paid to: Alice" in content_text
 
 
-def test_edit_expense_permissions():
+def test_edit_expense_permissions(client):
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_edit@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
     h1 = {"access_token": token1}
@@ -283,7 +193,7 @@ def test_edit_expense_permissions():
     edit_res = client.put(f"/api/groups/{group_id}/expenses/{expense_id}", json={"description": "Hacked Lunch", "amount": 100.0, "paid_by": alice_id, "split_type": "equal", "participant_ids": [alice_id]}, cookies=h2)
     assert edit_res.status_code == 403
 
-def test_invalid_group_or_member():
+def test_invalid_group_or_member(client):
     res = client.post("/api/auth/register", json={"name": "Test User", "email": "invalid_test@example.com", "password": "password123"})
     token = res.cookies.get("access_token")
     headers = {"access_token": token}
@@ -292,7 +202,7 @@ def test_invalid_group_or_member():
     res_get = client.get("/api/groups/nonexistent_group_id", cookies=headers)
     assert res_get.status_code in [403, 404]
     
-def test_notifications_subscribe():
+def test_notifications_subscribe(client):
     res = client.post("/api/auth/register", json={"name": "Test User", "email": "notify_test@example.com", "password": "password123"})
     token = res.cookies.get("access_token")
     headers = {"access_token": token}
@@ -305,14 +215,14 @@ def test_notifications_subscribe():
     }, cookies=headers)
     assert sub_res.status_code == 200
 
-def test_vapid_public():
+def test_vapid_public(client):
     os.environ["VAPID_PUBLIC_KEY"] = "test_vapid_key"
     res = client.get("/api/notifications/vapid-public")
     assert res.status_code == 200
     assert res.json()["public_key"] == "test_vapid_key"
 
 
-def test_group_edit_and_delete_permissions():
+def test_group_edit_and_delete_permissions(client):
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_grp@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
     h1 = {"access_token": token1}
@@ -342,7 +252,7 @@ def test_group_edit_and_delete_permissions():
     del_res2 = client.delete(f"/api/groups/{group_id}", cookies=h1)
     assert del_res2.status_code == 200
 
-def test_settlement_permissions():
+def test_settlement_permissions(client):
     res1 = client.post("/api/auth/register", json={"name": "Test User", "email": "alice_stl@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
     h1 = {"access_token": token1}
@@ -403,7 +313,7 @@ def test_settlement_permissions():
 
 
 
-def test_edit_expense_balances():
+def test_edit_expense_balances(client):
     client.post("/api/auth/register", json={"email": "u1_edit@test.com", "password": "password123", "name": "U1"})
     l1 = client.post("/api/auth/login", json={"email": "u1_edit@test.com", "password": "password123"})
     c1 = {"access_token": l1.cookies.get("access_token")}
@@ -453,7 +363,7 @@ def test_edit_expense_balances():
     assert float(m1_bal2) == 100.0
 
 
-def test_edit_settlement_balances():
+def test_edit_settlement_balances(client):
     client.post("/api/auth/register", json={"email": "u1_set@test.com", "password": "password123", "name": "U1"})
     l1 = client.post("/api/auth/login", json={"email": "u1_set@test.com", "password": "password123"})
     c1 = {"access_token": l1.cookies.get("access_token")}
@@ -495,7 +405,7 @@ def test_edit_settlement_balances():
     assert float(m1_bal2) == -100.0
 
 
-def test_reconcile_ledger():
+def test_reconcile_ledger(client):
     res1 = client.post("/api/auth/register", json={"name": "Reconcile Admin", "email": "admin_recon@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
     h1 = {"access_token": token1}
@@ -539,7 +449,7 @@ def test_reconcile_ledger():
     recon_res2 = client.post(f"/api/groups/{group_id}/reconcile", cookies=h2)
     assert recon_res2.status_code == 403
 
-def test_cross_group_settlement_update_validation():
+def test_cross_group_settlement_update_validation(client):
     # Setup Group A with users Alice and Bob
     res1 = client.post("/api/auth/register", json={"name": "Alice", "email": "alice_cross@example.com", "password": "password123"})
     token1 = res1.cookies.get("access_token")
@@ -582,7 +492,7 @@ def test_cross_group_settlement_update_validation():
 
 
 
-def test_critical_percentage_splits():
+def test_critical_percentage_splits(client):
     # Setup group
     res = client.post("/api/auth/register", json={"name": "Payer", "email": "payer@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}
@@ -617,7 +527,7 @@ def test_critical_percentage_splits():
     # M2 paid 0, owes 66.67 -> net -66.67
     assert float(balances[m2]) == -66.67
 
-def test_critical_logout_cookie():
+def test_critical_logout_cookie(client):
     res = client.post("/api/auth/register", json={"name": "Logout", "email": "logout@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}
     # Logout
@@ -627,7 +537,7 @@ def test_critical_logout_cookie():
     cookies = res2.headers.get_list("set-cookie")
     assert any("access_token=" in c and "Max-Age=0" in c for c in cookies)
 
-def test_critical_group_preview_security():
+def test_critical_group_preview_security(client):
     res = client.post("/api/auth/register", json={"name": "Preview", "email": "preview@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}
     g = client.post("/api/groups", json={"name": "Preview Group"}, cookies=h1).json()
@@ -645,7 +555,7 @@ def test_critical_group_preview_security():
 
 import threading
 
-def test_critical_concurrent_expense_creation():
+def test_critical_concurrent_expense_creation(client):
     # Setup group
     res = client.post("/api/auth/register", json={"name": "C1", "email": "c1@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}
@@ -684,29 +594,34 @@ def test_critical_concurrent_expense_creation():
 
 import logging
 
-def test_critical_push_notification_logging(caplog):
-    caplog.set_level(logging.WARNING)
-    # create group with 2 members
-    res = client.post("/api/auth/register", json={"name": "Push1", "email": "push1@example.com", "password": "password123"})
+@patch("app.services.group_service.send_web_push")
+def test_critical_push_notification_logging(mock_send_web_push, client):
+    res = client.post("/api/auth/register", json={"name": "Push1", "email": "push1_de95c89c@example.com", "password": "password123"})
     h1 = {"access_token": res.cookies.get("access_token")}
     g = client.post("/api/groups", json={"name": "Push Test", "your_name": "Push1"}, cookies=h1).json()
     group_id = g["group"]["id"]
     push1_id = g["member"]["id"]
     
-    res2 = client.post("/api/auth/register", json={"name": "Push2", "email": "push2@example.com", "password": "password123"})
+    res2 = client.post("/api/auth/register", json={"name": "Push2", "email": "push2_de95c89c@example.com", "password": "password123"})
     h2 = {"access_token": res2.cookies.get("access_token")}
+    
+    # We must mock push_subscription being created so the backend knows this user has a device!
+    client.post("/api/notifications/subscribe", json={"endpoint": "https://push.com/abc", "keys": {"p256dh": "p256", "auth": "auth"}}, cookies=h2)
+    
+    
+    
+    import jwt; push2_user_id = jwt.decode(h2["access_token"], options={"verify_signature": False})["sub"]
     push2_id = client.post(f"/api/groups/by-code/{g['group']['invite_code']}/join", json={"name": "Push2"}, cookies=h2).json()["member"]["id"]
     
-    # Adding an expense triggers a push notification to push2
     expense_payload = {
         "description": "Trigger Push",
-        "amount": 10,
+        "amount": 10.0,
         "paid_by": push1_id,
         "split_type": "equal",
         "participant_ids": [push1_id, push2_id]
     }
     client.post(f"/api/groups/{group_id}/expenses", json=expense_payload, cookies=h1)
     
-    # Check if the warning was logged since VAPID_PRIVATE_KEY is not set in tests
-    # Assert removed because BackgroundTasks caplog capture in Starlette TestClient is flaky
-    assert True
+    mock_send_web_push.assert_called_once()
+    args = mock_send_web_push.call_args[0]
+    assert push2_user_id in args[0]
