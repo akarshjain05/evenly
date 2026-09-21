@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
@@ -10,16 +11,29 @@ import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 // 
 
 
-export default function SettleUpModal({ group }: { group: GroupDetailResponse }) {
+export default function SettleUpModal({
+  group }: { group: GroupDetailResponse }) {
+  const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   const { isSettleUpOpen, closeSettleUp, openSettleUp } = useUIStore();
 
   
   
-  const [fromMember, setFromMember] = useState(group.members[0]?.id || '');
+  const [fromMember, setFromMember] = useState('');
   const [toMember, setToMember] = useState(group.members.length > 1 ? group.members[1].id : '');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isSettleUpOpen) {
+      setAmount('');
+      setError('');
+      const me = group.members.find(m => m.user_id === user?.id)?.id || group.members[0]?.id || '';
+      setFromMember(me);
+      setToMember(group.members.find(m => m.id !== me)?.id || '');
+    }
+  }, [isSettleUpOpen, group.members, user?.id]);
+
   
   const mutation = useLedgerMutation({
     mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
@@ -62,7 +76,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
             <Select 
               value={fromMember} 
               onChange={setFromMember} 
-              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+              options={group.members.map(m => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
 
@@ -71,7 +85,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
             <Select 
               value={toMember} 
               onChange={setToMember} 
-              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+              options={group.members.map(m => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
 

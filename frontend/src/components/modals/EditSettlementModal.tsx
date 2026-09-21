@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
@@ -15,7 +16,9 @@ interface Props {
   onClose: () => void;
 }
 
-export default function EditSettlementModal({ settlement, group, onClose }: Props) {
+export default function EditSettlementModal({
+  settlement, group, onClose }: Props) {
+  const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
   
@@ -71,7 +74,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             <Select
               value={fromMember}
               onChange={setFromMember}
-              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.name }))}
+              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
 
@@ -80,7 +83,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             <Select
               value={toMember}
               onChange={setToMember}
-              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.name }))}
+              options={group.members.map((m: GroupDetailResponse['members'][0]) => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
 

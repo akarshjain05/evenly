@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
@@ -15,7 +16,9 @@ interface Props {
   onClose: () => void;
 }
 
-export default function EditExpenseModal({ expense, group, onClose }: Props) {
+export default function EditExpenseModal({
+  expense, group, onClose }: Props) {
+  const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
 
@@ -85,7 +88,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
             <Select
               value={paidBy}
               onChange={setPaidBy}
-              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+              options={group.members.map(m => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
           
@@ -103,7 +106,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
                       else setParticipants(participants.filter(id => id !== m.id));
                     }}
                   />
-                  <span className="text-[14px] font-medium">{m.name}</span>
+                  <span className="text-[14px] font-medium">{m.user_id === user?.id ? 'You' : m.name}</span>
                 </label>
               ))}
             </div>

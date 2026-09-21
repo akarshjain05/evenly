@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
@@ -10,7 +11,9 @@ import { useLedgerMutation } from '../../hooks/useLedgerMutation';
 //
 
 
-export default function AddExpenseModal({ group }: { group: GroupDetailResponse }) {
+export default function AddExpenseModal({
+  group }: { group: GroupDetailResponse }) {
+  const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   const { isAddExpenseOpen, closeAddExpense, openAddExpense } = useUIStore();
 
@@ -18,9 +21,20 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(group.members[0]?.id || '');
+  const [paidBy, setPaidBy] = useState('');
   const [participants, setParticipants] = useState<string[]>(group.members.map(m => m.id));
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isAddExpenseOpen) {
+      setDescription('');
+      setAmount('');
+      setError('');
+      setPaidBy(group.members.find(m => m.user_id === user?.id)?.id || group.members[0]?.id || '');
+      setParticipants(group.members.map(m => m.id));
+    }
+  }, [isAddExpenseOpen, group.members, user?.id]);
+
   
   const mutation = useLedgerMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
@@ -80,7 +94,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
             <Select 
               value={paidBy} 
               onChange={setPaidBy} 
-              options={group.members.map(m => ({ value: m.id, label: m.name }))}
+              options={group.members.map(m => ({ value: m.id, label: m.user_id === user?.id ? 'You' : m.name }))}
             />
           </div>
           
@@ -98,7 +112,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
                       else setParticipants(participants.filter(id => id !== m.id));
                     }}
                   />
-                  <span className="text-[14px] font-medium">{m.name}</span>
+                  <span className="text-[14px] font-medium">{m.user_id === user?.id ? 'You' : m.name}</span>
                 </label>
               ))}
             </div>
