@@ -1,3 +1,4 @@
+import urllib.parse
 import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Query
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
@@ -273,7 +274,7 @@ async def export_csv(
             output.seek(0)
             output.truncate(0)
 
-    filename = f"{group.name.replace(' ', '_')}_export.csv"
+    filename = f"{urllib.parse.quote(group.name.replace(' ', '_'))}_export.csv"
     return StreamingResponse(
         iter_csv(),
         media_type="text/csv",

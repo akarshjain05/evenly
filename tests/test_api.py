@@ -215,9 +215,9 @@ def test_notifications_subscribe(client):
     }, cookies=headers)
     assert sub_res.status_code == 200
 
-def test_vapid_public(client):
+def test_vapid_public(client, auth_user):
     os.environ["VAPID_PUBLIC_KEY"] = "test_vapid_key"
-    res = client.get("/api/notifications/vapid-public")
+    res = client.get("/api/notifications/vapid-public", cookies=auth_user["cookies"])
     assert res.status_code == 200
     assert res.json()["public_key"] == "test_vapid_key"
 

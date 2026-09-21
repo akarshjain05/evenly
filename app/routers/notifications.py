@@ -32,6 +32,6 @@ async def subscribe_push(
     return {"ok": True}
 
 @router.get("/vapid-public")
-def get_vapid_public():
+def get_vapid_public(user: models.User = Depends(deps.get_current_user)):
     return {"public_key": os.environ.get("VAPID_PUBLIC_KEY")}
 

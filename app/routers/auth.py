@@ -33,7 +33,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(key="csrf_token", value=csrf_token, httponly=False, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
-    logger.info(f"User {user.id} ({user.email}) logged in successfully")
+    logger.info(f"User {user.id} logged in successfully")
     return {"user": {"email": user.email}}
 
 @router.post("/login")
@@ -47,11 +47,11 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(key="csrf_token", value=csrf_token, httponly=False, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
-    logger.info(f"User {user.id} ({user.email}) logged in successfully")
+    logger.info(f"User {user.id} logged in successfully")
     return {"user": {"email": user.email}}
 
 @router.post("/logout")
-async def logout(request: Request, response: Response):
+async def logout(request: Request, response: Response, _=Depends(deps.verify_csrf)):
     token = request.cookies.get("access_token")
     if token:
         import jwt
