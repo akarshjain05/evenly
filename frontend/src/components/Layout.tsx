@@ -1,3 +1,4 @@
+import { useOfflinePrefetcher } from '../hooks/useOfflinePrefetcher';
 import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +10,7 @@ import { Skeleton } from './Skeleton';
 import { useUIStore } from '../store/uiStore';
 
 export default function Layout() {
+  useOfflinePrefetcher();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
