@@ -26,8 +26,13 @@ export default function Layout() {
     return <Navigate to="/login" replace />;
   }
 
+  // If the server fails to return a valid user identity (e.g. 500 crashes), do not fall back to a mock identity.
+  if (!isLoadingUser && !user) {
+    throw new Error("CRITICAL: Failed to load authenticated user identity from server. Halting application.");
+  }
+
   // Use explicitly provided name, or derive from email
-  const displayName = user?.name ? user.name : (user?.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : 'User');
+  const displayName = user.name ? user.name : (user.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : '');
   const initials = displayName.substring(0, 2).toUpperCase();
 
   return (
