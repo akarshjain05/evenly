@@ -282,3 +282,24 @@ async def process_and_update_settlement(group_id: str, settlement_id: str, paylo
     
     await balances.apply_settlement(db, settlement)
     await db.commit()
+
+
+async def process_and_update_expense(expense: models.Expense, payload: schemas.ExpenseCreate, group_id: str, db: AsyncSession):
+    # Revert the old expense effects
+    await balances.revert_expense(db, expense)
+    
+    # Delete old splits
+    from sqlalchemy import delete
+    await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
+    
+    # Update expense record
+    expense.description = payload.description
+    expense.amount = payload.amount
+    expense.paid_by = payload.paid_by
+    expense.category = payload.category
+    expense.split_type = payload.split_type
+    
+    # Process new splits and apply new effects
+    await balances.process_expense_splits(db, group_id, expense, payload)
+    await db.flush()
+    await balances.apply_expense(db, expense)

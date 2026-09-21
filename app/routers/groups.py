@@ -55,22 +55,13 @@ async def delete_group(group_id: str, member: models.Member = Depends(deps.get_c
     if not member.is_admin:
         raise HTTPException(status_code=403, detail="Only tab creators can delete the tab")
     
-    from sqlalchemy import delete
+    # Let SQLAlchemy's cascade="all, delete-orphan" handle the heavy lifting
+    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
+    group = result.scalars().first()
+    if group:
+        await db.delete(group)
+        await db.commit()
     
-    # 1. Delete all expense splits associated with the group's expenses
-    expense_ids_res = await db.execute(select(models.Expense.id).filter(models.Expense.group_id == group_id))
-    expense_ids = expense_ids_res.scalars().all()
-    if expense_ids:
-        await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id.in_(expense_ids)))
-        
-    # 2. Delete all expenses, settlements, and members
-    await db.execute(delete(models.Expense).filter(models.Expense.group_id == group_id))
-    await db.execute(delete(models.Settlement).filter(models.Settlement.group_id == group_id))
-    await db.execute(delete(models.Member).filter(models.Member.group_id == group_id))
-    
-    # 3. Finally delete the group itself
-    await db.execute(delete(models.Group).filter(models.Group.id == group_id))
-    await db.commit()
     return {"ok": True}
 
 @router.get("/{group_id}/activity")
@@ -121,19 +112,7 @@ async def update_expense(
     if not member.is_admin and expense.created_by_user_id != member.user_id and expense.paid_by != member.id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
     
-    await balances.revert_expense(db, expense)
-    from sqlalchemy import delete
-    await db.execute(delete(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
-    
-    expense.description = payload.description
-    expense.amount = payload.amount
-    expense.paid_by = payload.paid_by
-    expense.category = payload.category
-    expense.split_type = payload.split_type
-    
-    await balances.process_expense_splits(db, group_id, expense, payload)
-    await db.flush()
-    await balances.apply_expense(db, expense)
+    await group_service.process_and_update_expense(expense, payload, group_id, db)
     await db.commit()
     return {"ok": True}
 
