@@ -111,6 +111,9 @@ async def update_expense(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
+    # Lock member balances first to prevent deadlocks and race conditions
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    
     result = await db.execute(select(models.Expense).filter(models.Expense.id == expense_id, models.Expense.group_id == group_id).with_for_update())
     expense = result.scalars().first()
     if not expense:
@@ -141,6 +144,9 @@ async def delete_expense(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
+    # Lock member balances first to prevent deadlocks and race conditions
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    
     result = await db.execute(select(models.Expense).filter(models.Expense.id == expense_id, models.Expense.group_id == group_id).with_for_update())
     expense = result.scalars().first()
     if not expense:
@@ -203,6 +209,7 @@ async def delete_settlement(
     member: models.Member = Depends(deps.get_current_member),
     db: AsyncSession = Depends(get_db),
 ):
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
     settlement = result.scalars().first()
     if not settlement:

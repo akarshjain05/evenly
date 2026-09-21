@@ -86,6 +86,9 @@ async def get_group_details(group_id: str, db: AsyncSession):
 
 
 async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
+    # Lock member balances to serialize transactions
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    
     expense = models.Expense(
         group_id=group_id,
         description=payload.description,
@@ -110,7 +113,8 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
         background_tasks.add_task(send_web_push, other_user_ids, group.name, f"{member.name} added a new expense: {payload.description}")
 
 async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
-    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
+    # Lock member balances to serialize transactions
+    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     valid_ids = {m.id for m in result.scalars().all()}
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
