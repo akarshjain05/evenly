@@ -23,9 +23,15 @@ const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
   return data;
 };
 
-const fetchGroupActivity = async (id: string, pageParam?: string): Promise<ActivityResponse[]> => {
+const fetchGroupActivity = async (id: string, pageParam?: string): Promise<{items: ActivityResponse[], next_cursor: string | null}> => {
   const url = pageParam ? `groups/${id}/activity?last_seen=${encodeURIComponent(pageParam)}` : `groups/${id}/activity`;
   const { data } = await apiClient.get(url);
+  // Support both the new cursor-paginated object and the legacy raw array for backwards compatibility
+  if (Array.isArray(data)) {
+    const hasMore = data.length >= 20;
+    const next_cursor = hasMore ? `${data[data.length - 1].created_at}|${data[data.length - 1].id}` : null;
+    return { items: data, next_cursor };
+  }
   return data;
 };
 
@@ -170,10 +176,8 @@ export default function GroupView() {
   } = useInfiniteQuery({
     queryKey: ['group-activity', id],
     queryFn: ({ pageParam }) => fetchGroupActivity(id!, pageParam as string | undefined),
-    getNextPageParam: (lastPage) => {
-      if (lastPage.length < 50) return undefined;
-      const lastItem = lastPage[lastPage.length - 1];
-      return `${lastItem.created_at}|${lastItem.id}`;
+    getNextPageParam: (lastPage: {items: ActivityResponse[], next_cursor: string | null}) => {
+      return lastPage.next_cursor || undefined;
     },
     enabled: !!id,
     initialPageParam: undefined as string | undefined,
@@ -195,7 +199,7 @@ export default function GroupView() {
     }
   }, [deleteMutation, showConfirm]);
 
-  const activities = (activityData?.pages.flat() as ActivityResponse[]) || [];
+  const activities = (activityData?.pages.flatMap(p => p.items) as ActivityResponse[]) || [];
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
   if (groupError) {
