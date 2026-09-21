@@ -77,7 +77,10 @@ async def get_activity(
     member: models.Member = Depends(deps.get_current_member), 
     db: AsyncSession = Depends(get_db)
 ):
-    return await activity_service.get_activity_list(group_id, limit, last_seen, db)
+    items = await activity_service.get_activity_list(group_id, limit, last_seen, db)
+    has_more = len(items) == limit
+    next_cursor = f"{items[-1]['created_at'].isoformat()}|{items[-1]['id']}" if items else None
+    return {"items": items, "next_cursor": next_cursor if has_more else None}
 
 # ---------------------------------------------------------------------------
 # Expense endpoints
