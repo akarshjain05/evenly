@@ -11,7 +11,7 @@ from app.database import get_db
 from app.rate_limiter import rate_limit_auth
 
 # 7 days in seconds, matching the JWT expiration
-COOKIE_MAX_AGE_SEC = int(os.environ["COOKIE_MAX_AGE_SEC"])
+COOKIE_MAX_AGE_SEC = int(os.environ.get("COOKIE_MAX_AGE_SEC", "2592000"))
 
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])

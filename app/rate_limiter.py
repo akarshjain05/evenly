@@ -23,8 +23,8 @@ def _get_client_ip(request: Request) -> str:
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = int(os.environ["RATE_LIMIT_MAX_ATTEMPTS"])
-WINDOW_SECONDS = int(os.environ["RATE_LIMIT_WINDOW_SECONDS"])
+MAX_ATTEMPTS = int(os.environ.get("RATE_LIMIT_MAX_ATTEMPTS", "100"))
+WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
 # ---------------------------------------------------------------------------
 # Redis backend
@@ -39,7 +39,7 @@ def _get_redis():
     if _redis_client is None:
         import redis
         _redis_client = redis.from_url(
-            os.environ.get("REDIS_URL") or os.environ["KV_URL"], decode_responses=True
+            os.environ.get("REDIS_URL") or os.environ.get("KV_URL"), decode_responses=True
         )
     return _redis_client
 

@@ -53,7 +53,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled error processing {request.method} {request.url}")
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
-cors_origins_str = os.environ["CORS_ORIGINS"]
+cors_origins_str = os.environ.get("CORS_ORIGINS", "*")
 origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 app.add_middleware(
