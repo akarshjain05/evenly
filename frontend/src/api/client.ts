@@ -37,7 +37,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => {
     // Prevent Vercel SPA routing from silently returning 200 OK HTML pages for missing API routes
-    if (typeof response.data === 'string' && response.headers['content-type']?.includes('text/html')) {
+    if (typeof response.data === 'string' && String(response.headers['content-type'] || '').includes('text/html')) {
         return Promise.reject({ response: { status: 500, data: { detail: "API route not found (returned HTML)" } } });
     }
     return response;
