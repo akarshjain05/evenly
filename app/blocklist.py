@@ -7,6 +7,16 @@ logger = logging.getLogger(__name__)
 
 _memory_blocklist = {}
 
+if not _use_redis and os.getenv("VERCEL") == "1":
+    raise RuntimeError(
+        "CRITICAL SECURITY MISCONFIGURATION: "
+        "You are deploying to Vercel (serverless) without REDIS_URL. "
+        "The in-memory JWT blocklist is useless in serverless environments, "
+        "leaving your application vulnerable to hijacked sessions even after logout. "
+        "Please configure Redis (e.g. Upstash) and set REDIS_URL."
+    )
+
+
 def block_token(jti: str, exp: int):
     """Add a token JTI to the blocklist until it naturally expires."""
     if _use_redis:
