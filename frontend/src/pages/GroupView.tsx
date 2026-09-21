@@ -225,8 +225,8 @@ export default function GroupView() {
 
   const activities = (activityData?.pages.flatMap(p => p.items) as ActivityResponse[]) || [];
 
-  if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
-  if (groupError) {
+  if ((isLoadingGroup && !group) || (isLoadingActivity && !activityData)) return <GroupViewSkeleton />;
+  if (groupError && !group) {
     const axiosErr = groupError as import('axios').AxiosError<{ userMessage?: string; detail?: string }>;
     return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">{(axiosErr?.response?.data?.userMessage || axiosErr?.response?.data?.detail) || "Failed to load tab"}</div>;
   }

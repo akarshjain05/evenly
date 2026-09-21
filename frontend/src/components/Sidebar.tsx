@@ -25,7 +25,7 @@ export default function Sidebar() {
         
 
         {isLoading && <SidebarSkeleton />}
-        {error && <div className="text-sm text-[#c81e1e] px-[12px]">{((error as any)?.response?.data?.userMessage || (error as any)?.response?.data?.detail) || "Failed to load tabs"}</div>}
+        {(error && !groups) && <div className="text-sm text-[#c81e1e] px-[12px]">{((error as any)?.response?.data?.userMessage || (error as any)?.response?.data?.detail) || "Failed to load tabs"}</div>}
         
         <ul className="space-y-1">
           {groups?.map((m) => (
