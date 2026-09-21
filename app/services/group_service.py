@@ -36,6 +36,7 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
         
+
     from sqlalchemy import func
     member_count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
     if member_count_res.scalar() >= 50:
