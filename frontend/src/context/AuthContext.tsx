@@ -33,13 +33,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await apiClient.post('auth/logout');
+      // Only clear client state if the server successfully revokes the HttpOnly session cookie
+      setAuthStatus(false);
+      setIsAuthenticated(false);
+      queryClient.clear();
     } catch (e) {
       console.warn('Logout failed to cleanly clear server session:', e);
-      useUIStore.getState().showAlert('Logout Error', 'Failed to securely clear session from the server.');
+      useUIStore.getState().showAlert('Logout Error', 'Failed to securely clear session from the server. For your security, you are still logged in.');
+      throw e;
     }
-    setAuthStatus(false);
-    setIsAuthenticated(false);
-    queryClient.clear();
   };
 
   return (

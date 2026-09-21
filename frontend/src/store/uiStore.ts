@@ -112,5 +112,13 @@ export const useUIStore = create<UIState>((set, get) => ({
     });
   },
   
-  closeDialog: () => set({ dialog: { isOpen: false, config: null, resolve: null } }),
+  closeDialog: () => {
+    const dialog = get().dialog;
+    if (dialog.resolve) {
+      if (dialog.config?.type === 'confirm') dialog.resolve(false);
+      else if (dialog.config?.type === 'prompt') dialog.resolve(null);
+      else dialog.resolve();
+    }
+    set({ dialog: { isOpen: false, config: null, resolve: null } });
+  },
 }));

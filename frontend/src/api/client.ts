@@ -63,16 +63,14 @@ apiClient.interceptors.response.use(
     // Generic error message sanitizer for UI consumption (preventing internal code leaks)
     if (error.response?.data?.detail) {
       const d = error.response.data.detail;
+      const status = error.response.status;
       if (typeof d === 'string') {
-        const lower = d.toLowerCase();
-        if (lower.includes('csrf')) {
+        if (status === 403 && d.toLowerCase().includes('csrf')) {
           error.response.data.userMessage = "A secure connection error occurred. Please refresh the page and try again.";
-        } else if (lower.includes('internal server error')) {
+        } else if (status >= 500) {
           error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
-        } else if ((lower.includes('validation') || lower.includes('type error')) && !lower.includes('email') && !lower.includes('password')) {
+        } else if (status === 422) {
           error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
-        } else if (lower.includes('sqlite') || lower.includes('database') || lower.includes('unreachable')) {
-          error.response.data.userMessage = "A system error occurred. Please try again.";
         } else {
           error.response.data.userMessage = d;
         }

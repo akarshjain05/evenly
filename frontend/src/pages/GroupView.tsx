@@ -1,5 +1,5 @@
 import { formatCurrency } from '../utils/currency';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '../hooks/useCurrentUser';
@@ -29,6 +29,77 @@ const fetchGroupActivity = async (id: string, pageParam?: string): Promise<Activ
   return data;
 };
 
+
+
+const ActivityItem = React.memo(({ 
+  item, 
+  isOpen, 
+  onToggle, 
+  onEdit, 
+  onDelete,
+  getDisplayName 
+}: any) => {
+  return (
+    <div className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
+      <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
+        <div className="space-y-1 min-w-0 flex-1">
+          <h3 className="font-medium text-ink m-0 truncate">
+            {item.type === 'expense' 
+              ? item.description 
+              : `${getDisplayName(item.from_member, item.from_name)} paid ${getDisplayName(item.to_member, item.to_name)}`
+            }
+          </h3>
+          <p className="text-sm text-ink-soft m-0 truncate">
+            {item.type === 'expense' ? (
+              <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
+            ) : (
+              'Settlement'
+            )}
+          </p>
+        </div>
+        
+        <div className="flex items-start gap-1 shrink-0">
+          <div className="text-right space-y-1">
+            <div className={`font-semibold leading-none ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
+              {formatCurrency(item.amount)}
+            </div>
+            <div className="text-[13px] text-ink-soft leading-none">
+              {new Date(item.created_at).toLocaleDateString()}
+            </div>
+          </div>
+          
+            <div className="relative -mt-0.5 -mr-1.5">
+              <button
+                onClick={() => onToggle(item.id)}
+                className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+              >
+                <MoreVertical size={16} />
+              </button>
+              {isOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => onToggle(null)} />
+                  <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
+                    >
+                      <Pencil size={13} /> Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete(item)}
+                      className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
@@ -98,6 +169,22 @@ export default function GroupView() {
     initialPageParam: undefined as string | undefined,
   });
 
+  const handleToggleMenu = React.useCallback((id: string | null) => {
+    setOpenMenuId(prev => prev === id ? null : id);
+  }, []);
+
+  const handleEditItem = React.useCallback((item: ActivityResponse) => {
+    setOpenMenuId(null);
+    setEditingExpense(item);
+  }, []);
+
+  const handleDeleteItem = React.useCallback(async (item: ActivityResponse) => {
+    setOpenMenuId(null);
+    if (await showConfirm('Delete Activity', 'Are you sure you want to delete this?', { danger: true })) {
+      deleteMutation.mutate(item);
+    }
+  }, [deleteMutation, showConfirm]);
+
   const activities = (activityData?.pages.flat() as ActivityResponse[]) || [];
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
@@ -107,72 +194,19 @@ export default function GroupView() {
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];
 
-  const handleDeleteActivity = async (item: ActivityResponse) => {
-    setOpenMenuId(null);
-    if (await showConfirm('Delete Activity', 'Are you sure you want to delete this?', { danger: true })) {
-      deleteMutation.mutate(item);
-    }
-  };
+
+
 
   const renderActivityItem = (item: ActivityResponse) => (
-                <div key={item.id} className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
-                  <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <h3 className="font-medium text-ink m-0 truncate">
-                        {item.type === 'expense' 
-                          ? item.description 
-                          : `${getDisplayName(item.from_member, item.from_name)} paid ${getDisplayName(item.to_member, item.to_name)}`
-                        }
-                      </h3>
-                      <p className="text-sm text-ink-soft m-0 truncate">
-                        {item.type === 'expense' ? (
-                          <>Paid by <span className="font-medium">{getDisplayName(item.paid_by, item.paid_by_name)}</span></>
-                        ) : (
-                          'Settlement'
-                        )}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-start gap-1 shrink-0">
-                      <div className="text-right space-y-1">
-                        <div className={`font-semibold leading-none ${item.type === 'settlement' ? 'text-primary' : 'text-ink'}`}>
-                          {formatCurrency(item.amount)}
-                        </div>
-                        <div className="text-[13px] text-ink-soft leading-none">
-                          {new Date(item.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      
-                        <div className="relative -mt-0.5 -mr-1.5">
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
-                            className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {openMenuId === item.id && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                              <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
-                                <button
-                                  onClick={() => { setOpenMenuId(null); setEditingExpense(item); }}
-                                  className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
-                                >
-                                  <Pencil size={13} /> Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteActivity(item)}
-                                  className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
-                                >
-                                  <Trash2 size={13} /> Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                    </div>
-                  </div>
-                </div>
+    <ActivityItem 
+      key={item.id} 
+      item={item} 
+      isOpen={openMenuId === item.id} 
+      onToggle={handleToggleMenu} 
+      onEdit={handleEditItem} 
+      onDelete={handleDeleteItem} 
+      getDisplayName={getDisplayName} 
+    />
   );
 
   return (
