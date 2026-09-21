@@ -1,10 +1,8 @@
 import { formatCurrency } from '../utils/currency';
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '../hooks/useCurrentUser';
-import { apiClient } from '../api/client';
-import type { GroupDetailResponse, ActivityResponse } from '../types/api';
+import type { ActivityResponse } from '../types/api';
 import { useUIStore } from '../store/uiStore';
 import { Plus, Handshake, Trash2, Pencil, MoreVertical } from 'lucide-react';
 import AddExpenseModal from '../components/modals/AddExpenseModal';
@@ -12,29 +10,11 @@ import EditExpenseModal from '../components/modals/EditExpenseModal';
 import EditSettlementModal from '../components/modals/EditSettlementModal';
 import SettleUpModal from '../components/modals/SettleUpModal';
 import ShareModal from '../components/modals/ShareModal';
-import { useLedgerMutation } from '../hooks/useLedgerMutation';
-import { GroupViewSkeleton } from '../components/Skeleton';
 import { GroupHeader } from '../components/group/GroupHeader';
 import { BalancesSidebar } from '../components/group/BalancesSidebar';
 import { SettleSuggestions } from '../components/group/SettleSuggestions';
-
-const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
-  const { data } = await apiClient.get(`groups/${id}`);
-  return data;
-};
-
-const fetchGroupActivity = async (id: string, pageParam?: string): Promise<{items: ActivityResponse[], next_cursor: string | null}> => {
-  const url = pageParam ? `groups/${id}/activity?last_seen=${encodeURIComponent(pageParam)}` : `groups/${id}/activity`;
-  const { data } = await apiClient.get(url);
-  // Support both the new cursor-paginated object and the legacy raw array for backwards compatibility
-  if (Array.isArray(data)) {
-    const hasMore = data.length >= 20;
-    const next_cursor = hasMore ? `${data[data.length - 1].created_at}|${data[data.length - 1].id}` : null;
-    return { items: data, next_cursor };
-  }
-  return data;
-};
-
+import { useLocalGroup, useLocalActivity } from '../db/hooks';
+import { deleteExpense, deleteSettlement } from '../db/mutations';
 
 
 interface ActivityItemProps {
@@ -128,59 +108,21 @@ const ActivityItem = React.memo(({
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   
   const { openAddExpense, openSettleUp, showAlert, showConfirm } = useUIStore();
   
-  
-    
-  
-
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
-  
-  const deleteMutation = useLedgerMutation({
-    mutationFn: (item: ActivityResponse) => {
-      if (item.type === 'settlement') {
-        return apiClient.delete(`groups/${id}/settlements/${item.id}`);
-      }
-      return apiClient.delete(`groups/${id}/expenses/${item.id}`);
-    },
-    onSuccess: (_data, deletedItem) => {
-      // Pessimistically remove the item from the cache precisely when the backend finishes,
-      // so it disappears at the exact same millisecond the balances update!
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            items: page.items.filter((i: any) => i.id !== deletedItem.id)
-          }))
-        };
-      });
-    },
-    onError: (err: Error) => {
-      const axiosErr = err as import('axios').AxiosError<{ userMessage?: string }>;
-      showAlert('Error', axiosErr?.response?.data?.userMessage || 'Failed to delete activity.');
-    }
-  });
-
   const [editingSettlement, setEditingSettlement] = useState<ActivityResponse | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [activeActivityTab, setActiveActivityTab] = useState<'expenses' | 'settlements'>('expenses');
-
-
-  
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: user } = useCurrentUser();
-
-  const { data: group, isLoading: isLoadingGroup, error: groupError } = useQuery({
-    queryKey: ['group', id],
-    queryFn: () => fetchGroupDetails(id!),
-    enabled: !!id,
-  });
   
+  // Local-first: reads from Dexie (instant, reactive, offline)
+  const group = useLocalGroup(id);
+  const activities = useLocalActivity(id);
 
   const getDisplayName = useCallback((memberId: string | null | undefined, fallbackName: string | null | undefined) => {
     if (!memberId) return fallbackName || 'Unknown';
@@ -191,49 +133,41 @@ export default function GroupView() {
     return fallbackName || member?.name || 'Unknown';
   }, [group?.members, user]);
 
-  const { 
-    data: activityData, 
-    isLoading: isLoadingActivity,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage
-  } = useInfiniteQuery({
-    queryKey: ['group-activity', id],
-    queryFn: ({ pageParam }) => fetchGroupActivity(id!, pageParam as string | undefined),
-    getNextPageParam: (lastPage: {items: ActivityResponse[], next_cursor: string | null}) => {
-      return lastPage.next_cursor || undefined;
-    },
-    enabled: !!id,
-    initialPageParam: undefined as string | undefined,
-  });
-
   const handleToggleMenu = React.useCallback((id: string | null) => {
     setOpenMenuId(prev => prev === id ? null : id);
   }, []);
 
   const handleEditItem = React.useCallback((item: ActivityResponse) => {
     setOpenMenuId(null);
-    setEditingExpense(item);
+    if (item.type === 'settlement') {
+      setEditingSettlement(item);
+    } else {
+      setEditingExpense(item);
+    }
   }, []);
 
   const handleDeleteItem = React.useCallback(async (item: ActivityResponse) => {
     setOpenMenuId(null);
     if (await showConfirm('Delete Activity', 'Are you sure you want to delete this?', { danger: true })) {
-      deleteMutation.mutate(item);
+      setDeletingId(item.id);
+      try {
+        if (item.type === 'settlement') {
+          await deleteSettlement(id!, item.id);
+        } else {
+          await deleteExpense(id!, item.id);
+        }
+      } catch (err: any) {
+        showAlert('Error', err?.message || 'Failed to delete activity.');
+      } finally {
+        setDeletingId(null);
+      }
     }
-  }, [deleteMutation, showConfirm]);
-
-  const activities = (activityData?.pages.flatMap(p => p.items) as ActivityResponse[]) || [];
-
-  if ((isLoadingGroup && !group) || (isLoadingActivity && !activityData)) return <GroupViewSkeleton />;
-  if (groupError && !group) {
-    const axiosErr = groupError as import('axios').AxiosError<{ userMessage?: string; detail?: string }>;
-    return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">{(axiosErr?.response?.data?.userMessage || axiosErr?.response?.data?.detail) || "Failed to load tab"}</div>;
-  }
-  if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">Failed to load tab</div>;
+  }, [id, showConfirm, showAlert]);
 
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];
+
+  if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-ink-soft font-medium">Loading tab...</div>;
 
 
 
@@ -243,7 +177,7 @@ export default function GroupView() {
       key={item.id} 
       item={item} 
       isOpen={openMenuId === item.id} 
-      isDeleting={deleteMutation.isPending && deleteMutation.variables?.id === item.id}
+      isDeleting={deletingId === item.id}
       onToggle={handleToggleMenu} 
       onEdit={handleEditItem} 
       onDelete={handleDeleteItem} 
@@ -332,18 +266,6 @@ export default function GroupView() {
                   )}
                   {settlements.map(renderActivityItem)}
                 </>
-              )}
-              
-              {hasNextPage && (
-                <div className="flex justify-center pt-4 pb-2">
-                  <button 
-                    onClick={() => fetchNextPage()} 
-                    disabled={isFetchingNextPage}
-                    className="btn-secondary text-[14px] px-4 py-2"
-                  >
-                    {isFetchingNextPage ? 'Loading...' : 'Load older activity'}
-                  </button>
-                </div>
               )}
             </div>
           </div>

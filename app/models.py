@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import Column, Boolean, UniqueConstraint, String, Numeric, ForeignKey, DateTime, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
+from sqlalchemy import event
 
 from .database import Base
 
@@ -16,7 +17,6 @@ def gen_id() -> str:
 def gen_invite_code() -> str:
     # 10 hex characters, e.g. "a1b2c3" - short enough to read over text/WhatsApp
     return secrets.token_hex(5)
-
 
 
 class SplitType(str, enum.Enum):
@@ -44,6 +44,8 @@ class Group(Base):
     name = Column(String, nullable=False)
     invite_code = Column(String, unique=True, index=True, default=gen_invite_code)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    is_deleted = Column(Boolean, default=False, nullable=False)
 
     members = relationship("Member", back_populates="group", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="group", cascade="all, delete-orphan")
@@ -61,6 +63,8 @@ class Member(Base):
     is_admin = Column(Boolean, default=False)
     balance = Column(Numeric, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    is_deleted = Column(Boolean, default=False, nullable=False)
 
     group = relationship("Group", back_populates="members")
     user = relationship("User", back_populates="memberships")
@@ -82,6 +86,8 @@ class Expense(Base):
     category = Column(String, default="General")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    is_deleted = Column(Boolean, default=False, nullable=False)
 
     group = relationship("Group", back_populates="expenses")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
@@ -98,6 +104,7 @@ class ExpenseSplit(Base):
     expense_id = Column(String, ForeignKey("expenses.id", ondelete="CASCADE"), index=True, nullable=False)
     member_id = Column(String, ForeignKey("members.id", ondelete="CASCADE"), index=True, nullable=False)
     share_amount = Column(Numeric, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     expense = relationship("Expense", back_populates="splits")
 
@@ -112,6 +119,8 @@ class Settlement(Base):
     amount = Column(Numeric, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    is_deleted = Column(Boolean, default=False, nullable=False)
 
     group = relationship("Group", back_populates="settlements")
     
@@ -133,3 +142,13 @@ class PushSubscription(Base):
         UniqueConstraint('user_id', 'endpoint', name='uq_push_sub_user_endpoint'),
     )
 
+from sqlalchemy.orm import Session
+@event.listens_for(Session, "before_flush")
+def receive_before_flush(session, flush_context, instances):
+    now = datetime.now(timezone.utc)
+    for obj in session.dirty:
+        if hasattr(obj, 'updated_at'):
+            obj.updated_at = now
+    for obj in session.new:
+        if hasattr(obj, 'updated_at') and obj.updated_at is None:
+            obj.updated_at = now

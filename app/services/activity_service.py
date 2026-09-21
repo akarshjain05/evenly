@@ -23,9 +23,9 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
 
     query = text(f'''
         SELECT * FROM (
-            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id {cursor_where}
+            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id AND is_deleted = false {cursor_where}
             UNION ALL
-            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id {cursor_where}
+            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id AND is_deleted = false {cursor_where}
         ) AS sub
         ORDER BY created_at DESC, id DESC
         LIMIT :limit

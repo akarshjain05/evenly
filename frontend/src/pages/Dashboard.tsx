@@ -1,10 +1,11 @@
-import { useGroups } from '../hooks/useGroups';
+import { useLocalGroups } from '../db/hooks';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { PlusCircle, Users } from 'lucide-react';
-import { Skeleton } from '../components/Skeleton';
+import { syncEngine } from '../db/syncEngine';
 
 
 
@@ -15,10 +16,10 @@ export default function Dashboard() {
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
   
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: groups, isLoading } = useGroups();
+  const { data: user } = useCurrentUser();
+  const groups = useLocalGroups(user?.id);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -28,8 +29,10 @@ export default function Dashboard() {
         return apiClient.post(`groups`, { name: groupName });
       }
     },
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
+    onSuccess: async (res) => {
+      // Trigger a sync so the new group is pulled into local Dexie DB
+      await syncEngine.sync();
+      
       const groupId = res.data.group?.id || res.data.group_id;
       if (groupId) {
         navigate(`/group/${groupId}`);
@@ -42,20 +45,6 @@ export default function Dashboard() {
   });
 
   const shouldShowForm = showForm || (groups && groups.length === 0);
-
-  if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto pb-20 pt-4 md:pt-8">
-        <div className="flex items-center justify-between mb-8">
-          <Skeleton className="w-40 h-8 rounded-md" />
-          <Skeleton className="w-24 h-10 rounded-md" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-[104px] w-full rounded-[16px]" />)}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-4xl mx-auto pb-20">

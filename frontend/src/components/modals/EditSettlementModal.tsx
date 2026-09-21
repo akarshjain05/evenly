@@ -2,15 +2,10 @@ import { useState } from 'react';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
-import { apiClient } from '../../api/client';
-import type { GroupDetailResponse, SettlementCreate, ActivityResponse } from '../../types/api';
+import type { GroupDetailResponse, ActivityResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { useLedgerMutation } from '../../hooks/useLedgerMutation';
-import { useQueryClient } from '@tanstack/react-query';
-// 
-
-
+import { editSettlement } from '../../db/mutations';
 interface Props {
   settlement: ActivityResponse;
   group: GroupDetailResponse;
@@ -19,7 +14,6 @@ interface Props {
 
 export default function EditSettlementModal({
   settlement, group, onClose }: Props) {
-  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
@@ -29,45 +23,33 @@ export default function EditSettlementModal({
   const [amount, setAmount] = useState(String(settlement.amount));
   const [error, setError] = useState('');
   
-  const mutation = useLedgerMutation({
-    mutationFn: (updated: SettlementCreate) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    onMutate: async (updated: SettlementCreate) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            items: page.items.map((item: any) => 
-              item.id === settlement.id 
-                ? { 
-                    ...item, 
-                    amount: updated.amount,
-                    from_member: updated.from_member,
-                    from_name: group.members.find(m => m.id === updated.from_member)?.name || 'Unknown',
-                    to_member: updated.to_member,
-                    to_name: group.members.find(m => m.id === updated.to_member)?.name || 'Unknown'
-                  } 
-                : item
-            )
-          }))
-        };
-      });
-      return { previousActivity };
-    },
-    
-    onSuccess: () => {
-      onClose();
-    },
-    onError: (err: Error | any) => {
-      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Failed to update settlement');
+  const handleSubmit = async () => {
+    setError('');
+    if (fromMember === toMember) {
+      setError("Sender and receiver cannot be the same person");
+      return;
     }
-  });
+    if (parseFloat(amount) <= 0) {
+      setError("Amount must be greater than 0");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await editSettlement(id!, settlement.id, {
+        from_member: fromMember,
+        to_member: toMember,
+        amount: parseFloat(amount),
+      });
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update settlement');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -80,20 +62,7 @@ export default function EditSettlementModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setError('');
-            if (fromMember === toMember) {
-              setError("Sender and receiver cannot be the same person");
-              return;
-            }
-            if (parseFloat(amount) <= 0) {
-              setError("Amount must be greater than 0");
-              return;
-            }
-            mutation.mutate({
-              from_member: fromMember,
-              to_member: toMember,
-              amount: parseFloat(amount),
-            });
+            handleSubmit();
           }}
           className="p-5 space-y-4"
         >
@@ -129,10 +98,10 @@ export default function EditSettlementModal({
             />
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

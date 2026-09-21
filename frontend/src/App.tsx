@@ -3,7 +3,10 @@ import DialogModal from "./components/modals/DialogModal";
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
+import { syncEngine } from './db/syncEngine';
+import { useUIStore } from './store/uiStore';
+
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const GroupView = lazy(() => import('./pages/GroupView'));
@@ -29,31 +32,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-import { useEffect } from 'react';
-import { syncOfflineQueue } from './utils/offlineQueue';
-import { useQueryClient, useIsRestoring } from '@tanstack/react-query';
-import { useUIStore } from './store/uiStore';
-
 function App() {
-
-  const queryClient = useQueryClient();
-  const isRestoring = useIsRestoring();
-  
-  useEffect(() => {
-    const handleOnline = () => syncOfflineQueue(queryClient);
-    window.addEventListener('online', handleOnline);
-    if (navigator.onLine) {
-      handleOnline();
-    }
-    return () => window.removeEventListener('online', handleOnline);
-  }, [queryClient]);
-
-  if (isRestoring) {
-    return null; // Avoid rendering anything (and throwing errors) until IndexedDB cache is hydrated
-  }
   const setInstallPromptEvent = useUIStore((state) => state.setInstallPromptEvent);
   const initTheme = useUIStore((state) => state.initTheme);
+
   useEffect(() => { initTheme(); }, [initTheme]);
+
+  // Start the sync engine when authenticated, stop on logout
+  useEffect(() => {
+    if (getAuthStatus()) {
+      syncEngine.start();
+    }
+    return () => syncEngine.stop();
+  }, []);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {

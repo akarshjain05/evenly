@@ -43,6 +43,14 @@ from alembic.config import Config
 alembic_cfg = Config("alembic.ini")
 command.upgrade(alembic_cfg, "head")
 
+from app.migrations.add_sync_columns import run_migration
+async def migrate_test_db():
+    async for db in get_db():
+        await run_migration(db)
+        await db.commit()
+        break
+asyncio.run(migrate_test_db())
+
 async def override_get_db():
     async with TestingSessionLocal() as db:
         yield db

@@ -3,21 +3,15 @@ import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
-import { apiClient } from '../../api/client';
-import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
+import type { GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { useLedgerMutation } from '../../hooks/useLedgerMutation';
-import { useQueryClient } from '@tanstack/react-query';
-//
-
-
+import { addExpense } from '../../db/mutations';
 export default function AddExpenseModal({
   group }: { group: GroupDetailResponse }) {
-  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
-  const { isAddExpenseOpen, closeAddExpense, openAddExpense } = useUIStore();
+  const { isAddExpenseOpen, closeAddExpense } = useUIStore();
 
   
   
@@ -37,63 +31,37 @@ export default function AddExpenseModal({
     }
   }, [isAddExpenseOpen, group.members, user?.id]);
 
-  
-  const mutation = useLedgerMutation({
-    mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    onMutate: async (newExpense: ExpenseCreate) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
-      const optimisticItem = {
-        id: `temp-${Date.now()}`,
-        type: 'expense',
-        description: newExpense.description,
-        amount: newExpense.amount,
-        category: 'General',
-        paid_by: newExpense.paid_by,
-        paid_by_name: group.members.find(m => m.id === newExpense.paid_by)?.name || 'Unknown',
-        created_at: new Date().toISOString(),
-        created_by_user_id: user?.id,
-        splits: (newExpense.participant_ids || []).map(pid => ({
-           member_id: pid,
-           name: group.members.find(m => m.id === pid)?.name,
-           share_amount: newExpense.amount / (newExpense.participant_ids?.length || 1)
-        }))
-      };
-
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old || !old.pages || !old.pages[0]) return old;
-        return {
-          ...old,
-          pages: [
-            {
-              ...old.pages[0],
-              items: [optimisticItem, ...old.pages[0].items]
-            },
-            ...old.pages.slice(1)
-          ]
-        };
-      });
-
-      // Also optimistically update balances if possible, but it's okay to skip for offline
-      // since sync will fix it.
-
-      return { previousActivity };
-    },
+  const handleSubmit = async () => {
+    setError(''); 
+    if (!description.trim()) {
+      setError('Please enter a description.');
+      return;
+    }
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Please enter a valid amount greater than 0.');
+      return;
+    }
+    if (participants.length === 0) {
+      setError('Please select at least one person to split with.');
+      return;
+    }
     
-    onSuccess: () => {
+    setIsSubmitting(true);
+    try {
+      await addExpense(id!, { description: description.trim(), amount: parsedAmount, paid_by: paidBy, split_type: 'equal', participant_ids: participants }, user?.id || null);
       closeAddExpense();
       setDescription('');
       setAmount('');
       setError('');
-    },
-    onError: (err: any) => {
-      openAddExpense();
-      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail[0]?.msg : 'Failed to save expense'));
+    } catch (err: any) {
+      setError(err.message || 'Failed to save expense');
+    } finally {
+      setIsSubmitting(false);
     }
-  });
+  };
 
   if (!isAddExpenseOpen) return null;
 
@@ -107,21 +75,7 @@ export default function AddExpenseModal({
         
         <form onSubmit={(e) => { 
           e.preventDefault(); 
-          setError(''); 
-          if (!description.trim()) {
-            setError('Please enter a description.');
-            return;
-          }
-          const parsedAmount = parseFloat(amount);
-          if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            setError('Please enter a valid amount greater than 0.');
-            return;
-          }
-          if (participants.length === 0) {
-            setError('Please select at least one person to split with.');
-            return;
-          }
-          mutation.mutate({ description: description.trim(), amount: parsedAmount, paid_by: paidBy, split_type: 'equal', participant_ids: participants }); 
+          handleSubmit();
         }} className="p-5 space-y-4">
           {error && <div className="text-[#c81e1e] text-[13px] font-medium">{error}</div>}
           <div className="flex flex-col gap-1.5">
@@ -161,10 +115,10 @@ export default function AddExpenseModal({
             </div>
           </div>
           
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={closeAddExpense} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? 'Saving...' : 'Save'}
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={closeAddExpense} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving...' : 'Save Expense'}
             </button>
           </div>
         </form>

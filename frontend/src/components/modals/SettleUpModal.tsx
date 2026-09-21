@@ -3,21 +3,15 @@ import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
-import { apiClient } from '../../api/client';
-import type { GroupDetailResponse, SettlementCreate } from '../../types/api';
+import type { GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { useLedgerMutation } from '../../hooks/useLedgerMutation';
-import { useQueryClient } from '@tanstack/react-query';
-// 
-
-
+import { addSettlement } from '../../db/mutations';
 export default function SettleUpModal({
   group }: { group: GroupDetailResponse }) {
-  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
-  const { isSettleUpOpen, closeSettleUp, openSettleUp } = useUIStore();
+  const { isSettleUpOpen, closeSettleUp } = useUIStore();
 
   
   
@@ -36,53 +30,27 @@ export default function SettleUpModal({
     }
   }, [isSettleUpOpen, group.members, user?.id]);
 
-  
-  const mutation = useLedgerMutation({
-    mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    onMutate: async (settlement: SettlementCreate) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
-      const optimisticItem = {
-        id: `temp-${Date.now()}`,
-        type: 'settlement',
-        amount: settlement.amount,
-        from_member: settlement.from_member,
-        from_name: group.members.find(m => m.id === settlement.from_member)?.name || 'Unknown',
-        to_member: settlement.to_member,
-        to_name: group.members.find(m => m.id === settlement.to_member)?.name || 'Unknown',
-        created_at: new Date().toISOString(),
-        created_by_user_id: user?.id,
-      };
-
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old || !old.pages || !old.pages[0]) return old;
-        return {
-          ...old,
-          pages: [
-            {
-              ...old.pages[0],
-              items: [optimisticItem, ...old.pages[0].items]
-            },
-            ...old.pages.slice(1)
-          ]
-        };
-      });
-
-      return { previousActivity };
-    },
+  const handleSubmit = async () => {
+    setError('');
+    if (fromMember === toMember) {
+      setError("You can't settle up with yourself");
+      return;
+    }
     
-    onSuccess: () => {
+    setIsSubmitting(true);
+    try {
+      await addSettlement(id!, { from_member: fromMember, to_member: toMember, amount: parseFloat(amount) }, user?.id || null);
       closeSettleUp();
       setAmount('');
       setError('');
-    },
-    onError: (err: Error | any) => {
-      openSettleUp();
-      setError((err.response?.data?.userMessage || err.response?.data?.detail) || 'Failed to record settlement');
+    } catch (err: any) {
+      setError(err.message || 'Failed to record settlement');
+    } finally {
+      setIsSubmitting(false);
     }
-  });
+  };
 
   if (!isSettleUpOpen) return null;
 
@@ -96,12 +64,7 @@ export default function SettleUpModal({
         
         <form onSubmit={(e) => { 
           e.preventDefault(); 
-          setError('');
-          if (fromMember === toMember) {
-            setError("You can't settle up with yourself");
-            return;
-          }
-          mutation.mutate({ from_member: fromMember, to_member: toMember, amount: parseFloat(amount) }); 
+          handleSubmit();
         }} className="p-5 space-y-4">
           
           {error && <div className="text-[#c81e1e] text-[13px] font-medium">{error}</div>}
@@ -129,10 +92,10 @@ export default function SettleUpModal({
             <input type="number" required step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input-field font-mono" placeholder="0.00" />
           </div>
           
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={closeSettleUp} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? 'Saving...' : 'Save Payment'}
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={closeSettleUp} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving...' : 'Save Payment'}
             </button>
           </div>
         </form>

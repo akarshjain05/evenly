@@ -8,7 +8,7 @@ import os
 import asyncio
 
 from app.database import Base, engine, get_db
-from app.routers import auth, users, groups, notifications
+from app.routers import auth, users, groups, notifications, sync
 from app.exceptions import InvalidSplitError
 from app import rate_limiter, blocklist
 
@@ -32,6 +32,13 @@ async def _cleanup_rate_limiter():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.database import engine, get_db
+    from app.migrations.add_sync_columns import run_migration
+    async for db in get_db():
+        await run_migration(db)
+        await db.commit()
+        break
+
     task = None
     if not rate_limiter._use_redis:
         task = asyncio.create_task(_cleanup_rate_limiter())
@@ -68,6 +75,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(groups.router)
+app.include_router(sync.router)
 app.include_router(notifications.router)
 
 

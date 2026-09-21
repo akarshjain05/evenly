@@ -11,6 +11,7 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
     group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
     
     expense = models.Expense(
+        id=payload.id if getattr(payload, "id", None) else models.gen_id(),
         group_id=group_id,
         description=payload.description,
         amount=payload.amount,
@@ -72,5 +73,7 @@ async def process_and_delete_expense(group_id: str, expense_id: str, db: AsyncSe
         raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
     
     await balances.revert_expense(db, expense)
-    await db.delete(expense)
+    expense.is_deleted = True
+    from datetime import datetime, timezone
+    expense.updated_at = datetime.now(timezone.utc)
     await db.commit()

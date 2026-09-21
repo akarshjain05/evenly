@@ -32,6 +32,7 @@ class SplitInput(BaseModel):
 
 
 class ExpenseCreate(BaseModel):
+    id: Optional[str] = None
     description: str = Field(..., min_length=1, max_length=120)
     category: str = "General"
     amount: Decimal = Field(..., gt=0)
@@ -42,6 +43,7 @@ class ExpenseCreate(BaseModel):
 
 
 class SettlementCreate(BaseModel):
+    id: Optional[str] = None
     from_member: str
     to_member: str
     amount: Decimal = Field(..., gt=0)

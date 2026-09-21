@@ -19,6 +19,7 @@ async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id
     other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
 
     settlement = models.Settlement(
+        id=payload.id if getattr(payload, "id", None) else models.gen_id(),
         group_id=group_id, 
         from_member=payload.from_member, 
         to_member=payload.to_member, 
@@ -67,5 +68,7 @@ async def process_and_delete_settlement(group_id: str, settlement_id: str, db: A
     if not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
     await balances.revert_settlement(db, settlement)
-    await db.delete(settlement)
+    settlement.is_deleted = True
+    from datetime import datetime, timezone
+    settlement.updated_at = datetime.now(timezone.utc)
     await db.commit()

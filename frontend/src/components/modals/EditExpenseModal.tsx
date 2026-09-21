@@ -2,15 +2,10 @@ import { useState } from 'react';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 
 import { useParams } from 'react-router-dom';
-import { apiClient } from '../../api/client';
-import type { ActivityResponse, GroupDetailResponse, ExpenseCreate } from '../../types/api';
+import type { ActivityResponse, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
-import { useLedgerMutation } from '../../hooks/useLedgerMutation';
-import { useQueryClient } from '@tanstack/react-query';
-//
-
-
+import { editExpense } from '../../db/mutations';
 interface Props {
   expense: ActivityResponse;
   group: GroupDetailResponse;
@@ -19,7 +14,6 @@ interface Props {
 
 export default function EditExpenseModal({
   expense, group, onClose }: Props) {
-  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
@@ -34,44 +28,32 @@ export default function EditExpenseModal({
   );
   const [error, setError] = useState('');
 
-  const mutation = useLedgerMutation({
-    mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    onMutate: async (updated: ExpenseCreate) => {
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            items: page.items.map((item: any) => 
-              item.id === expense.id 
-                ? { 
-                    ...item, 
-                    description: updated.description, 
-                    amount: updated.amount,
-                    paid_by: updated.paid_by,
-                    paid_by_name: group.members.find(m => m.id === updated.paid_by)?.name
-                  } 
-                : item
-            )
-          }))
-        };
-      });
-      return { previousActivity };
-    },
-    
-    onSuccess: () => {
-      onClose();
-    },
-    onError: (err: any) => {
-      const detail = err.response?.data?.userMessage || err.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Failed to update expense');
+  const handleSubmit = async () => {
+    setError('');
+    if (participants.length === 0) {
+      setError('Please select at least one person to split with.');
+      return;
     }
-  });
+    
+    setIsSubmitting(true);
+    try {
+      await editExpense(id!, expense.id, {
+        description,
+        amount: parseFloat(amount),
+        paid_by: paidBy,
+        split_type: 'equal',
+        participant_ids: participants,
+        category: expense.category || 'General',
+      });
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update expense');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -84,19 +66,7 @@ export default function EditExpenseModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setError('');
-            if (participants.length === 0) {
-              setError('Please select at least one person to split with.');
-              return;
-            }
-            mutation.mutate({
-              description,
-              amount: parseFloat(amount),
-              paid_by: paidBy,
-              split_type: 'equal',
-              participant_ids: participants,
-              category: expense.category || 'General',
-            });
+            handleSubmit();
           }}
           className="p-5 space-y-4"
         >
@@ -141,10 +111,10 @@ export default function EditExpenseModal({
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary">
-              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+          <div className="pt-4 flex gap-3">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

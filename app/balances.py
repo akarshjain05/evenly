@@ -168,14 +168,14 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
     from sqlalchemy import text
     query = text('''
         SELECT member_id, SUM(amount) as net_balance FROM (
-            SELECT paid_by as member_id, amount FROM expenses WHERE group_id = :group_id
+            SELECT paid_by as member_id, amount FROM expenses WHERE group_id = :group_id AND is_deleted = false
             UNION ALL
             SELECT s.member_id, -s.share_amount as amount FROM expense_splits s 
-            JOIN expenses e ON e.id = s.expense_id WHERE e.group_id = :group_id
+            JOIN expenses e ON e.id = s.expense_id WHERE e.group_id = :group_id AND e.is_deleted = false
             UNION ALL
-            SELECT from_member as member_id, amount FROM settlements WHERE group_id = :group_id
+            SELECT from_member as member_id, amount FROM settlements WHERE group_id = :group_id AND is_deleted = false
             UNION ALL
-            SELECT to_member as member_id, -amount FROM settlements WHERE group_id = :group_id
+            SELECT to_member as member_id, -amount FROM settlements WHERE group_id = :group_id AND is_deleted = false
         ) as ledger
         WHERE member_id IS NOT NULL
         GROUP BY member_id

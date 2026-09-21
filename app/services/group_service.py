@@ -84,9 +84,10 @@ async def get_group_details(group_id: str, db: AsyncSession):
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    net_balances = {m.id: m.balance for m in group.members}
+    active_members = [m for m in group.members if not m.is_deleted]
+    net_balances = {m.id: m.balance for m in active_members}
     debts = _cached_simplify_debts(frozenset(net_balances.items()))
-    member_map = {m.id: m for m in group.members}
+    member_map = {m.id: m for m in active_members}
     
     return {
         "id": group.id,
@@ -101,7 +102,7 @@ async def get_group_details(group_id: str, db: AsyncSession):
                 "is_admin": m.is_admin,
                 "user_id": m.user_id,
                 "balance": m.balance.quantize(Decimal('0.01'))
-            } for m in group.members
+            } for m in active_members
         ],
         "simplified_debts": [
             {
@@ -128,6 +129,8 @@ async def remove_member_transaction(group_id: str, member_id: str, db: AsyncSess
     if abs(member.balance) > Decimal("0.01"):
         raise HTTPException(status_code=400, detail="Cannot remove member with unsettled balance.")
 
-    await db.delete(member)
+    member.is_deleted = True
+    from datetime import datetime, timezone
+    member.updated_at = datetime.now(timezone.utc)
     await db.commit()
     return {"ok": True}

@@ -1,12 +1,13 @@
-import { SidebarSkeleton } from "./Skeleton";
-import { useGroups } from '../hooks/useGroups';
+import { useLocalGroups } from '../db/hooks';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './ui/Logo';
 
 
 
 export default function Sidebar() {
-  const { data: groups, isLoading, error } = useGroups();
+  const { data: user } = useCurrentUser();
+  const groups = useLocalGroups(user?.id);
   const location = useLocation();
 
   return (
@@ -22,10 +23,6 @@ export default function Sidebar() {
       
       <div className="flex-1 overflow-y-auto px-[12px] flex flex-col gap-1">
         <div className="text-[11px] font-semibold text-on-dark-soft uppercase tracking-[0.5px] px-[12px] pt-[8px] pb-[4px]">Your Tabs</div>
-        
-
-        {isLoading && <SidebarSkeleton />}
-        {(error && !groups) && <div className="text-sm text-[#c81e1e] px-[12px]">{((error as any)?.response?.data?.userMessage || (error as any)?.response?.data?.detail) || "Failed to load tabs"}</div>}
         
         <ul className="space-y-1">
           {groups?.map((m) => (
