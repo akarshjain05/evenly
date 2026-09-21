@@ -58,7 +58,7 @@ describe('apiClient Network and Offline Behavior', () => {
     // Mock window.location
     const originalLocation = window.location;
     delete (window as any).location;
-    window.location = { ...originalLocation, pathname: '/group/123', href: '' } as any;
+    Object.defineProperty(window, 'location', { value: { ...originalLocation, pathname: '/group/123', href: '' }, writable: true });
 
     const interceptor = (apiClient.interceptors.response as any).handlers[0].rejected;
 
@@ -72,6 +72,6 @@ describe('apiClient Network and Offline Behavior', () => {
     expect(window.location.href).toBe('/login');
 
     // Restore
-    window.location = originalLocation;
+    Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
   });
 });
