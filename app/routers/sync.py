@@ -75,38 +75,53 @@ async def get_sync(
             return stmt.where(model.updated_at > since_dt)
         return stmt
 
-    groups_stmt = select(models.Group).where(models.Group.id.in_(group_ids))
-    groups_stmt = apply_since_filter(groups_stmt, models.Group)
-    groups = (await db.execute(groups_stmt)).scalars().all()
+    try:
+        groups_stmt = select(models.Group).where(models.Group.id.in_(group_ids))
+        groups_stmt = apply_since_filter(groups_stmt, models.Group)
+        groups = (await db.execute(groups_stmt)).scalars().all()
 
-    members_stmt = select(models.Member).where(models.Member.group_id.in_(group_ids))
-    members_stmt = apply_since_filter(members_stmt, models.Member)
-    members = (await db.execute(members_stmt)).scalars().all()
+        members_stmt = select(models.Member).where(models.Member.group_id.in_(group_ids))
+        members_stmt = apply_since_filter(members_stmt, models.Member)
+        members = (await db.execute(members_stmt)).scalars().all()
 
-    expenses_stmt = select(models.Expense).where(models.Expense.group_id.in_(group_ids))
-    expenses_stmt = apply_since_filter(expenses_stmt, models.Expense)
-    expenses = (await db.execute(expenses_stmt)).scalars().all()
+        expenses_stmt = select(models.Expense).where(models.Expense.group_id.in_(group_ids))
+        expenses_stmt = apply_since_filter(expenses_stmt, models.Expense)
+        expenses = (await db.execute(expenses_stmt)).scalars().all()
 
-    splits_stmt = (
-        select(models.ExpenseSplit)
-        .join(models.Expense)
-        .where(models.Expense.group_id.in_(group_ids))
-    )
-    splits_stmt = apply_since_filter(splits_stmt, models.ExpenseSplit)
-    expense_splits = (await db.execute(splits_stmt)).scalars().all()
+        splits_stmt = (
+            select(models.ExpenseSplit)
+            .join(models.Expense)
+            .where(models.Expense.group_id.in_(group_ids))
+        )
+        splits_stmt = apply_since_filter(splits_stmt, models.ExpenseSplit)
+        expense_splits = (await db.execute(splits_stmt)).scalars().all()
 
-    settlements_stmt = select(models.Settlement).where(models.Settlement.group_id.in_(group_ids))
-    settlements_stmt = apply_since_filter(settlements_stmt, models.Settlement)
-    settlements = (await db.execute(settlements_stmt)).scalars().all()
+        settlements_stmt = select(models.Settlement).where(models.Settlement.group_id.in_(group_ids))
+        settlements_stmt = apply_since_filter(settlements_stmt, models.Settlement)
+        settlements = (await db.execute(settlements_stmt)).scalars().all()
 
-    return {
-        "groups": [serialize_row(r) for r in groups],
-        "members": [serialize_row(r) for r in members],
-        "expenses": [serialize_row(r) for r in expenses],
-        "expense_splits": [serialize_row(r) for r in expense_splits],
-        "settlements": [serialize_row(r) for r in settlements],
-        "server_timestamp": format_datetime(datetime.now(timezone.utc))
-    }
+        res = {
+            "groups": [serialize_row(r) for r in groups],
+            "members": [serialize_row(r) for r in members],
+            "expenses": [serialize_row(r) for r in expenses],
+            "expense_splits": [serialize_row(r) for r in expense_splits],
+            "settlements": [serialize_row(r) for r in settlements],
+            "server_timestamp": format_datetime(datetime.now(timezone.utc))
+        }
+        
+        # Test JSON serialization right here to catch encoding errors before FastAPI handles it
+        import json
+        from fastapi.encoders import jsonable_encoder
+        try:
+            json.dumps(jsonable_encoder(res))
+        except Exception as json_e:
+            import traceback
+            return {"error": "json_error", "traceback": traceback.format_exc()}
+            
+        return res
+    except Exception as e:
+        import traceback
+        return {"error": "sync_query_error", "traceback": traceback.format_exc()}
 
 @router.post("/push")
 async def push_sync(
