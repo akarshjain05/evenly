@@ -7,7 +7,6 @@ import type { ActivityResponse, GroupDetailResponse, ExpenseCreate } from '../..
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
-import { useQueryClient } from '@tanstack/react-query';
 //
 
 
@@ -18,9 +17,7 @@ interface Props {
 }
 
 export default function EditExpenseModal({
-  
   expense, group, onClose }: Props) {
-  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
@@ -37,42 +34,11 @@ export default function EditExpenseModal({
 
   const mutation = useLedgerMutation({
     mutationFn: (updated: ExpenseCreate) => apiClient.put(`groups/${id}/expenses/${expense.id}`, updated),
-
-    onMutate: async (updated: ExpenseCreate) => {
-      onClose();
-      
-      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
-      const previousActivity = queryClient.getQueryData(['group-activity', id]);
-      
-      queryClient.setQueryData(['group-activity', id], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            items: page.items.map((item: any) => 
-              item.id === expense.id 
-                ? { 
-                    ...item, 
-                    description: updated.description, 
-                    amount: updated.amount,
-                    paid_by: updated.paid_by,
-                    paid_by_name: group.members.find(m => m.id === updated.paid_by)?.name
-                  } 
-                : item
-            )
-          }))
-        };
-      });
-      return { previousActivity };
-    },
     
     onSuccess: () => {
+      onClose();
     },
-    onError: (err: any, _variables: any, context: any) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-      }
+    onError: (err: any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');
     }

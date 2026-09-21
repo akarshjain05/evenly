@@ -4,43 +4,28 @@ import type { AxiosError } from 'axios';
 
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
-    onError?: (err: AxiosError | Error, variables: TVariables, context: any) => void;
-  onMutate?: (variables: TVariables) => Promise<any> | any;
+  onError?: (err: AxiosError | Error, variables: TVariables, context: any) => void;
   onSuccess?: (data?: any) => void;
 }
 
 export function useLedgerMutation<TVariables, TData>({ 
   mutationFn, 
   onError,
-  onSuccess,
-  onMutate
+  onSuccess
 }: LedgerMutationOptions<TVariables, TData>) {
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
 
   return useMutation({
-    onMutate,
     mutationFn,
-    
-    onError: (err: AxiosError | Error, _variables: TVariables, context: { previousActivity?: unknown; previousGroup?: unknown } | undefined) => {
-      if (context?.previousActivity) {
-        queryClient.setQueryData(['group-activity', id], context.previousActivity);
-      }
-      if (context?.previousGroup) {
-        queryClient.setQueryData(['group', id], context.previousGroup);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['group', id] });
-      }
+    onError: (err: AxiosError | Error, _variables: TVariables, context: any) => {
+      queryClient.invalidateQueries({ queryKey: ['group', id] });
       if (onError) onError(err, _variables, context);
     },
     onSuccess: async (data: any) => {
-      // Force the background refetch of the activity list to block the onSuccess callback.
-      // This ensures the modal stays in the "Saving..." state until BOTH the balances 
-      // (which we inject directly) and the activity list (which we fetch) are fully in sync.
-      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+      // 200ms reset: Wipe infinite query cache and fetch ONLY page 1 to prevent 7-second sequential delays
+      await queryClient.resetQueries({ queryKey: ['group-activity', id] });
 
-      // If the backend returns the updated group details directly, instantly update the UI cache
-      // without waiting for the background invalidation refetch.
       const payload = data?.data || data;
       if (payload && payload.members) {
         queryClient.setQueryData(['group', id], payload);
@@ -48,7 +33,6 @@ export function useLedgerMutation<TVariables, TData>({
       if (onSuccess) onSuccess(data);
     },
     onSettled: () => {
-      // Background re-verification
       queryClient.invalidateQueries({ queryKey: ['group', id] });
     }
   });
