@@ -1,7 +1,7 @@
 import { formatCurrency } from '../utils/currency';
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { apiClient } from '../api/client';
 import type { GroupDetailResponse, ActivityResponse } from '../types/api';
@@ -128,6 +128,7 @@ const ActivityItem = React.memo(({
 
 export default function GroupView() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   
   const { openAddExpense, openSettleUp, showAlert, showConfirm } = useUIStore();
   
@@ -144,8 +145,26 @@ export default function GroupView() {
       }
       return apiClient.delete(`groups/${id}/expenses/${item.id}`);
     },
-    
-    onError: (err: Error) => {
+    onMutate: async (deletedItem: ActivityResponse) => {
+      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
+      const previousActivity = queryClient.getQueryData(['group-activity', id]);
+      
+      queryClient.setQueryData(['group-activity', id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            items: page.items.filter((i: any) => i.id !== deletedItem.id)
+          }))
+        };
+      });
+      return { previousActivity };
+    },
+    onError: (err: Error, _variables: any, context: any) => {
+      if (context?.previousActivity) {
+        queryClient.setQueryData(['group-activity', id], context.previousActivity);
+      }
       const axiosErr = err as import('axios').AxiosError<{ userMessage?: string }>;
       showAlert('Error', axiosErr?.response?.data?.userMessage || 'Failed to delete activity.');
     }

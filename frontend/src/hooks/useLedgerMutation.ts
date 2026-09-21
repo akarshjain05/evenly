@@ -4,19 +4,22 @@ import type { AxiosError } from 'axios';
 
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
-    onError?: (err: AxiosError | Error) => void;
+    onError?: (err: AxiosError | Error, variables: TVariables, context: any) => void;
+  onMutate?: (variables: TVariables) => Promise<any> | any;
   onSuccess?: (data?: any) => void;
 }
 
 export function useLedgerMutation<TVariables, TData>({ 
   mutationFn, 
   onError,
-  onSuccess
+  onSuccess,
+  onMutate
 }: LedgerMutationOptions<TVariables, TData>) {
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
 
   return useMutation({
+    onMutate,
     mutationFn,
     
     onError: (err: AxiosError | Error, _variables: TVariables, context: { previousActivity?: unknown; previousGroup?: unknown } | undefined) => {
@@ -28,13 +31,13 @@ export function useLedgerMutation<TVariables, TData>({
       } else {
         queryClient.invalidateQueries({ queryKey: ['group', id] });
       }
-      if (onError) onError(err);
+      if (onError) onError(err, _variables, context);
     },
     onSuccess: async (data: any) => {
       // Force the background refetch of the activity list to block the onSuccess callback.
       // This ensures the modal stays in the "Saving..." state until BOTH the balances 
       // (which we inject directly) and the activity list (which we fetch) are fully in sync.
-      await queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+      queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
 
       // If the backend returns the updated group details directly, instantly update the UI cache
       // without waiting for the background invalidation refetch.
