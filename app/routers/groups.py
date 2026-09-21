@@ -48,8 +48,8 @@ async def update_group(group_id: str, payload: schemas.GroupUpdate, member: mode
     user_id = member.user_id
     group.name = payload.name
     await db.commit()
-    logger.info(f"User {user_id} renamed group {group_id} to '{payload.name}'")
-    return {"ok": True}
+    logger.info("User %s renamed group %s to '%s'", user_id, group_id, payload.name)
+    return await group_service.get_group_details(group_id, db)
 
 @router.delete("/{group_id}", response_model=schemas.BasicResponse)
 async def delete_group(group_id: str, member: models.Member = Depends(deps.get_current_member), db: AsyncSession = Depends(get_db)):
@@ -81,7 +81,7 @@ async def get_activity(
     # If scaling up, consider caching simplified_debts in the DB and updating it asynchronously.
     return await group_service.get_activity_list(group_id, limit, last_seen, db)
 
-@router.post("/{group_id}/expenses", response_model=schemas.BasicResponse)
+@router.post("/{group_id}/expenses", response_model=schemas.GroupDetailResponse)
 async def add_expense(
     group_id: str,
     payload: schemas.ExpenseCreate,
@@ -92,10 +92,10 @@ async def add_expense(
 ):
     user_id = user.id
     await group_service.process_and_add_expense(payload, group_id, user, member, db, background_tasks)
-    logger.info(f"User {user_id} added expense to group {group_id} for amount {payload.amount}")
-    return {"ok": True}
+    logger.info("User %s added expense to group %s for amount %s", user_id, group_id, payload.amount)
+    return await group_service.get_group_details(group_id, db)
 
-@router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
+@router.put("/{group_id}/expenses/{expense_id}", response_model=schemas.GroupDetailResponse)
 async def update_expense(
     group_id: str,
     expense_id: str,
@@ -115,9 +115,9 @@ async def update_expense(
     
     await group_service.process_and_update_expense(expense, payload, group_id, db)
     await db.commit()
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
-@router.delete("/{group_id}/expenses/{expense_id}", response_model=schemas.BasicResponse)
+@router.delete("/{group_id}/expenses/{expense_id}", response_model=schemas.GroupDetailResponse)
 async def delete_expense(
     group_id: str,
     expense_id: str,
@@ -136,9 +136,9 @@ async def delete_expense(
     await balances.revert_expense(db, expense)
     await db.delete(expense)
     await db.commit()
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
-@router.post("/{group_id}/settlements", response_model=schemas.BasicResponse)
+@router.post("/{group_id}/settlements", response_model=schemas.GroupDetailResponse)
 async def add_settlement(
     group_id: str,
     payload: schemas.SettlementCreate,
@@ -148,7 +148,7 @@ async def add_settlement(
     db: AsyncSession = Depends(get_db),
 ):
     await group_service.process_and_add_settlement(payload, group_id, user, member, db, background_tasks)
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
 @router.delete("/{group_id}/members/me", response_model=schemas.BasicResponse)
 async def leave_group(
@@ -169,7 +169,7 @@ async def remove_member(
     await group_service.remove_member_transaction(group_id, target_member_id, member, db)
     return {"ok": True}
 
-@router.put("/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)
+@router.put("/{group_id}/settlements/{settlement_id}", response_model=schemas.GroupDetailResponse)
 async def update_settlement(
     group_id: str,
     settlement_id: str,
@@ -179,10 +179,10 @@ async def update_settlement(
 ):
     user_id = member.user_id
     await group_service.process_and_update_settlement(group_id, settlement_id, payload, db, member)
-    logger.info(f"User {user_id} updated settlement {settlement_id} in group {group_id}")
-    return {"ok": True}
+    logger.info("User %s updated settlement %s in group %s", user_id, settlement_id, group_id)
+    return await group_service.get_group_details(group_id, db)
 
-@router.delete("/{group_id}/settlements/{settlement_id}", response_model=schemas.BasicResponse)
+@router.delete("/{group_id}/settlements/{settlement_id}", response_model=schemas.GroupDetailResponse)
 async def delete_settlement(
     group_id: str,
     settlement_id: str,
@@ -199,7 +199,7 @@ async def delete_settlement(
     await balances.revert_settlement(db, settlement)
     await db.delete(settlement)
     await db.commit()
-    return {"ok": True}
+    return await group_service.get_group_details(group_id, db)
 
 @router.get("/{group_id}/export/csv")
 async def export_csv(
@@ -283,24 +283,16 @@ async def export_csv(
 
 
 @router.post("/{group_id}/reconcile", response_model=schemas.GroupDetailResponse)
-async def reconcile_balances(group_id: str, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db)):
+async def reconcile_balances(group_id: str, member: models.Member = Depends(deps.get_current_member), db: AsyncSession = Depends(get_db)):
     """
     Admin endpoint to recalculate all member balances directly from the underlying ledger
     (expenses and settlements). Fixes any drift caused by aborted transactions or manual edits.
     """
-    result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
-    group = result.scalars().first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Tab not found")
-        
-    # Security: check if user is admin of the group
-    member_res = await db.execute(
-        select(models.Member)
-        .filter(models.Member.group_id == group_id, models.Member.user_id == user.id)
-    )
-    member = member_res.scalars().first()
-    if not member or not member.is_admin:
+    if not member.is_admin:
         raise HTTPException(status_code=403, detail="Only admins can manually reconcile the ledger")
+
+    # Acquire row locks on all members to prevent concurrent mutations during recomputation
+    await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
 
     await balances.recompute_balances_from_ledger(db, group_id)
     await db.commit()

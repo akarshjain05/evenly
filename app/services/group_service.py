@@ -64,11 +64,6 @@ async def get_group_details(group_id: str, db: AsyncSession):
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
-        
-    from sqlalchemy import func
-    member_count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
-    if member_count_res.scalar() >= 50:
-        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members.")
 
 
 
@@ -178,42 +173,29 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
     members = result.scalars().all()
     name_lookup = {m.id: m.name for m in members}
 
+    # Build cursor WHERE clause to push inside each UNION ALL leg (enables index usage)
+    cursor_where = ""
+    params: Dict[str, Any] = {"group_id": group_id, "limit": limit}
+
     if last_seen and '|' in last_seen:
         last_seen_time, last_seen_id = last_seen.split('|', 1)
-        query = text('''
-            SELECT * FROM (
-                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
-                UNION ALL
-                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
-            ) AS sub
-            WHERE created_at < :last_seen_time OR (created_at = :last_seen_time AND id < :last_seen_id)
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit
-        ''')
-        results = (await db.execute(query, {"group_id": group_id, "limit": limit, "last_seen_time": last_seen_time, "last_seen_id": last_seen_id})).fetchall()
+        cursor_where = "AND (created_at < :last_seen_time OR (created_at = :last_seen_time AND id < :last_seen_id))"
+        params["last_seen_time"] = last_seen_time
+        params["last_seen_id"] = last_seen_id
     elif last_seen:
-        query = text('''
-            SELECT * FROM (
-                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
-                UNION ALL
-                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
-            ) AS sub
-            WHERE created_at < :last_seen
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit
-        ''')
-        results = (await db.execute(query, {"group_id": group_id, "limit": limit, "last_seen": last_seen})).fetchall()
-    else:
-        query = text('''
-            SELECT * FROM (
-                SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id
-                UNION ALL
-                SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id
-            ) AS sub
-            ORDER BY created_at DESC, id DESC
-            LIMIT :limit
-        ''')
-        results = (await db.execute(query, {"group_id": group_id, "limit": limit})).fetchall()
+        cursor_where = "AND created_at < :last_seen"
+        params["last_seen"] = last_seen
+
+    query = text(f'''
+        SELECT * FROM (
+            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id {cursor_where}
+            UNION ALL
+            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id {cursor_where}
+        ) AS sub
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit
+    ''')
+    results = (await db.execute(query, params)).fetchall()
 
     expense_ids = [r.id for r in results if r.type == 'expense']
     settlement_ids = [r.id for r in results if r.type == 'settlement']
@@ -273,6 +255,11 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
     return items
 
 async def process_and_update_settlement(group_id: str, settlement_id: str, payload: schemas.SettlementCreate, db: AsyncSession, member=None):
+    # Lock member balances FIRST to match delete_settlement's lock ordering (Members → Settlement),
+    # preventing deadlock from lock ordering inversion.
+    res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
+    valid_ids = {m.id for m in res.scalars().all()}
+
     result = await db.execute(select(models.Settlement).filter(models.Settlement.id == settlement_id, models.Settlement.group_id == group_id).with_for_update())
     settlement = result.scalars().first()
     if not settlement:
@@ -280,8 +267,6 @@ async def process_and_update_settlement(group_id: str, settlement_id: str, paylo
     if member and not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
         
-    res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    valid_ids = {m.id for m in res.scalars().all()}
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
         

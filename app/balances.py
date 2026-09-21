@@ -53,9 +53,10 @@ def simplify_debts(net: Dict[str, Decimal]) -> List[dict]:
 
     return transactions
 
-async def process_expense_splits(db: AsyncSession, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate) -> None:
-    result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
-    valid_ids = {m.id for m in result.scalars().all()}
+async def process_expense_splits(db: AsyncSession, group_id: str, expense: models.Expense, payload: schemas.ExpenseCreate, valid_ids: set | None = None) -> None:
+    if valid_ids is None:
+        result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id))
+        valid_ids = {m.id for m in result.scalars().all()}
     
     if payload.paid_by not in valid_ids:
         raise InvalidSplitError("Payer is not in this tab")

@@ -54,8 +54,8 @@ class Member(Base):
     __tablename__ = "members"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    group_id = Column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String, nullable=False)
     color = Column(String, default="#B4863A")
     is_admin = Column(Boolean, default=False)
@@ -65,19 +65,23 @@ class Member(Base):
     group = relationship("Group", back_populates="members")
     user = relationship("User", back_populates="memberships")
 
+    __table_args__ = (
+        UniqueConstraint('group_id', 'user_id', name='uq_member_group_user'),
+    )
+
 
 class Expense(Base):
     __tablename__ = "expenses"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
+    group_id = Column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
     description = Column(String, nullable=False)
     amount = Column(Numeric, nullable=False)
-    paid_by = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    paid_by = Column(String, ForeignKey("members.id", ondelete="CASCADE"), index=True, nullable=False)
     split_type = Column(SAEnum(SplitType), default=SplitType.equal)
     category = Column(String, default="General")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="expenses")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
@@ -91,8 +95,8 @@ class ExpenseSplit(Base):
     __tablename__ = "expense_splits"
 
     id = Column(String, primary_key=True, default=gen_id)
-    expense_id = Column(String, ForeignKey("expenses.id"), index=True, nullable=False)
-    member_id = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    expense_id = Column(String, ForeignKey("expenses.id", ondelete="CASCADE"), index=True, nullable=False)
+    member_id = Column(String, ForeignKey("members.id", ondelete="CASCADE"), index=True, nullable=False)
     share_amount = Column(Numeric, nullable=False)
 
     expense = relationship("Expense", back_populates="splits")
@@ -102,12 +106,12 @@ class Settlement(Base):
     __tablename__ = "settlements"
 
     id = Column(String, primary_key=True, default=gen_id)
-    group_id = Column(String, ForeignKey("groups.id"), nullable=False, index=True)
-    from_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
-    to_member = Column(String, ForeignKey("members.id"), index=True, nullable=False)
+    group_id = Column(String, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_member = Column(String, ForeignKey("members.id", ondelete="CASCADE"), index=True, nullable=False)
+    to_member = Column(String, ForeignKey("members.id", ondelete="CASCADE"), index=True, nullable=False)
     amount = Column(Numeric, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="settlements")
     
@@ -119,9 +123,13 @@ class Settlement(Base):
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     id = Column(String, primary_key=True, default=gen_id)
-    user_id = Column(String, ForeignKey("users.id"), index=True, nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     endpoint = Column(String, nullable=False)
     p256dh = Column(String, nullable=False)
     auth = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'endpoint', name='uq_push_sub_user_endpoint'),
+    )
 

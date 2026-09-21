@@ -6,8 +6,8 @@ import type { AxiosError } from 'axios';
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
   onMutateActivity?: (oldActivity: ActivityResponse[], variables: TVariables) => ActivityResponse[];
-  onError?: (err: AxiosError | Error | any) => void;
-  onSuccess?: () => void;
+  onError?: (err: AxiosError | Error) => void;
+  onSuccess?: (data?: any) => void;
 }
 
 export function useLedgerMutation<TVariables, TData>({ 
@@ -29,11 +29,9 @@ export function useLedgerMutation<TVariables, TData>({
       const previousGroup = queryClient.getQueryData(['group', id]);
 
       if (onMutateActivity) {
-        queryClient.setQueryData(['group-activity', id], (old: any) => {
-          if (!old || !old.pages) {
-             if (Array.isArray(old)) return onMutateActivity(old, variables);
-             return old;
-          }
+        queryClient.setQueryData(['group-activity', id], (old: { pages: ActivityResponse[][]; pageParams: unknown[] } | ActivityResponse[] | undefined) => {
+          if (!old) return old;
+          if (Array.isArray(old)) return onMutateActivity(old, variables);
           const newPages = [...old.pages];
           if (newPages.length > 0) {
             newPages[0] = onMutateActivity(newPages[0] || [], variables);
@@ -44,7 +42,7 @@ export function useLedgerMutation<TVariables, TData>({
 
       return { previousActivity, previousGroup };
     },
-    onError: (err: AxiosError | Error | any, _variables: TVariables, context: any) => {
+    onError: (err: AxiosError | Error, _variables: TVariables, context: { previousActivity?: unknown; previousGroup?: unknown } | undefined) => {
       if (context?.previousActivity) {
         queryClient.setQueryData(['group-activity', id], context.previousActivity);
       }
@@ -55,8 +53,13 @@ export function useLedgerMutation<TVariables, TData>({
       }
       if (onError) onError(err);
     },
-    onSuccess: () => {
-      if (onSuccess) onSuccess();
+    onSuccess: (data: any) => {
+      // If the backend returns the updated group details directly, instantly update the UI cache
+      // without waiting for the background invalidation refetch.
+      if (data && data.members) {
+        queryClient.setQueryData(['group', id], data);
+      }
+      if (onSuccess) onSuccess(data);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['group-activity', id] });

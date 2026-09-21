@@ -50,10 +50,11 @@ async def invalid_split_handler(request: Request, exc: InvalidSplitError):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception(f"Unhandled error processing {request.method} {request.url}")
+    logger.exception("Unhandled error processing %s %s", request.method, request.url)
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
-cors_origins_str = os.environ.get("CORS_ORIGINS", "*")
+from app.config import get_settings as _get_settings
+cors_origins_str = _get_settings().cors_origins
 origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 app.add_middleware(

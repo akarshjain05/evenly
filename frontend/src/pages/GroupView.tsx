@@ -1,5 +1,5 @@
 import { formatCurrency } from '../utils/currency';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '../hooks/useCurrentUser';
@@ -31,6 +31,15 @@ const fetchGroupActivity = async (id: string, pageParam?: string): Promise<Activ
 
 
 
+interface ActivityItemProps {
+  item: ActivityResponse;
+  isOpen: boolean;
+  onToggle: (id: string | null) => void;
+  onEdit: (item: ActivityResponse) => void;
+  onDelete: (item: ActivityResponse) => void;
+  getDisplayName: (memberId: string | null | undefined, fallbackName: string | null | undefined) => string;
+}
+
 const ActivityItem = React.memo(({ 
   item, 
   isOpen, 
@@ -38,7 +47,7 @@ const ActivityItem = React.memo(({
   onEdit, 
   onDelete,
   getDisplayName 
-}: any) => {
+}: ActivityItemProps) => {
   return (
     <div className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
       <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
@@ -120,8 +129,9 @@ export default function GroupView() {
       return apiClient.delete(`groups/${id}/expenses/${item.id}`);
     },
     onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
-    onError: (err: any) => {
-      showAlert('Error', err?.response?.data?.userMessage || 'Failed to delete activity.');
+    onError: (err: Error) => {
+      const axiosErr = err as import('axios').AxiosError<{ userMessage?: string }>;
+      showAlert('Error', axiosErr?.response?.data?.userMessage || 'Failed to delete activity.');
     }
   });
 
@@ -142,14 +152,14 @@ export default function GroupView() {
   });
   
 
-  const getDisplayName = (memberId: string | null | undefined, fallbackName: string | null | undefined) => {
+  const getDisplayName = useCallback((memberId: string | null | undefined, fallbackName: string | null | undefined) => {
     if (!memberId) return fallbackName || 'Unknown';
     const member = group?.members.find(m => m.id === memberId);
     if (member && user && member.user_id === user.id) {
       return 'You';
     }
     return fallbackName || member?.name || 'Unknown';
-  };
+  }, [group?.members, user]);
 
   const { 
     data: activityData, 
@@ -188,7 +198,10 @@ export default function GroupView() {
   const activities = (activityData?.pages.flat() as ActivityResponse[]) || [];
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
-  if (groupError) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">{((groupError as any)?.response?.data?.userMessage || (groupError as any)?.response?.data?.detail) || "Failed to load tab"}</div>;
+  if (groupError) {
+    const axiosErr = groupError as import('axios').AxiosError<{ userMessage?: string; detail?: string }>;
+    return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">{(axiosErr?.response?.data?.userMessage || axiosErr?.response?.data?.detail) || "Failed to load tab"}</div>;
+  }
   if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">Failed to load tab</div>;
 
   const expenses = activities?.filter(a => a.type === 'expense') || [];

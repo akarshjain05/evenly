@@ -23,8 +23,10 @@ def _get_client_ip(request: Request) -> str:
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = int(os.environ.get("RATE_LIMIT_MAX_ATTEMPTS", "100"))
-WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
+from app.config import get_settings
+_settings = get_settings()
+MAX_ATTEMPTS = _settings.rate_limit_max_attempts
+WINDOW_SECONDS = _settings.rate_limit_window_seconds
 
 # ---------------------------------------------------------------------------
 # Redis backend
@@ -114,10 +116,9 @@ if not _use_redis and os.getenv("VERCEL") == "1":
 
 
 def rate_limit_auth(request: Request) -> None:
-    if os.getenv("DISABLE_RATE_LIMITING") == "1":
-        return
-        
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
+    if _settings.disable_rate_limiting == "1":
+        return
     client_ip = _get_client_ip(request)
     path_suffix = request.url.path.strip('/').split('/')[-1]
     limit_key = f"auth_{path_suffix}"
@@ -127,7 +128,7 @@ def rate_limit_auth(request: Request) -> None:
         _check_memory(f"{limit_key}:{client_ip}", "auth")
 
 def rate_limit_invite(request: Request) -> None:
-    if os.getenv("DISABLE_RATE_LIMITING") == "1":
+    if _settings.disable_rate_limiting == "1":
         return
         
     client_ip = _get_client_ip(request)
@@ -138,7 +139,7 @@ def rate_limit_invite(request: Request) -> None:
 
 
 def rate_limit_export(request: Request) -> None:
-    if os.getenv("DISABLE_RATE_LIMITING") == "1":
+    if _settings.disable_rate_limiting == "1":
         return
         
     client_ip = _get_client_ip(request)

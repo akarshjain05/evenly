@@ -39,8 +39,8 @@ def is_token_blocked(jti: str) -> bool:
             r = _get_redis()
             return r.exists(f"blocklist:{jti}") > 0
         except Exception:
-            logger.error("Redis blocklist read failure", exc_info=True)
-            return False
+            logger.error("Redis blocklist read failure — failing closed (token treated as blocked)", exc_info=True)
+            return True
     else:
         now = int(time.time())
         if jti in _memory_blocklist:

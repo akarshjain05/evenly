@@ -1,16 +1,11 @@
 from app.config import get_settings
-from dotenv import load_dotenv
-
-load_dotenv()
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
 import jwt
 import uuid
 from passlib.context import CryptContext
 import asyncio
-from sqlalchemy.orm import Session
 
 from . import models, database
 

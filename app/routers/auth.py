@@ -1,5 +1,3 @@
-import os
-
 import secrets
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,9 +7,9 @@ from sqlalchemy import select
 from app import models, schemas, deps, auth, balances
 from app.database import get_db
 from app.rate_limiter import rate_limit_auth
+from app.config import get_settings
 
-# 7 days in seconds, matching the JWT expiration
-COOKIE_MAX_AGE_SEC = int(os.environ.get("COOKIE_MAX_AGE_SEC", "2592000"))
+COOKIE_MAX_AGE_SEC = get_settings().cookie_max_age_sec
 
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
@@ -33,7 +31,7 @@ async def register(payload: schemas.UserCreate, response: Response, db: AsyncSes
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(key="csrf_token", value=csrf_token, httponly=False, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
-    logger.info(f"User {user.id} logged in successfully")
+    logger.info("User %s logged in successfully", user.id)
     return {"user": {"email": user.email}}
 
 @router.post("/login")
@@ -47,7 +45,7 @@ async def login(payload: schemas.UserLogin, response: Response, db: AsyncSession
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
     csrf_token = secrets.token_urlsafe(32)
     response.set_cookie(key="csrf_token", value=csrf_token, httponly=False, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
-    logger.info(f"User {user.id} logged in successfully")
+    logger.info("User %s logged in successfully", user.id)
     return {"user": {"email": user.email}}
 
 @router.post("/logout")

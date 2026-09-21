@@ -9,11 +9,6 @@ export interface UserLogin {
   password: string;
 }
 
-export interface Token {
-  access_token: string;
-  token_type: string;
-  user?: { email: string };
-}
 
 export interface GroupCreate {
   name: string;
