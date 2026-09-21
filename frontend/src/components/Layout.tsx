@@ -33,8 +33,9 @@ export default function Layout() {
   // If the server fails to return a valid user identity (e.g. 500 crashes), do not fall back to a mock identity.
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-bg text-[#c81e1e] p-8 text-center font-medium">
-        CRITICAL: Failed to load authenticated user identity from server. Halting application.
+      <div className="flex flex-col items-center justify-center min-h-screen bg-bg p-8 text-center">
+        <div className="text-ink font-medium text-lg mb-2">Unable to load profile</div>
+        <div className="text-ink-soft text-sm">Please check your internet connection or try reloading the app.</div>
       </div>
     );
   }

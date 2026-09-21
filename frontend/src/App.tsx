@@ -31,12 +31,13 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 import { useEffect } from 'react';
 import { syncOfflineQueue } from './utils/offlineQueue';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useIsRestoring } from '@tanstack/react-query';
 import { useUIStore } from './store/uiStore';
 
 function App() {
 
   const queryClient = useQueryClient();
+  const isRestoring = useIsRestoring();
   
   useEffect(() => {
     const handleOnline = () => syncOfflineQueue(queryClient);
@@ -46,6 +47,10 @@ function App() {
     }
     return () => window.removeEventListener('online', handleOnline);
   }, [queryClient]);
+
+  if (isRestoring) {
+    return null; // Avoid rendering anything (and throwing errors) until IndexedDB cache is hydrated
+  }
   const setInstallPromptEvent = useUIStore((state) => state.setInstallPromptEvent);
   const initTheme = useUIStore((state) => state.initTheme);
   useEffect(() => { initTheme(); }, [initTheme]);
