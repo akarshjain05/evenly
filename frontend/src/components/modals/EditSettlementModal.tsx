@@ -7,6 +7,7 @@ import type { GroupDetailResponse, SettlementCreate, ActivityResponse } from '..
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+import { useQueryClient } from '@tanstack/react-query';
 // 
 
 
@@ -18,6 +19,7 @@ interface Props {
 
 export default function EditSettlementModal({
   settlement, group, onClose }: Props) {
+  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   
@@ -29,6 +31,34 @@ export default function EditSettlementModal({
   
   const mutation = useLedgerMutation({
     mutationFn: (updated: SettlementCreate) => apiClient.put(`groups/${id}/settlements/${settlement.id}`, updated),
+
+    onMutate: async (updated: SettlementCreate) => {
+      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
+      const previousActivity = queryClient.getQueryData(['group-activity', id]);
+      
+      queryClient.setQueryData(['group-activity', id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            items: page.items.map((item: any) => 
+              item.id === settlement.id 
+                ? { 
+                    ...item, 
+                    amount: updated.amount,
+                    from_member: updated.from_member,
+                    from_name: group.members.find(m => m.id === updated.from_member)?.name || 'Unknown',
+                    to_member: updated.to_member,
+                    to_name: group.members.find(m => m.id === updated.to_member)?.name || 'Unknown'
+                  } 
+                : item
+            )
+          }))
+        };
+      });
+      return { previousActivity };
+    },
     
     onSuccess: () => {
       onClose();

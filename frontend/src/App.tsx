@@ -30,9 +30,22 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 import { useEffect } from 'react';
+import { syncOfflineQueue } from './utils/offlineQueue';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from './store/uiStore';
 
 function App() {
+
+  const queryClient = useQueryClient();
+  
+  useEffect(() => {
+    const handleOnline = () => syncOfflineQueue(queryClient);
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine) {
+      handleOnline();
+    }
+    return () => window.removeEventListener('online', handleOnline);
+  }, [queryClient]);
   const setInstallPromptEvent = useUIStore((state) => state.setInstallPromptEvent);
   const initTheme = useUIStore((state) => state.initTheme);
   useEffect(() => { initTheme(); }, [initTheme]);

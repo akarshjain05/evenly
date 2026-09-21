@@ -1,3 +1,4 @@
+import { useUIStore } from '../store/uiStore';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import type { AxiosError } from 'axios';
@@ -6,20 +7,23 @@ export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
   onError?: (err: AxiosError | Error, variables: TVariables, context: any) => void;
   onSuccess?: (data: any, variables: TVariables, context: any) => void;
+  onMutate?: (variables: TVariables) => Promise<any> | any;
 }
 
 export function useLedgerMutation<TVariables, TData>({ 
   mutationFn, 
   onError,
-  onSuccess
+  onSuccess,
+  onMutate
 }: LedgerMutationOptions<TVariables, TData>) {
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
 
   return useMutation({
+    onMutate,
     mutationFn,
     onError: (err: AxiosError | Error, _variables: TVariables, context: any) => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
+      if (navigator.onLine) queryClient.invalidateQueries({ queryKey: ['group', id] });
       if (onError) onError(err, _variables, context);
     },
     onSuccess: async (data: any, variables: TVariables, context: any) => {
@@ -34,7 +38,11 @@ export function useLedgerMutation<TVariables, TData>({
       
       // 2. AWAIT the refetch! This ensures the modal stays in "Saving..." state
       // until the new item is actually retrieved and placed into the activity list.
-      await queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+            if (navigator.onLine) {
+        await queryClient.invalidateQueries({ queryKey: ['group-activity', id] });
+      } else {
+        useUIStore.getState().showAlert('Offline', 'Saved offline. It will sync automatically when you reconnect.');
+      }
 
       // 3. Update balances directly from the backend response
       const payload = data?.data || data;
@@ -49,7 +57,7 @@ export function useLedgerMutation<TVariables, TData>({
 
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', id] });
+      if (navigator.onLine) queryClient.invalidateQueries({ queryKey: ['group', id] });
     }
   });
 }

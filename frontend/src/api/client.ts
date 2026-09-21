@@ -1,3 +1,4 @@
+import { addToOfflineQueue } from '../utils/offlineQueue';
 import { setAuthStatus } from '../utils/auth';
 import axios from 'axios';
 
@@ -55,6 +56,19 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (retryError) {
         return Promise.reject(retryError);
+      }
+    }
+
+    if (!navigator.onLine || error.message === "Network Error") {
+      const method = originalRequest.method?.toUpperCase();
+      if (method && ['POST', 'PUT', 'DELETE'].includes(method)) {
+        await addToOfflineQueue({
+          url: originalRequest.url,
+          method: method as any,
+          data: originalRequest.data ? JSON.parse(originalRequest.data) : undefined
+        });
+        // Return mock success to trigger optimistic UI
+        return Promise.resolve({ data: {}, status: 200, statusText: 'OK' });
       }
     }
 

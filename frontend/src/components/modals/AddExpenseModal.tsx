@@ -8,11 +8,13 @@ import type { ExpenseCreate, GroupDetailResponse } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+import { useQueryClient } from '@tanstack/react-query';
 //
 
 
 export default function AddExpenseModal({
   group }: { group: GroupDetailResponse }) {
+  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   const { isAddExpenseOpen, closeAddExpense, openAddExpense } = useUIStore();
@@ -38,6 +40,47 @@ export default function AddExpenseModal({
   
   const mutation = useLedgerMutation({
     mutationFn: (newExpense: ExpenseCreate) => apiClient.post(`groups/${id}/expenses`, newExpense),
+
+    onMutate: async (newExpense: ExpenseCreate) => {
+      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
+      const previousActivity = queryClient.getQueryData(['group-activity', id]);
+      
+      const optimisticItem = {
+        id: `temp-${Date.now()}`,
+        type: 'expense',
+        description: newExpense.description,
+        amount: newExpense.amount,
+        category: 'General',
+        paid_by: newExpense.paid_by,
+        paid_by_name: group.members.find(m => m.id === newExpense.paid_by)?.name || 'Unknown',
+        created_at: new Date().toISOString(),
+        created_by_user_id: user?.id,
+        splits: (newExpense.participant_ids || []).map(pid => ({
+           member_id: pid,
+           name: group.members.find(m => m.id === pid)?.name,
+           share_amount: newExpense.amount / (newExpense.participant_ids?.length || 1)
+        }))
+      };
+
+      queryClient.setQueryData(['group-activity', id], (old: any) => {
+        if (!old || !old.pages || !old.pages[0]) return old;
+        return {
+          ...old,
+          pages: [
+            {
+              ...old.pages[0],
+              items: [optimisticItem, ...old.pages[0].items]
+            },
+            ...old.pages.slice(1)
+          ]
+        };
+      });
+
+      // Also optimistically update balances if possible, but it's okay to skip for offline
+      // since sync will fix it.
+
+      return { previousActivity };
+    },
     
     onSuccess: () => {
       closeAddExpense();

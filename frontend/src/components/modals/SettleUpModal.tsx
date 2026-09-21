@@ -8,11 +8,13 @@ import type { GroupDetailResponse, SettlementCreate } from '../../types/api';
 import { X } from 'lucide-react';
 import Select from '../ui/Select';
 import { useLedgerMutation } from '../../hooks/useLedgerMutation';
+import { useQueryClient } from '@tanstack/react-query';
 // 
 
 
 export default function SettleUpModal({
   group }: { group: GroupDetailResponse }) {
+  const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const { id } = useParams<{ id: string }>();
   const { isSettleUpOpen, closeSettleUp, openSettleUp } = useUIStore();
@@ -37,6 +39,39 @@ export default function SettleUpModal({
   
   const mutation = useLedgerMutation({
     mutationFn: (settlement: SettlementCreate) => apiClient.post(`groups/${id}/settlements`, settlement),
+
+    onMutate: async (settlement: SettlementCreate) => {
+      await queryClient.cancelQueries({ queryKey: ['group-activity', id] });
+      const previousActivity = queryClient.getQueryData(['group-activity', id]);
+      
+      const optimisticItem = {
+        id: `temp-${Date.now()}`,
+        type: 'settlement',
+        amount: settlement.amount,
+        from_member: settlement.from_member,
+        from_name: group.members.find(m => m.id === settlement.from_member)?.name || 'Unknown',
+        to_member: settlement.to_member,
+        to_name: group.members.find(m => m.id === settlement.to_member)?.name || 'Unknown',
+        created_at: new Date().toISOString(),
+        created_by_user_id: user?.id,
+      };
+
+      queryClient.setQueryData(['group-activity', id], (old: any) => {
+        if (!old || !old.pages || !old.pages[0]) return old;
+        return {
+          ...old,
+          pages: [
+            {
+              ...old.pages[0],
+              items: [optimisticItem, ...old.pages[0].items]
+            },
+            ...old.pages.slice(1)
+          ]
+        };
+      });
+
+      return { previousActivity };
+    },
     
     onSuccess: () => {
       closeSettleUp();
