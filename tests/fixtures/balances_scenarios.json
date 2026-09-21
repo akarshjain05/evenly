@@ -2,165 +2,130 @@
   {
     "name": "Standard split",
     "input": [
-      {
-        "id": "A",
-        "name": "Alice",
-        "balance": "100.00"
-      },
-      {
-        "id": "B",
-        "name": "Bob",
-        "balance": "-50.00"
-      },
-      {
-        "id": "C",
-        "name": "Charlie",
-        "balance": "-50.00"
-      }
+      { "id": "A", "name": "Alice", "balance": "100.00" },
+      { "id": "B", "name": "Bob", "balance": "-50.00" },
+      { "id": "C", "name": "Charlie", "balance": "-50.00" }
     ],
     "expected": [
-      {
-        "from_member": "B",
-        "to_member": "A",
-        "amount": 50.0
-      },
-      {
-        "from_member": "C",
-        "to_member": "A",
-        "amount": 50.0
-      }
+      { "from_member": "B", "to_member": "A", "amount": 50.0 },
+      { "from_member": "C", "to_member": "A", "amount": 50.0 }
     ]
   },
   {
     "name": "Fractional split",
     "input": [
-      {
-        "id": "A",
-        "name": "Alice",
-        "balance": "33.34"
-      },
-      {
-        "id": "B",
-        "name": "Bob",
-        "balance": "-16.67"
-      },
-      {
-        "id": "C",
-        "name": "Charlie",
-        "balance": "-16.67"
-      }
+      { "id": "A", "name": "Alice", "balance": "33.34" },
+      { "id": "B", "name": "Bob", "balance": "-16.67" },
+      { "id": "C", "name": "Charlie", "balance": "-16.67" }
     ],
     "expected": [
-      {
-        "from_member": "B",
-        "to_member": "A",
-        "amount": 16.67
-      },
-      {
-        "from_member": "C",
-        "to_member": "A",
-        "amount": 16.67
-      }
+      { "from_member": "B", "to_member": "A", "amount": 16.67 },
+      { "from_member": "C", "to_member": "A", "amount": 16.67 }
     ]
   },
   {
     "name": "Multiple creditors",
     "input": [
-      {
-        "id": "A",
-        "name": "Alice",
-        "balance": "12.50"
-      },
-      {
-        "id": "B",
-        "name": "Bob",
-        "balance": "12.50"
-      },
-      {
-        "id": "C",
-        "name": "Charlie",
-        "balance": "-25.00"
-      }
+      { "id": "A", "name": "Alice", "balance": "12.50" },
+      { "id": "B", "name": "Bob", "balance": "12.50" },
+      { "id": "C", "name": "Charlie", "balance": "-25.00" }
     ],
     "expected": [
-      {
-        "from_member": "C",
-        "to_member": "A",
-        "amount": 12.5
-      },
-      {
-        "from_member": "C",
-        "to_member": "B",
-        "amount": 12.5
-      }
+      { "from_member": "C", "to_member": "A", "amount": 12.5 },
+      { "from_member": "C", "to_member": "B", "amount": 12.5 }
     ]
   },
   {
     "name": "Complex group",
     "input": [
-      {
-        "id": "1",
-        "name": "P1",
-        "balance": "1000"
-      },
-      {
-        "id": "2",
-        "name": "P2",
-        "balance": "500"
-      },
-      {
-        "id": "3",
-        "name": "P3",
-        "balance": "-200"
-      },
-      {
-        "id": "4",
-        "name": "P4",
-        "balance": "-800"
-      },
-      {
-        "id": "5",
-        "name": "P5",
-        "balance": "-500"
-      }
+      { "id": "1", "name": "P1", "balance": "1000" },
+      { "id": "2", "name": "P2", "balance": "500" },
+      { "id": "3", "name": "P3", "balance": "-200" },
+      { "id": "4", "name": "P4", "balance": "-800" },
+      { "id": "5", "name": "P5", "balance": "-500" }
     ],
     "expected": [
-      {
-        "from_member": "4",
-        "to_member": "1",
-        "amount": 800.0
-      },
-      {
-        "from_member": "5",
-        "to_member": "2",
-        "amount": 500.0
-      },
-      {
-        "from_member": "3",
-        "to_member": "1",
-        "amount": 200.0
-      }
+      { "from_member": "4", "to_member": "1", "amount": 800.0 },
+      { "from_member": "5", "to_member": "2", "amount": 500.0 },
+      { "from_member": "3", "to_member": "1", "amount": 200.0 }
     ]
   },
   {
-    "name": "Rounding remainder",
+    "name": "Rounding remainder below tolerance",
     "input": [
-      {
-        "id": "A",
-        "name": "Alice",
-        "balance": "0.00"
-      },
-      {
-        "id": "B",
-        "name": "Bob",
-        "balance": "0.01"
-      },
-      {
-        "id": "C",
-        "name": "Charlie",
-        "balance": "-0.01"
-      }
+      { "id": "A", "name": "Alice", "balance": "0.00" },
+      { "id": "B", "name": "Bob", "balance": "0.01" },
+      { "id": "C", "name": "Charlie", "balance": "-0.01" }
     ],
     "expected": []
+  },
+  {
+    "name": "Circular debts",
+    "input": [
+      { "id": "A", "name": "Alice", "balance": "0.00" },
+      { "id": "B", "name": "Bob", "balance": "0.00" },
+      { "id": "C", "name": "Charlie", "balance": "0.00" }
+    ],
+    "expected": []
+  },
+  {
+    "name": "Exact matching pairs in greedy sequence",
+    "input": [
+      { "id": "A", "name": "Alice", "balance": "40.00" },
+      { "id": "B", "name": "Bob", "balance": "60.00" },
+      { "id": "C", "name": "Charlie", "balance": "-40.00" },
+      { "id": "D", "name": "Dave", "balance": "-60.00" }
+    ],
+    "expected": [
+      { "from_member": "D", "to_member": "B", "amount": 60.0 },
+      { "from_member": "C", "to_member": "A", "amount": 40.0 }
+    ]
+  },
+  {
+    "name": "Greedy vs Exact match trap",
+    "input": [
+      { "id": "A", "name": "A", "balance": "100.00" },
+      { "id": "B", "name": "B", "balance": "90.00" },
+      { "id": "C", "name": "C", "balance": "-10.00" },
+      { "id": "D", "name": "D", "balance": "-90.00" },
+      { "id": "E", "name": "E", "balance": "-90.00" }
+    ],
+    "expected": [
+      { "from_member": "D", "to_member": "A", "amount": 90.0 },
+      { "from_member": "E", "to_member": "B", "amount": 90.0 },
+      { "from_member": "C", "to_member": "A", "amount": 10.0 }
+    ]
+  },
+  {
+    "name": "Everyone owes one person",
+    "input": [
+      { "id": "A", "name": "A", "balance": "100.00" },
+      { "id": "B", "name": "B", "balance": "-25.00" },
+      { "id": "C", "name": "C", "balance": "-25.00" },
+      { "id": "D", "name": "D", "balance": "-25.00" },
+      { "id": "E", "name": "E", "balance": "-25.00" }
+    ],
+    "expected": [
+      { "from_member": "B", "to_member": "A", "amount": 25.0 },
+      { "from_member": "C", "to_member": "A", "amount": 25.0 },
+      { "from_member": "D", "to_member": "A", "amount": 25.0 },
+      { "from_member": "E", "to_member": "A", "amount": 25.0 }
+    ]
+  },
+  {
+    "name": "One person owes everyone",
+    "input": [
+      { "id": "A", "name": "A", "balance": "-100.00" },
+      { "id": "B", "name": "B", "balance": "25.00" },
+      { "id": "C", "name": "C", "balance": "25.00" },
+      { "id": "D", "name": "D", "balance": "25.00" },
+      { "id": "E", "name": "E", "balance": "25.00" }
+    ],
+    "expected": [
+      { "from_member": "A", "to_member": "B", "amount": 25.0 },
+      { "from_member": "A", "to_member": "C", "amount": 25.0 },
+      { "from_member": "A", "to_member": "D", "amount": 25.0 },
+      { "from_member": "A", "to_member": "E", "amount": 25.0 }
+    ]
   }
 ]
