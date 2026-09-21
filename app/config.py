@@ -5,9 +5,9 @@ class Settings(BaseSettings):
     database_url: str
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 43200
-    cookie_max_age_sec: int = 2592000
-    cors_origins: str = "*"
+    access_token_expire_minutes: int = 10080
+    cookie_max_age_sec: int = 604800
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
     rate_limit_max_attempts: int = 100
     rate_limit_window_seconds: int = 60
     vapid_private_key: str = ""

@@ -625,3 +625,94 @@ def test_critical_push_notification_logging(mock_send_web_push, client):
     mock_send_web_push.assert_called_once()
     args = mock_send_web_push.call_args[0]
     assert push2_user_id in args[0]
+
+def test_cursor_pagination(client, auth_user, populated_group):
+    cookies = auth_user['cookies']
+    headers = auth_user.get('headers', {})
+    group_id = populated_group['group_id']
+    m1_id = populated_group['member1_id']
+    
+    import time
+    for i in range(3):
+        res = client.post(f"/api/groups/{group_id}/expenses", json={
+            "description": f"Expense {i}",
+            "amount": 10.0,
+            "paid_by": m1_id,
+            "split_type": "equal",
+            "participant_ids": [m1_id]
+        }, cookies=cookies, headers=headers)
+        assert res.status_code == 200
+        time.sleep(0.01)
+        
+    res = client.get(f"/api/groups/{group_id}/activity?limit=2", cookies=cookies, headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["items"]) == 2
+    assert data["next_cursor"] is not None
+    
+    import urllib.parse
+    cursor = urllib.parse.quote(data['next_cursor'])
+    res2 = client.get(f"/api/groups/{group_id}/activity?limit=2&last_seen={cursor}", cookies=cookies, headers=headers)
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert len(data2["items"]) == 1
+    assert data2["next_cursor"] is None
+
+def test_ledger_reconciliation_drift(client, auth_user, auth_user_2):
+    cookies1 = auth_user['cookies']
+    headers1 = auth_user.get('headers', {})
+    cookies2 = auth_user_2['cookies']
+    headers2 = auth_user_2.get('headers', {})
+    
+    res = client.post("/api/groups", json={"name": "Drift Test", "your_name": "Alice"}, cookies=cookies1, headers=headers1)
+    assert res.status_code == 200
+    group_id = res.json()["group"]["id"]
+    m1_id = res.json()["member"]["id"]
+    join_code = res.json()["group"]["invite_code"]
+    
+    res2 = client.post(f"/api/groups/by-code/{join_code}/join", json={"name": "Bob"}, cookies=cookies2, headers=headers2)
+    assert res2.status_code == 200
+    m2_id = res2.json()["member"]["id"]
+    
+    res = client.post(f"/api/groups/{group_id}/expenses", json={
+        "description": "Lunch",
+        "amount": 100.0,
+        "paid_by": m1_id,
+        "split_type": "equal",
+        "participant_ids": [m1_id, m2_id]
+    }, cookies=cookies1, headers=headers1)
+    assert res.status_code == 200
+    
+    res = client.post(f"/api/groups/{group_id}/settlements", json={
+        "from_member": m2_id,
+        "to_member": m1_id,
+        "amount": 50.0
+    }, cookies=cookies1, headers=headers1)
+    assert res.status_code == 200
+    
+    group = client.get(f"/api/groups/{group_id}", cookies=cookies1, headers=headers1).json()
+    assert float(group["members"][0]["balance"]) == 0
+    assert float(group["members"][1]["balance"]) == 0
+    
+    activity = client.get(f"/api/groups/{group_id}/activity", cookies=cookies1, headers=headers1).json()["items"]
+    exp_id = [a for a in activity if a["type"] == "expense"][0]["id"]
+    client.delete(f"/api/groups/{group_id}/expenses/{exp_id}", cookies=cookies1, headers=headers1)
+    
+    group = client.get(f"/api/groups/{group_id}", cookies=cookies1, headers=headers1).json()
+    b1 = [m for m in group["members"] if m["id"] == m1_id][0]["balance"]
+    b2 = [m for m in group["members"] if m["id"] == m2_id][0]["balance"]
+    assert float(b1) == -50.0
+    assert float(b2) == 50.0
+
+def test_logout_blocklist(client, auth_user):
+    cookies = auth_user['cookies']
+    headers = auth_user.get('headers', {})
+    
+    res = client.post("/api/auth/logout", cookies=cookies, headers=headers)
+    assert res.status_code == 200
+    
+    res2 = client.get("/api/auth/csrf", cookies=cookies, headers=headers)
+    assert res2.status_code == 401
+
+def test_group_member_limit(client, auth_user):
+    pass

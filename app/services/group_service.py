@@ -1,3 +1,4 @@
+from functools import lru_cache
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
@@ -37,7 +38,7 @@ async def create_group_transaction(payload: schemas.GroupCreate, user: models.Us
     return {"group": group_summary, "member": member_resp}
 
 async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest, user: models.User, db: AsyncSession):
-    result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code))
+    result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code).with_for_update())
     group = result.scalars().first()
     if not group:
         raise HTTPException(status_code=404, detail="Invalid invite link")
@@ -54,6 +55,8 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     from sqlalchemy import func
     member_count_res = await db.execute(select(func.count()).select_from(models.Member).filter(models.Member.group_id == group.id))
     member_count = member_count_res.scalar() or 0
+    if member_count >= 50:
+        raise HTTPException(status_code=400, detail="Group is full (max 50 members)")
 
     member = models.Member(
         group_id=group.id,
@@ -70,6 +73,11 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     
     return {"group": group_summary, "member": member_resp}
 
+
+@lru_cache(maxsize=1024)
+def _cached_simplify_debts(balances_fs):
+    return balances.simplify_debts({k: v for k, v in balances_fs})
+
 async def get_group_details(group_id: str, db: AsyncSession):
     result = await db.execute(select(models.Group).options(selectinload(models.Group.members)).filter(models.Group.id == group_id))
     group = result.scalars().first()
@@ -77,7 +85,7 @@ async def get_group_details(group_id: str, db: AsyncSession):
         raise HTTPException(status_code=404, detail="Group not found")
 
     net_balances = {m.id: m.balance for m in group.members}
-    debts = balances.simplify_debts(net_balances)
+    debts = _cached_simplify_debts(frozenset(net_balances.items()))
     member_map = {m.id: m for m in group.members}
     
     return {
