@@ -1,4 +1,4 @@
-import { calculateEqualSplits, calculateExpenseBalanceChanges } from '../../utils/balances';
+import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -56,9 +56,6 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
       
       return [optimisticActivity, ...old];
     },
-    onMutateBalances: (newExpense, members) => {
-      return calculateExpenseBalanceChanges(members, newExpense);
-    },
     onError: (err: any) => {
       openAddExpense();
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
@@ -69,7 +66,7 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
   if (!isAddExpenseOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
           <h2 className="font-display text-[20px] font-medium m-0">Add an expense</h2>
@@ -79,11 +76,20 @@ export default function AddExpenseModal({ group }: { group: GroupDetailResponse 
         <form onSubmit={(e) => { 
           e.preventDefault(); 
           setError(''); 
+          if (!description.trim()) {
+            setError('Please enter a description.');
+            return;
+          }
+          const parsedAmount = parseFloat(amount);
+          if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            setError('Please enter a valid amount greater than 0.');
+            return;
+          }
           if (participants.length === 0) {
             setError('Please select at least one person to split with.');
             return;
           }
-          mutation.mutate({ description, amount: parseFloat(amount), paid_by: paidBy, split_type: 'equal', participant_ids: participants }); 
+          mutation.mutate({ description: description.trim(), amount: parsedAmount, paid_by: paidBy, split_type: 'equal', participant_ids: participants }); 
         }} className="p-5 space-y-4">
           {error && <div className="text-[#c81e1e] text-[13px] font-medium">{error}</div>}
           <div className="flex flex-col gap-1.5">

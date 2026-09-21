@@ -28,7 +28,7 @@ class JoinRequest(BaseModel):
 
 class SplitInput(BaseModel):
     member_id: str
-    value: Decimal  # exact: rupees/dollars; percentage: 0-100
+    value: Decimal = Field(..., ge=0)  # exact: rupees/dollars; percentage: 0-100
 
 
 class ExpenseCreate(BaseModel):

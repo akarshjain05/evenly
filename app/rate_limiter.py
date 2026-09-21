@@ -15,8 +15,8 @@ from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = int(os.environ.get("RATE_LIMIT_MAX_ATTEMPTS", "10"))
-WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
+MAX_ATTEMPTS = int(os.environ["RATE_LIMIT_MAX_ATTEMPTS"])
+WINDOW_SECONDS = int(os.environ["RATE_LIMIT_WINDOW_SECONDS"])
 
 # ---------------------------------------------------------------------------
 # Redis backend
@@ -55,10 +55,16 @@ def _check_redis(client_ip: str, limit_type: str = "auth") -> None:
 
 _auth_attempts: dict[str, list[float]] = defaultdict(list)
 _invite_attempts: dict[str, list[float]] = defaultdict(list)
+_export_attempts: dict[str, list[float]] = defaultdict(list)
 
 def _check_memory(client_ip: str, limit_type: str = "auth") -> None:
     now = time.time()
-    store = _auth_attempts if limit_type == "auth" else _invite_attempts
+    if limit_type == "auth":
+        store = _auth_attempts
+    elif limit_type == "invite":
+        store = _invite_attempts
+    else:
+        store = _export_attempts
     store[client_ip] = [
         t for t in store[client_ip] if now - t < WINDOW_SECONDS
     ]
@@ -73,7 +79,7 @@ def _check_memory(client_ip: str, limit_type: str = "auth") -> None:
 def cleanup_memory() -> None:
     """Prune stale IPs from the in-memory store.  Called by the background task."""
     now = time.time()
-    for store in [_auth_attempts, _invite_attempts]:
+    for store in [_auth_attempts, _invite_attempts, _export_attempts]:
         for ip in list(store.keys()):
             valid = [t for t in store[ip] if now - t < WINDOW_SECONDS]
             if valid:
@@ -90,15 +96,13 @@ _use_redis = bool(os.getenv("REDIS_URL"))
 
 # Fail securely in stateless environments without Redis, unless explicitly overridden
 if not _use_redis and os.getenv("VERCEL") == "1":
-    if os.getenv("DISABLE_RATE_LIMITING") != "1":
-        logger.warning(
-            "CRITICAL SECURITY MISCONFIGURATION: "
-            "You are deploying to Vercel (serverless) without REDIS_URL. "
-            "The in-memory rate limiter is useless in serverless environments. "
-            "Rate limiting is automatically disabled to prevent crashes, but your auth endpoints are vulnerable to brute-force attacks. "
-            "Please configure Redis (e.g. Upstash) and set REDIS_URL."
-        )
-        os.environ["DISABLE_RATE_LIMITING"] = "1"
+    raise RuntimeError(
+        "CRITICAL SECURITY MISCONFIGURATION: "
+        "You are deploying to Vercel (serverless) without REDIS_URL. "
+        "The in-memory rate limiter is useless in serverless environments, "
+        "leaving your auth endpoints vulnerable to brute-force attacks. "
+        "Please configure Redis (e.g. Upstash) and set REDIS_URL."
+    )
 
 
 def rate_limit_auth(request: Request) -> None:
@@ -124,3 +128,13 @@ def rate_limit_invite(request: Request) -> None:
     else:
         _check_memory(client_ip, "invite")
 
+
+def rate_limit_export(request: Request) -> None:
+    if os.getenv("DISABLE_RATE_LIMITING") == "1":
+        return
+        
+    client_ip = request.client.host if request.client else "unknown"
+    if _use_redis:
+        _check_redis(client_ip, "export")
+    else:
+        _check_memory(client_ip, "export")

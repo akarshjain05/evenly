@@ -38,7 +38,7 @@ export default function ShareModal({ group, onClose }: Props) {
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 transition-opacity" 
+        role="dialog" aria-modal="true" className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 transition-opacity" 
         onClick={onClose} 
       />
       <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 bg-paper z-50 rounded-t-[24px] sm:rounded-[24px] shadow-2xl sm:w-full sm:max-w-sm overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in">

@@ -1,3 +1,15 @@
+
+import os
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_app.db"
+os.environ["CORS_ORIGINS"] = "http://localhost:3000"
+os.environ["JWT_ALGORITHM"] = "HS256"
+os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "43200"
+os.environ["COOKIE_MAX_AGE_SEC"] = "2592000"
+os.environ["RATE_LIMIT_MAX_ATTEMPTS"] = "100"
+os.environ["RATE_LIMIT_WINDOW_SECONDS"] = "60"
+os.environ["VAPID_CLAIMS_EMAIL"] = "test@example.com"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key"
+
 import json
 import os
 from decimal import Decimal

@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // We use relative /api because Vercel routes /api to the backend in prod.
 // Locally, Vite's dev server will proxy /api to http://localhost:8000.
-const API_URL = import.meta.env.VITE_API_URL || '/api/';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       try {
         // This GET request will trigger the backend to seamlessly issue a new CSRF cookie
-        await apiClient.get('/users/me');
+        await apiClient.get('/auth/csrf');
         // Retry the original request (the request interceptor will pull the newly minted cookie)
         return apiClient(originalRequest);
       } catch (retryError) {
@@ -76,8 +76,22 @@ apiClient.interceptors.response.use(
         } else {
           error.response.data.userMessage = d;
         }
-      } else if (Array.isArray(d)) {
-        error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+      } else if (Array.isArray(d) && d.length > 0) {
+        try {
+          const first = d[0];
+          const field = first.loc ? first.loc[first.loc.length - 1] : null;
+          const msg = first.msg;
+          if (field && msg) {
+            const cleanField = String(field).charAt(0).toUpperCase() + String(field).slice(1).replace(/_/g, ' ');
+            error.response.data.userMessage = `${cleanField}: ${msg}`;
+          } else if (msg) {
+            error.response.data.userMessage = msg;
+          } else {
+            error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+          }
+        } catch(e) {
+          error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+        }
       }
     } else if (error.message === "Network Error" || !error.response) {
        error.response = { 

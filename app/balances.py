@@ -69,10 +69,8 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
         
         num = Decimal(len(participants))
         share = (payload.amount / num).quantize(Decimal('0.01'))
-        remainder = payload.amount - (share * num)
-        for i, pid in enumerate(participants):
-            amt = share + (remainder if i == 0 else Decimal('0.00'))
-            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=amt))
+        for pid in participants:
+            splits.append(models.ExpenseSplit(expense_id=expense.id, member_id=pid, share_amount=share))
 
     elif payload.split_type == "exact":
         if not payload.splits:
@@ -193,7 +191,7 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str):
     )).all()
     for member_id, amount in settlement_from_sums:
         if member_id in true_balances and amount:
-            true_balances[member_id] -= Decimal(str(amount))
+            true_balances[member_id] += Decimal(str(amount))
             
     settlement_to_sums = (await db.execute(
         select(models.Settlement.to_member, func.sum(models.Settlement.amount))
@@ -202,7 +200,7 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str):
     )).all()
     for member_id, amount in settlement_to_sums:
         if member_id in true_balances and amount:
-            true_balances[member_id] += Decimal(str(amount))
+            true_balances[member_id] -= Decimal(str(amount))
             
     # Bulk update balances
     updates = []

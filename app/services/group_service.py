@@ -1,3 +1,4 @@
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
@@ -35,11 +36,7 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
 
-    from sqlalchemy import func
-    count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
-    member_count = count_res.scalar()
-    if member_count >= 50:
-        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members")
+
 
 
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
@@ -62,18 +59,14 @@ async def get_group_details(group_id: str, db: AsyncSession):
     if not group:
         raise HTTPException(status_code=404, detail="Tab not found")
 
-    from sqlalchemy import func
-    count_res = await db.execute(select(func.count(models.Member.id)).filter(models.Member.group_id == group.id))
-    member_count = count_res.scalar()
-    if member_count >= 50:
-        raise HTTPException(status_code=400, detail="This tab has reached the maximum limit of 50 members")
+
 
     
     net = await balances.compute_net_balances(db, group_id)
 
 
     members_dict = {m.id: m.name for m in group.members}
-    debts = balances.simplify_debts(net)
+    debts = await asyncio.to_thread(balances.simplify_debts, net)
     for d in debts:
         d["from_name"] = members_dict.get(d["from_member"], "Unknown")
         d["to_name"] = members_dict.get(d["to_member"], "Unknown")

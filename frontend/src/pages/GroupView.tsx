@@ -17,7 +17,6 @@ import { GroupViewSkeleton } from '../components/Skeleton';
 import { GroupHeader } from '../components/group/GroupHeader';
 import { BalancesSidebar } from '../components/group/BalancesSidebar';
 import { SettleSuggestions } from '../components/group/SettleSuggestions';
-import { calculateExpenseBalanceChanges } from '../utils/balances';
 
 const fetchGroupDetails = async (id: string): Promise<GroupDetailResponse> => {
   const { data } = await apiClient.get(`groups/${id}`);
@@ -43,12 +42,16 @@ export default function GroupView() {
   const [editingExpense, setEditingExpense] = useState<ActivityResponse | null>(null);
   
   const deleteMutation = useLedgerMutation({
-    mutationFn: (item: ActivityResponse) => apiClient.delete(`groups/${id}/expenses/${item.id}`),
-    onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
-    onMutateBalances: (item, members) => {
-      return calculateExpenseBalanceChanges(members, undefined, item);
+    mutationFn: (item: ActivityResponse) => {
+      if (item.type === 'settlement') {
+        return apiClient.delete(`groups/${id}/settlements/${item.id}`);
+      }
+      return apiClient.delete(`groups/${id}/expenses/${item.id}`);
     },
-    onError: () => showAlert('Error', 'Failed to delete expense.')
+    onMutateActivity: (old, item) => old.filter((a: ActivityResponse) => a.id !== item.id),
+    onError: (err: any) => {
+      showAlert('Error', err?.response?.data?.userMessage || 'Failed to delete activity.');
+    }
   });
 
   const [editingSettlement, setEditingSettlement] = useState<ActivityResponse | null>(null);
@@ -61,7 +64,7 @@ export default function GroupView() {
 
   const { data: user } = useCurrentUser();
 
-  const { data: group, isLoading: isLoadingGroup } = useQuery({
+  const { data: group, isLoading: isLoadingGroup, error: groupError } = useQuery({
     queryKey: ['group', id],
     queryFn: () => fetchGroupDetails(id!),
     enabled: !!id,
@@ -98,7 +101,8 @@ export default function GroupView() {
   const activities = (activityData?.pages.flat() as ActivityResponse[]) || [];
 
   if (isLoadingGroup || isLoadingActivity) return <GroupViewSkeleton />;
-  if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-red-500 font-medium">Failed to load tab</div>;
+  if (groupError) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">{((groupError as any)?.response?.data?.userMessage || (groupError as any)?.response?.data?.detail) || "Failed to load tab"}</div>;
+  if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-[#c81e1e] font-medium">Failed to load tab</div>;
 
   const expenses = activities?.filter(a => a.type === 'expense') || [];
   const settlements = activities?.filter(a => a.type === 'settlement') || [];

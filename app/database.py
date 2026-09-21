@@ -8,10 +8,7 @@ from sqlalchemy.pool import NullPool
 
 import logging
 logger = logging.getLogger(__name__)
-db_url = os.environ.get("DATABASE_URL")
-if not db_url:
-    logger.warning("DATABASE_URL is not set. Falling back to in-memory/local SQLite. Data will be lost in serverless environments.")
-    db_url = "sqlite+aiosqlite:///./evenly.db"
+db_url = os.environ["DATABASE_URL"]
 DATABASE_URL = db_url
 
 if DATABASE_URL.startswith("postgres://"):

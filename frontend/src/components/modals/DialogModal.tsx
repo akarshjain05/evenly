@@ -34,7 +34,7 @@ export default function DialogModal() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div 
         className="bg-paper w-full max-w-sm rounded-[20px] shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}

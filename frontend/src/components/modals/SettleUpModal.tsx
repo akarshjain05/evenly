@@ -47,10 +47,6 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
 
       return [optimisticActivity, ...old];
     },
-    onMutateBalances: (settlement: SettlementCreate) => [
-      { member_id: settlement.from_member, net_change: settlement.amount },
-      { member_id: settlement.to_member, net_change: -settlement.amount }
-    ],
     onError: (err: Error | any) => {
       openSettleUp();
       setError((err.response?.data?.userMessage || err.response?.data?.detail) || 'Failed to record settlement');
@@ -60,7 +56,7 @@ export default function SettleUpModal({ group }: { group: GroupDetailResponse })
   if (!isSettleUpOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
           <h2 className="font-display text-[20px] font-medium m-0">Record a payment</h2>

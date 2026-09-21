@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 from . import models, database
 
 SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "43200"))  # Default 30 days
+ALGORITHM = os.environ["JWT_ALGORITHM"]
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"])
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 

@@ -22,9 +22,7 @@ async def verify_csrf(request: Request, response: Response):
                 detail="CSRF token validation failed",
             )
 
-    if request.method == "GET" and not request.cookies.get("csrf_token") and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
-        new_token = secrets.token_urlsafe(32)
-        response.set_cookie(key="csrf_token", value=new_token, httponly=False, secure=True, samesite="lax", max_age=7*24*60*60)
+
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(database.get_db), _csrf=Depends(verify_csrf)):

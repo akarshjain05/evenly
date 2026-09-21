@@ -1,13 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { simplifyDebts } from '../utils/balances';
 import { useParams } from 'react-router-dom';
-import type { ActivityResponse, GroupDetailResponse } from '../types/api';
+import type { ActivityResponse } from '../types/api';
 import type { AxiosError } from 'axios';
 
 export interface LedgerMutationOptions<TVariables, TData> {
   mutationFn: (variables: TVariables) => Promise<TData>;
   onMutateActivity?: (oldActivity: ActivityResponse[], variables: TVariables) => ActivityResponse[];
-  onMutateBalances?: (variables: TVariables, members: GroupDetailResponse['members']) => Array<{ member_id: string, net_change: number }>;
   onError?: (err: AxiosError | Error | any) => void;
   onSuccess?: () => void;
 }
@@ -15,7 +13,6 @@ export interface LedgerMutationOptions<TVariables, TData> {
 export function useLedgerMutation<TVariables, TData>({ 
   mutationFn, 
   onMutateActivity, 
-  onMutateBalances, 
   onError,
   onSuccess
 }: LedgerMutationOptions<TVariables, TData>) {
@@ -32,26 +29,16 @@ export function useLedgerMutation<TVariables, TData>({
       const previousGroup = queryClient.getQueryData(['group', id]);
 
       if (onMutateActivity) {
-        queryClient.setQueryData(['group-activity', id], (old: ActivityResponse[] | undefined) => {
-           return onMutateActivity(old || [], variables);
-        });
-      }
-
-      if (onMutateBalances) {
-        queryClient.setQueryData(['group', id], (old: GroupDetailResponse | undefined) => {
-          if (!old) return old;
-          const newGroup = JSON.parse(JSON.stringify(old));
-          
-          const changes = onMutateBalances(variables, newGroup.members);
-          changes.forEach((change) => {
-            const member = newGroup.members.find((m: GroupDetailResponse['members'][0]) => m.id === change.member_id);
-            if (member) {
-              member.balance = (Number(member.balance) + change.net_change).toFixed(2);
-            }
-          });
-          
-          newGroup.simplified_debts = simplifyDebts(newGroup.members);
-          return newGroup;
+        queryClient.setQueryData(['group-activity', id], (old: any) => {
+          if (!old || !old.pages) {
+             if (Array.isArray(old)) return onMutateActivity(old, variables);
+             return old;
+          }
+          const newPages = [...old.pages];
+          if (newPages.length > 0) {
+            newPages[0] = onMutateActivity(newPages[0] || [], variables);
+          }
+          return { ...old, pages: newPages };
         });
       }
 

@@ -12,7 +12,7 @@ from decimal import Decimal
 from app import models, schemas, deps, balances
 from app.database import get_db
 from app.services import group_service
-from app.rate_limiter import rate_limit_invite
+from app.rate_limiter import rate_limit_invite, rate_limit_export
 
 router = APIRouter(prefix='/api/groups', tags=['groups'])
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ async def create_group(payload: schemas.GroupCreate, user: models.User = Depends
     return await group_service.create_group_transaction(payload, user, db)
 
 @router.get("/by-code/{invite_code}")
-async def preview_group(invite_code: str, db: AsyncSession = Depends(get_db), _ = Depends(rate_limit_invite)):
+async def preview_group(invite_code: str, user: models.User = Depends(deps.get_current_user), db: AsyncSession = Depends(get_db), _ = Depends(rate_limit_invite)):
     result = await db.execute(select(models.Group).options(selectinload(models.Group.members)).filter(models.Group.invite_code == invite_code))
     group = result.scalars().first()
     if not group:
@@ -218,7 +218,8 @@ async def delete_settlement(
 async def export_csv(
     group_id: str,
     member: models.Member = Depends(deps.get_current_member),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(rate_limit_export)
 ):
     result = await db.execute(select(models.Group).filter(models.Group.id == group_id))
     group = result.scalars().first()
@@ -258,7 +259,7 @@ async def export_csv(
             ORDER BY created_at ASC
         ''')
         
-        async_result = await db.stream(query, {"group_id": group_id})
+        async_result = await db.stream(query.execution_options(yield_per=1000), {"group_id": group_id})
         async for row in async_result:
             if isinstance(row.created_at, str):
                 date_str = row.created_at[:16].replace('T', ' ')
@@ -290,7 +291,7 @@ async def export_csv(
     return StreamingResponse(
         iter_csv(),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
 

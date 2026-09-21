@@ -10,8 +10,8 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
     else if (bal < -SETTLEMENT_TOLERANCE) debtors.push({ amount: Math.abs(bal), id: m.id, name: m.name });
   }
 
-  creditors.sort((a, b) => b.amount - a.amount);
-  debtors.sort((a, b) => b.amount - a.amount);
+  creditors.sort((a, b) => b.amount - a.amount || a.id.localeCompare(b.id));
+  debtors.sort((a, b) => b.amount - a.amount || a.id.localeCompare(b.id));
 
   const transactions = [];
   let cIdx = 0;
@@ -38,19 +38,43 @@ export function simplifyDebts(members: { id: string, name: string, balance: stri
 
     // We don't really need to constantly re-sort if we just do standard pointers, 
     // but to perfectly mimic the python heap we can re-sort the remaining items
-    if (c.amount < SETTLEMENT_TOLERANCE) cIdx++;
-    else {
-        // Re-sort the rest of the array starting from cIdx
-        const rest = creditors.splice(cIdx);
-        rest.sort((a, b) => b.amount - a.amount);
-        creditors.push(...rest);
+    if (c.amount < SETTLEMENT_TOLERANCE) {
+      cIdx++;
+    } else {
+      let i = cIdx + 1;
+      while (i < creditors.length && creditors[i].amount > c.amount) {
+        // Tie-breaker matching Python's heapq: if amounts are equal, sort by ID ascending
+        if (creditors[i].amount === c.amount && creditors[i].id < c.id) {
+          break;
+        }
+        i++;
+      }
+      if (i > cIdx + 1) {
+        const temp = creditors[cIdx];
+        for (let j = cIdx; j < i - 1; j++) {
+          creditors[j] = creditors[j + 1];
+        }
+        creditors[i - 1] = temp;
+      }
     }
 
-    if (d.amount < SETTLEMENT_TOLERANCE) dIdx++;
-    else {
-        const rest = debtors.splice(dIdx);
-        rest.sort((a, b) => b.amount - a.amount);
-        debtors.push(...rest);
+    if (d.amount < SETTLEMENT_TOLERANCE) {
+      dIdx++;
+    } else {
+      let i = dIdx + 1;
+      while (i < debtors.length && debtors[i].amount > d.amount) {
+        if (debtors[i].amount === d.amount && debtors[i].id < d.id) {
+          break;
+        }
+        i++;
+      }
+      if (i > dIdx + 1) {
+        const temp = debtors[dIdx];
+        for (let j = dIdx; j < i - 1; j++) {
+          debtors[j] = debtors[j + 1];
+        }
+        debtors[i - 1] = temp;
+      }
     }
   }
 
@@ -90,44 +114,6 @@ export function calculateEqualSplits(amount: number, participantIds: string[]): 
   });
 }
 
-import type { GroupDetailResponse, ExpenseCreate, ActivityResponse } from '../types/api';
 
-export function calculateExpenseBalanceChanges(
-  members: GroupDetailResponse['members'],
-  newExpense?: ExpenseCreate,
-  oldExpense?: ActivityResponse
-): { member_id: string; net_change: number }[] {
-  const changes: { member_id: string; net_change: number }[] = [];
-  
-  members.forEach((m) => {
-    let netChange = 0;
 
-    // 1. Revert old expense if provided
-    if (oldExpense) {
-      if (oldExpense.splits && oldExpense.splits.length > 0) {
-        if (m.id === oldExpense.paid_by) netChange -= oldExpense.amount;
-        const split = oldExpense.splits.find((s) => s.member_id === m.id);
-        if (split) netChange += Number(split.share_amount);
-      } else {
-        const share = oldExpense.amount / members.length;
-        if (m.id === oldExpense.paid_by) netChange -= oldExpense.amount;
-        netChange += share;
-      }
-    }
 
-    // 2. Apply new expense if provided
-    if (newExpense && newExpense.split_type === 'equal') {
-      const parts = newExpense.participant_ids || members.map((mem) => mem.id);
-      if (parts.length > 0) {
-        const fakeSplits = calculateEqualSplits(newExpense.amount, parts);
-        if (m.id === newExpense.paid_by) netChange += newExpense.amount;
-        const split = fakeSplits.find(s => s.member_id === m.id);
-        if (split) netChange -= Number(split.share_amount);
-      }
-    }
-
-    changes.push({ member_id: m.id, net_change: netChange });
-  });
-
-  return changes;
-}

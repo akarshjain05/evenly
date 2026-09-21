@@ -38,12 +38,6 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
             : item
       );
     },
-    onMutateBalances: (updated: SettlementCreate) => [
-      { member_id: settlement.from_member as string, net_change: -settlement.amount },
-      { member_id: settlement.to_member as string, net_change: settlement.amount },
-      { member_id: updated.from_member, net_change: updated.amount },
-      { member_id: updated.to_member, net_change: -updated.amount }
-    ],
     onError: (err: Error | any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update settlement');
@@ -51,7 +45,7 @@ export default function EditSettlementModal({ settlement, group, onClose }: Prop
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
           <h2 className="font-display text-[20px] font-medium m-0">Edit settlement</h2>

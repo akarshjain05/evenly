@@ -1,4 +1,4 @@
-import { calculateEqualSplits, calculateExpenseBalanceChanges } from '../../utils/balances';
+import { calculateEqualSplits } from '../../utils/balances';
 import { useState } from 'react';
 
 import { useParams } from 'react-router-dom';
@@ -48,9 +48,6 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
             : item
       );
     },
-    onMutateBalances: (updated: ExpenseCreate, members) => {
-      return calculateExpenseBalanceChanges(members, updated, expense);
-    },
     onError: (err: any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Failed to update expense');
@@ -58,7 +55,7 @@ export default function EditExpenseModal({ expense, group, onClose }: Props) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
           <h2 className="font-display text-[20px] font-medium m-0">Edit expense</h2>

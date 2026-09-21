@@ -13,7 +13,9 @@ from app.database import AsyncSessionLocal
 async def send_web_push(user_ids: list, title: str, body: str):
     async with AsyncSessionLocal() as db:
         vapid_priv = os.environ.get("VAPID_PRIVATE_KEY")
-        if not vapid_priv: return
+        if not vapid_priv:
+            logger.warning("VAPID_PRIVATE_KEY is not set. Push notifications are disabled.")
+            return
         
         result = await db.execute(select(models.PushSubscription).filter(models.PushSubscription.user_id.in_(user_ids)))
         subs = result.scalars().all()
@@ -24,7 +26,7 @@ async def send_web_push(user_ids: list, title: str, body: str):
                     subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
                     data=json.dumps({"title": title, "body": body}),
                     vapid_private_key=vapid_priv,
-                    vapid_claims={"sub": f"mailto:{os.environ.get('VAPID_CLAIMS_EMAIL', 'admin@evenly.app')}"}
+                    vapid_claims={"sub": f"mailto:{os.environ["VAPID_CLAIMS_EMAIL"]}"}
                 )
             except WebPushException as e:
                 if e.response and e.response.status_code in [404, 410]:

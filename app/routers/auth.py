@@ -11,7 +11,7 @@ from app.database import get_db
 from app.rate_limiter import rate_limit_auth
 
 # 7 days in seconds, matching the JWT expiration
-COOKIE_MAX_AGE_SEC = int(os.environ.get("COOKIE_MAX_AGE_SEC", "2592000"))  # Default 30 days
+COOKIE_MAX_AGE_SEC = int(os.environ["COOKIE_MAX_AGE_SEC"])
 
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
@@ -64,7 +64,14 @@ async def logout(request: Request, response: Response):
                 blocklist.block_token(jti, exp)
         except jwt.JWTError:
             pass
-    response.delete_cookie("access_token")
-    response.delete_cookie("csrf_token")
+    response.delete_cookie("access_token", secure=True, samesite="lax")
+    response.delete_cookie("csrf_token", secure=True, samesite="lax")
     return {"status": "ok"}
 
+
+@router.get("/csrf")
+async def get_csrf_token(response: Response, user: models.User = Depends(deps.get_current_user)):
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie(key="csrf_token", value=csrf_token, httponly=False, secure=True, samesite="lax", max_age=COOKIE_MAX_AGE_SEC)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return {"status": "ok"}
