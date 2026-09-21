@@ -39,7 +39,7 @@ def _get_redis():
     if _redis_client is None:
         import redis
         _redis_client = redis.from_url(
-            os.environ["REDIS_URL"], decode_responses=True
+            os.environ.get("REDIS_URL") or os.environ["KV_URL"], decode_responses=True
         )
     return _redis_client
 
@@ -100,7 +100,7 @@ def cleanup_memory() -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
-_use_redis = bool(os.getenv("REDIS_URL"))
+_use_redis = bool(os.getenv("REDIS_URL") or os.getenv("KV_URL"))
 
 # Fail securely in stateless environments without Redis, unless explicitly overridden
 if not _use_redis and os.getenv("VERCEL") == "1":
