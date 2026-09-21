@@ -56,8 +56,9 @@ export function useLedgerMutation<TVariables, TData>({
     onSuccess: (data: any) => {
       // If the backend returns the updated group details directly, instantly update the UI cache
       // without waiting for the background invalidation refetch.
-      if (data && data.members) {
-        queryClient.setQueryData(['group', id], data);
+      const payload = data?.data || data;
+      if (payload && payload.members) {
+        queryClient.setQueryData(['group', id], payload);
       }
       if (onSuccess) onSuccess(data);
     },

@@ -109,7 +109,8 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
     )
     db.add(expense)
     await db.flush()
-    await balances.process_expense_splits(db, group_id, expense, payload)
+    member_ids = {m.id for m in members}
+    await balances.process_expense_splits(db, group_id, expense, payload, valid_ids=member_ids)
     await db.flush()
     await balances.apply_expense(db, expense)
     
