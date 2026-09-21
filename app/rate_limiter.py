@@ -11,6 +11,14 @@ import os
 import time
 import logging
 from collections import defaultdict
+
+def _get_client_ip(request: Request) -> str:
+    # Use Vercel's trusted edge IP if available, fallback to standard X-Forwarded-For, then host
+    xff = request.headers.get("x-vercel-forwarded-for") or request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
@@ -110,7 +118,7 @@ def rate_limit_auth(request: Request) -> None:
         return
         
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     path_suffix = request.url.path.strip('/').split('/')[-1]
     limit_key = f"auth_{path_suffix}"
     if _use_redis:
@@ -122,7 +130,7 @@ def rate_limit_invite(request: Request) -> None:
     if os.getenv("DISABLE_RATE_LIMITING") == "1":
         return
         
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     if _use_redis:
         _check_redis(client_ip, "invite")
     else:
@@ -133,7 +141,7 @@ def rate_limit_export(request: Request) -> None:
     if os.getenv("DISABLE_RATE_LIMITING") == "1":
         return
         
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     if _use_redis:
         _check_redis(client_ip, "export")
     else:
