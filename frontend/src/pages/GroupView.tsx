@@ -40,6 +40,7 @@ const fetchGroupActivity = async (id: string, pageParam?: string): Promise<{item
 interface ActivityItemProps {
   item: ActivityResponse;
   isOpen: boolean;
+  isDeleting: boolean;
   onToggle: (id: string | null) => void;
   onEdit: (item: ActivityResponse) => void;
   onDelete: (item: ActivityResponse) => void;
@@ -49,13 +50,22 @@ interface ActivityItemProps {
 const ActivityItem = React.memo(({ 
   item, 
   isOpen, 
+  isDeleting,
   onToggle, 
   onEdit, 
   onDelete,
   getDisplayName 
 }: ActivityItemProps) => {
   return (
-    <div className="p-4 sm:p-6 flex items-start gap-4 hover:bg-bg transition-colors relative last:rounded-b-2xl">
+    <div className={`p-4 sm:p-6 flex items-start gap-4 transition-colors relative last:rounded-b-2xl ${isDeleting ? 'opacity-50 pointer-events-none' : 'hover:bg-bg'}`}>
+      {isDeleting && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="bg-paper shadow-sm rounded-full px-4 py-2 text-sm font-medium text-ink-soft flex items-center gap-2">
+            <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+            Deleting...
+          </div>
+        </div>
+      )}
       <div className="flex-1 flex justify-between items-start gap-4 min-w-0">
         <div className="space-y-1 min-w-0 flex-1">
           <h3 className="font-medium text-ink m-0 truncate">
@@ -219,6 +229,7 @@ export default function GroupView() {
       key={item.id} 
       item={item} 
       isOpen={openMenuId === item.id} 
+      isDeleting={deleteMutation.isPending && deleteMutation.variables?.id === item.id}
       onToggle={handleToggleMenu} 
       onEdit={handleEditItem} 
       onDelete={handleDeleteItem} 
