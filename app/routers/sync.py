@@ -109,19 +109,13 @@ async def get_sync(
             "server_timestamp": format_datetime(datetime.now(timezone.utc))
         }
         
-        # Test JSON serialization right here to catch encoding errors before FastAPI handles it
-        import json
         from fastapi.encoders import jsonable_encoder
-        try:
-            json.dumps(jsonable_encoder(res))
-        except Exception as json_e:
-            import traceback
-            return {"error": "json_error", "traceback": traceback.format_exc()}
-            
-        return res
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=jsonable_encoder(res))
     except Exception as e:
         import traceback
-        return {"error": "sync_query_error", "traceback": traceback.format_exc()}
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=200, content={"error": "sync_query_error", "traceback": traceback.format_exc()})
 
 @router.post("/push")
 async def push_sync(

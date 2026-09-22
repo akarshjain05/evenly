@@ -39,6 +39,8 @@ async def get_db():
         try:
             yield db
             await db.commit()
-        except Exception:
+        except Exception as e:
             await db.rollback()
+            # If we raise here, FastAPI returns 500. Let's log it.
+            logger.error(f"get_db exception: {e}")
             raise
