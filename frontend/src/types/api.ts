@@ -101,6 +101,7 @@ export interface ActivityResponse {
   description: string;
   amount: number;
   paid_by_name: string;
+  created_by_user_id?: string | null;
   created_at: string;
   from_name?: string | null;
   to_name?: string | null;

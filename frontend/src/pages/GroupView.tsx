@@ -22,6 +22,7 @@ interface ActivityItemProps {
   item: ActivityResponse;
   isOpen: boolean;
   isDeleting: boolean;
+  canEdit: boolean;
   onToggle: (id: string | null) => void;
   onEdit: (item: ActivityResponse) => void;
   onDelete: (item: ActivityResponse) => void;
@@ -32,6 +33,7 @@ const ActivityItem = React.memo(({
   item, 
   isOpen, 
   isDeleting,
+  canEdit,
   onToggle, 
   onEdit, 
   onDelete,
@@ -74,33 +76,35 @@ const ActivityItem = React.memo(({
             </div>
           </div>
           
-            <div className="relative -mt-0.5 -mr-1.5">
-              <button
-                onClick={() => onToggle(item.id)}
-                className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
-              >
-                <MoreVertical size={16} />
-              </button>
-              {isOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => onToggle(null)} />
-                  <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
-                    <button
-                      onClick={() => onEdit(item)}
-                      className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
-                    >
-                      <Pencil size={13} /> Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(item)}
-                      className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
-                    >
-                      <Trash2 size={13} /> Delete
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {canEdit && (
+              <div className="relative -mt-0.5 -mr-1.5">
+                <button
+                  onClick={() => onToggle(item.id)}
+                  className="p-1 rounded-full hover:bg-bg text-ink-soft transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center"
+                >
+                  <MoreVertical size={16} />
+                </button>
+                {isOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => onToggle(null)} />
+                    <div className="absolute right-0 top-7 w-36 bg-paper border border-line-dark rounded-xl shadow-xl z-20 py-1">
+                      <button
+                        onClick={() => onEdit(item)}
+                        className="w-full text-left px-4 py-2 text-[13px] text-ink hover:bg-bg transition-colors flex items-center gap-2"
+                      >
+                        <Pencil size={13} /> Edit
+                      </button>
+                      <button
+                        onClick={() => onDelete(item)}
+                        className="w-full text-left px-4 py-2 text-[13px] text-danger hover:bg-bg transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
         </div>
       </div>
     </div>
@@ -191,12 +195,24 @@ const expenses = useMemo(() => activities?.filter(a => a.type === 'expense') || 
 
 
 
+    const currentMember = React.useMemo(() => group?.members.find(m => m.user_id === user?.id), [group, user]);
+  
+  const canEditItem = (item: ActivityResponse) => {
+    if (!currentMember) return false;
+    if (currentMember.is_admin) return true;
+    if (item.created_by_user_id === user?.id) return true;
+    if (item.type === 'expense' && item.paid_by === currentMember.id) return true;
+    if (item.type === 'settlement' && (item.from_member === currentMember.id || item.to_member === currentMember.id)) return true;
+    return false;
+  };
+
   const renderActivityItem = (item: ActivityResponse) => (
     <ActivityItem 
       key={item.id} 
       item={item} 
       isOpen={openMenuId === item.id} 
       isDeleting={deletingId === item.id}
+      canEdit={canEditItem(item)}
       onToggle={handleToggleMenu} 
       onEdit={handleEditItem} 
       onDelete={handleDeleteItem} 

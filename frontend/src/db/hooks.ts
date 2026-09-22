@@ -108,6 +108,7 @@ export function useLocalActivity(groupId: string | undefined): ActivityResponse[
         description: exp.description,
         amount: exp.amount,
         paid_by: exp.paid_by,
+        created_by_user_id: exp.created_by_user_id,
         paid_by_name: memberMap.get(exp.paid_by)?.name || 'Unknown',
         split_type: exp.split_type,
         splits: splitInfo,

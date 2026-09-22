@@ -9,6 +9,7 @@ export interface LocalGroup {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  created_by_user_id?: string | null;
 }
 
 export interface LocalMember {
@@ -22,6 +23,7 @@ export interface LocalMember {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  created_by_user_id?: string | null;
 }
 
 export interface LocalExpense {
