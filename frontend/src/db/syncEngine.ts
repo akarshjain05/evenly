@@ -72,6 +72,7 @@ class SyncEngine {
   }
 
   start() {
+    if (this.intervalId) return;
     // Initial sync
     this.sync();
     // Periodic sync every 30 seconds

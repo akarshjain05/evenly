@@ -84,12 +84,15 @@ function App() {
   }, [navigate]);
 
   // Start the sync engine when authenticated, stop on logout
+  const location = useLocation();
   useEffect(() => {
     if (getAuthStatus()) {
       syncEngine.start();
+    } else {
+      syncEngine.stop();
     }
-    return () => syncEngine.stop();
-  }, []);
+    // DO NOT return syncEngine.stop() on unmount because App doesn't unmount on route change
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {

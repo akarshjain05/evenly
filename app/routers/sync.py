@@ -72,6 +72,13 @@ async def get_sync(
             "server_timestamp": format_datetime(datetime.now(timezone.utc))
         }
 
+    # Auto-reconcile on full sync to heal corrupted balances from past bugs
+    if not since:
+        from app import balances
+        for g_id in group_ids:
+            await balances.recompute_balances_from_ledger(db, g_id)
+        await db.commit()
+
     since_dt = None
     if since:
         since_dt = dateutil.parser.isoparse(since)
@@ -134,6 +141,15 @@ async def push_sync(
     applied, rejected = await process_sync_mutations(
         mutations, user_group_ids, user_memberships, user, db, background_tasks
     )
+    
+    # Auto-reconcile to heal corrupted balances from past bugs
+    from app import balances
+    affected_groups = {m.get("data", {}).get("group_id") or m.get("group_id") for m in mutations}
+    affected_groups = {g for g in affected_groups if g in user_group_ids}
+    for g_id in affected_groups:
+        await balances.recompute_balances_from_ledger(db, g_id)
+        
+    await db.commit()
 
     return {
         "applied": applied,
