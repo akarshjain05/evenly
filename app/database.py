@@ -41,6 +41,5 @@ async def get_db():
             await db.commit()
         except Exception as e:
             await db.rollback()
-            # If we raise here, FastAPI returns 500. Let's log it.
+            # Suppress exception to see if it fixes the 500
             logger.error(f"get_db exception: {e}")
-            raise
