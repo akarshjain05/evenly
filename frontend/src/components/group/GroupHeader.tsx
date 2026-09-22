@@ -2,15 +2,15 @@ import type { GroupDetailResponse } from '../../types/api';
 import { useState } from 'react';
 import { Sun, Moon, Share2, MoreVertical } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
+import { db } from '../../db/db';
+import { getErrorMessage } from '../../utils/errors';
 
 export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailResponse, id: string, setIsShareOpen: (v: boolean) => void }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { showPrompt, showAlert, showConfirm, isDarkMode, toggleDarkMode } = useUIStore();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: user } = useCurrentUser();
@@ -43,22 +43,17 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
               setShowMenu(false);
               const newName = await showPrompt("Rename Tab", group.name);
               if (newName && newName !== group.name) {
-                const oldGroup = queryClient.getQueryData(['group', id]);
-                const oldGroups = queryClient.getQueryData(['groups']);
+                const oldName = group.name;
                 
-                // Optimistic UI Update
-                queryClient.setQueryData(['group', id], (old: GroupDetailResponse | undefined) => old ? { ...old, name: newName } : old);
-                queryClient.setQueryData(['groups'], (old: any) => old ? old.map((g: any) => g.id === id ? { ...g, name: newName } : g) : old);
+                // Optimistic UI Update in Dexie
+                await db.groups.update(id, { name: newName });
                 
                 try {
                   await apiClient.put(`groups/${id}`, { name: newName });
-                  queryClient.invalidateQueries({ queryKey: ['group', id] });
-                  queryClient.invalidateQueries({ queryKey: ['groups'] });
                 } catch (e: any) {
                   // Revert on failure
-                  queryClient.setQueryData(['group', id], oldGroup);
-                  queryClient.setQueryData(['groups'], oldGroups);
-                  showAlert('Error', (e.response?.data?.userMessage || e.response?.data?.detail) || 'Failed to rename tab.');
+                  await db.groups.update(id, { name: oldName });
+                  showAlert('Error', getErrorMessage(e) || 'Failed to rename tab.');
                 }
               }
             }} className="w-full text-left px-4 py-2 text-[14px] text-ink hover:bg-bg transition-colors">
@@ -87,11 +82,11 @@ export const GroupHeader = ({ group, id, setIsShareOpen }: { group: GroupDetailR
               if (confirmed) {
                 try {
                   await apiClient.delete(`groups/${id}`);
-                  queryClient.setQueryData(['groups'], (old: any) => old?.filter((m: any) => m.group.id !== id));
-                  queryClient.invalidateQueries({ queryKey: ['groups'] });
+                  // Optimistic UI Update in Dexie
+                  await db.groups.update(id, { is_deleted: true });
                   navigate('/', { replace: true });
                 } catch (e: any) {
-                  showAlert('Error', (e.response?.data?.userMessage || e.response?.data?.detail) || 'Failed to delete tab.');
+                  showAlert('Error', getErrorMessage(e) || 'Failed to delete tab.');
                 }
               }
             }} className="w-full text-left px-4 py-2 text-[14px] text-[#c81e1e] hover:bg-bg transition-colors">
