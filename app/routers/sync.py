@@ -44,6 +44,8 @@ async def get_sync(
     user: models.User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"hello": "world", "version": "debug1"})
     from app.migrations.add_sync_columns import run_migration
     try:
         await run_migration(db)
