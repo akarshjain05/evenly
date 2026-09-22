@@ -72,7 +72,20 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-CSRF-Token", "Accept", "Authorization"],
 )
 
+
+@app.get("/api/debug/wipe-all-data-confirm")
+async def wipe_all_data(db: AsyncSession = Depends(database.get_db)):
+    from sqlalchemy import text
+    try:
+        await db.execute(text("TRUNCATE TABLE users, groups, members, expenses, expense_splits, settlements, push_subscriptions CASCADE"))
+        await db.commit()
+        return {"status": "Database completely wiped. You can now start fresh."}
+    except Exception as e:
+        await db.rollback()
+        return {"status": "Error", "detail": str(e)}
+
 app.include_router(auth.router)
+
 app.include_router(users.router)
 app.include_router(groups.router)
 app.include_router(sync.router)
