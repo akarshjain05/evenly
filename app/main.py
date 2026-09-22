@@ -81,4 +81,4 @@ app.include_router(notifications.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "1.0.1"}
+    return {"status": "ok", "version": "1.0.2", "version": "1.0.1"}
