@@ -1,6 +1,5 @@
-import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
-from app.database import engine
-async def main():
-    pass
-asyncio.run(main())
+import sqlite3
+conn = sqlite3.connect("evenly.db")
+c = conn.cursor()
+c.execute("SELECT is_deleted FROM expenses LIMIT 1")
+print(c.fetchone())

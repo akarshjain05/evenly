@@ -12,15 +12,32 @@ if os.environ.get("DISABLE_CSRF_PROTECTION") == "1" and not os.environ.get("TEST
     raise RuntimeError("DISABLE_CSRF_PROTECTION must not be set in production")
 
 
-async def verify_csrf(request: Request, response: Response):
+async def verify_csrf(request: Request):
     if request.method in ["POST", "PUT", "DELETE", "PATCH"] and os.environ.get("DISABLE_CSRF_PROTECTION") != "1":
         csrf_cookie = request.cookies.get("csrf_token")
         csrf_header = request.headers.get("x-csrf-token")
-        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="CSRF token validation failed",
             )
+            
+        if os.environ.get("TESTING") != "1":
+            origin = request.headers.get("origin") or request.headers.get("referer")
+            if not origin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Missing Origin/Referer header",
+                )
+            from urllib.parse import urlparse
+            parsed_origin = urlparse(origin).hostname
+            
+            allowed_origins = ["localhost", "127.0.0.1", "evenly-eight.vercel.app", request.url.hostname]
+            if parsed_origin not in allowed_origins:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Invalid origin: {parsed_origin}",
+                )
 
 
 
@@ -43,7 +60,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(database
             raise credentials_exception
             
         jti = payload.get("jti")
-        if jti and blocklist.is_token_blocked(jti):
+        if jti and await blocklist.is_token_blocked(jti):
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception

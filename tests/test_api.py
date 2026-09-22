@@ -632,7 +632,6 @@ def test_cursor_pagination(client, auth_user, populated_group):
     group_id = populated_group['group_id']
     m1_id = populated_group['member1_id']
     
-    import time
     for i in range(3):
         res = client.post(f"/api/groups/{group_id}/expenses", json={
             "description": f"Expense {i}",
@@ -642,7 +641,6 @@ def test_cursor_pagination(client, auth_user, populated_group):
             "participant_ids": [m1_id]
         }, cookies=cookies, headers=headers)
         assert res.status_code == 200
-        time.sleep(0.01)
         
     res = client.get(f"/api/groups/{group_id}/activity?limit=2", cookies=cookies, headers=headers)
     assert res.status_code == 200

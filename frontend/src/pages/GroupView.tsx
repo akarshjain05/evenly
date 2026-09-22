@@ -1,5 +1,6 @@
 import { formatCurrency } from '../utils/currency';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useParams } from 'react-router-dom';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import type { ActivityResponse } from '../types/api';
@@ -164,8 +165,26 @@ export default function GroupView() {
     }
   }, [id, showConfirm, showAlert]);
 
-  const expenses = activities?.filter(a => a.type === 'expense') || [];
-  const settlements = activities?.filter(a => a.type === 'settlement') || [];
+const expenses = useMemo(() => activities?.filter(a => a.type === 'expense') || [], [activities]);
+  const settlements = useMemo(() => activities?.filter(a => a.type === 'settlement') || [], [activities]);
+
+  const activeItems = activeActivityTab === 'expenses' ? expenses : settlements;
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [parentOffset, setParentOffset] = useState(0);
+
+  useLayoutEffect(() => {
+    if (parentRef.current) {
+      setParentOffset(parentRef.current.offsetTop);
+    }
+  }, []);
+  
+  const rowVirtualizer = useWindowVirtualizer({
+    count: activeItems.length,
+    estimateSize: () => 75,
+    overscan: 5,
+    scrollMargin: parentOffset,
+  });
 
   if (!group) return <div className="min-h-[80vh] flex flex-col items-center justify-center p-8 text-center text-ink-soft font-medium">Loading tab...</div>;
 
@@ -252,20 +271,39 @@ export default function GroupView() {
             </div>
             
             <div className="divide-y divide-line-paper">
-              {activeActivityTab === 'expenses' ? (
-                <>
-                  {expenses.length === 0 && (
-                    <p className="text-ink-soft italic text-center py-8 text-[15px]">No payments yet.</p>
-                  )}
-                  {expenses.map(renderActivityItem)}
-                </>
+{activeItems.length === 0 ? (
+                <p className="text-ink-soft italic text-center py-8 text-[15px]">No {activeActivityTab === 'expenses' ? 'payments' : 'settlements'} yet.</p>
               ) : (
-                <>
-                  {settlements.length === 0 && (
-                    <p className="text-ink-soft italic text-center py-8 text-[15px]">No settlements yet.</p>
-                  )}
-                  {settlements.map(renderActivityItem)}
-                </>
+                <div ref={parentRef}>
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const item = activeItems[virtualRow.index];
+                      if (!item) return null;
+                      return (
+                        <div
+                          key={virtualRow.key}
+                          data-index={virtualRow.index}
+                          ref={rowVirtualizer.measureElement}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualRow.start - parentOffset}px)`,
+                          }}
+                        >
+                          {renderActivityItem(item)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>

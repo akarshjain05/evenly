@@ -55,10 +55,13 @@ describe('apiClient Network and Offline Behavior', () => {
       }
     };
 
-    // Mock window.location
+    // Mock window.location.pathname
     const originalLocation = window.location;
-    delete (window as any).location;
-    Object.defineProperty(window, 'location', { value: { ...originalLocation, pathname: '/group/123', href: '' }, writable: true });
+    Object.defineProperty(window, 'location', { value: { ...originalLocation, pathname: '/group/123' }, writable: true, configurable: true });
+
+    // Listen for the auth:logout custom event
+    const logoutHandler = vi.fn();
+    window.addEventListener('auth:logout', logoutHandler);
 
     const interceptor = (apiClient.interceptors.response as any).handlers[0].rejected;
 
@@ -69,9 +72,10 @@ describe('apiClient Network and Offline Behavior', () => {
     }
 
     expect(setAuthStatus).toHaveBeenCalledWith(false);
-    expect(window.location.href).toBe('/login');
+    expect(logoutHandler).toHaveBeenCalled();
 
     // Restore
-    Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
+    window.removeEventListener('auth:logout', logoutHandler);
+    Object.defineProperty(window, 'location', { value: originalLocation, writable: true, configurable: true });
   });
 });

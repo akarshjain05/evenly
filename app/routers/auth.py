@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app import models, schemas, deps, auth, balances
+from app import models, schemas, deps, auth
 from app.database import get_db
 from app.rate_limiter import rate_limit_auth
 from app.config import get_settings
@@ -59,8 +59,8 @@ async def logout(request: Request, response: Response, _=Depends(deps.verify_csr
             jti = payload.get("jti")
             exp = payload.get("exp")
             if jti and exp:
-                blocklist.block_token(jti, exp)
-        except jwt.JWTError:
+                await blocklist.block_token(jti, exp)
+        except jwt.PyJWTError:
             pass
     response.delete_cookie("access_token", secure=True, samesite="lax")
     response.delete_cookie("csrf_token", secure=True, samesite="lax")

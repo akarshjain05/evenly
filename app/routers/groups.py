@@ -212,30 +212,9 @@ async def export_csv(
         output.seek(0)
         output.truncate(0)
         
-        query = text('''
-            SELECT 
-                created_at, 
-                'Expense' as type, 
-                category,
-                description, 
-                amount, 
-                paid_by, 
-                split_type as extra
-            FROM expenses WHERE group_id = :group_id
-            UNION ALL
-            SELECT 
-                created_at, 
-                'Settlement' as type, 
-                NULL as category,
-                NULL as description, 
-                amount, 
-                from_member as paid_by, 
-                to_member as extra
-            FROM settlements WHERE group_id = :group_id
-            ORDER BY created_at ASC
-        ''')
+        # Delegated to service
+        async_result = await activity_service.stream_activities_for_export(db, group_id)
         
-        async_result = await db.stream(query.execution_options(yield_per=1000), {"group_id": group_id})
         async for row in async_result:
             if isinstance(row.created_at, str):
                 date_str = row.created_at[:16].replace('T', ' ')
@@ -249,14 +228,14 @@ async def export_csv(
                 details = f"Paid to: {name_lookup.get(row.extra, '?')}"
                 desc = "Settlement"
                 cat = "-"
-
+            
             writer.writerow({
                 "Date": date_str,
                 "Type": row.type,
                 "Category": cat,
                 "Description": desc,
                 "Amount": f"{row.amount:.2f}",
-                "Paid By": name_lookup.get(row.paid_by, "?"),
+                "Paid By": name_lookup.get(row.paid_by, '?'),
                 "Details": details
             })
             yield output.getvalue()

@@ -22,3 +22,4 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+import 'fake-indexeddb/auto';

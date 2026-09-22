@@ -112,7 +112,7 @@ export default function Dashboard() {
               {isJoin && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] text-ink-soft">Invite Code</label>
-                  <input type="text" required value={inviteCode} onChange={e => setInviteCode(e.target.value)} className="input-field uppercase" placeholder="ABCDEF" />
+                  <input type="text" required value={inviteCode} onChange={e => setInviteCode(e.target.value)} className="input-field" placeholder="123456" pattern="[0-9]{6}" inputMode="numeric" maxLength={6} />
                 </div>
               )}
 

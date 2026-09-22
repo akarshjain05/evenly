@@ -35,7 +35,7 @@ class ExpenseCreate(BaseModel):
     id: Optional[str] = None
     description: str = Field(..., min_length=1, max_length=120)
     category: str = "General"
-    amount: Decimal = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0, le=10000000)
     paid_by: str
     split_type: Literal["equal", "exact", "percentage"] = "equal"
     participant_ids: Optional[List[str]] = None  # used for "equal"
@@ -46,7 +46,7 @@ class SettlementCreate(BaseModel):
     id: Optional[str] = None
     from_member: str
     to_member: str
-    amount: Decimal = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0, le=10000000)
 
 class MemberResponse(BaseModel):
     id: str

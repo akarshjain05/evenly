@@ -115,8 +115,8 @@ async def process_expense_splits(db: AsyncSession, group_id: str, expense: model
         db.add(split)
 
 async def apply_expense(db: AsyncSession, expense: models.Expense) -> None:
-    from sqlalchemy import update, case
-    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount))
+    from sqlalchemy import update, func, case, func
+    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance + expense.amount, updated_at=func.now()))
     result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
     splits = result.scalars().all()
     await db.flush()
@@ -127,12 +127,12 @@ async def apply_expense(db: AsyncSession, expense: models.Expense) -> None:
         await db.execute(
             update(models.Member)
             .filter(models.Member.id.in_(member_ids))
-            .values(balance=models.Member.balance - share_case)
+            .values(balance=models.Member.balance - share_case, updated_at=func.now())
         )
 
 async def revert_expense(db: AsyncSession, expense: models.Expense) -> None:
-    from sqlalchemy import update, case
-    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance - expense.amount))
+    from sqlalchemy import update, func, case, func
+    await db.execute(update(models.Member).filter(models.Member.id == expense.paid_by).values(balance=models.Member.balance - expense.amount, updated_at=func.now()))
     result = await db.execute(select(models.ExpenseSplit).filter(models.ExpenseSplit.expense_id == expense.id))
     splits = result.scalars().all()
     await db.flush()
@@ -143,18 +143,18 @@ async def revert_expense(db: AsyncSession, expense: models.Expense) -> None:
         await db.execute(
             update(models.Member)
             .filter(models.Member.id.in_(member_ids))
-            .values(balance=models.Member.balance + share_case)
+            .values(balance=models.Member.balance + share_case, updated_at=func.now())
         )
 
 async def apply_settlement(db: AsyncSession, settlement: models.Settlement) -> None:
-    from sqlalchemy import update
-    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance + settlement.amount))
-    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance - settlement.amount))
+    from sqlalchemy import update, func
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance + settlement.amount, updated_at=func.now()))
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance - settlement.amount, updated_at=func.now()))
 
 async def revert_settlement(db: AsyncSession, settlement: models.Settlement) -> None:
-    from sqlalchemy import update
-    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance - settlement.amount))
-    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance + settlement.amount))
+    from sqlalchemy import update, func
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.from_member).values(balance=models.Member.balance - settlement.amount, updated_at=func.now()))
+    await db.execute(update(models.Member).filter(models.Member.id == settlement.to_member).values(balance=models.Member.balance + settlement.amount, updated_at=func.now()))
 
 async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> None:
     from sqlalchemy import select, func, update, case
@@ -193,5 +193,5 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
             
     if updates:
         from sqlalchemy import bindparam
-        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance'))
+        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance', updated_at=func.now()))
         await db.execute(stmt, [{'b_id': u['id'], 'b_balance': u['balance']} for u in updates])

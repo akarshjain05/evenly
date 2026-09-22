@@ -1,4 +1,6 @@
 name: CI
+# NOTE: Enable GitHub branch protection on 'main' with required status checks
+# to prevent merging when CI is red. Configure in: Settings > Branches > Branch protection rules.
 
 on:
   push:
@@ -49,3 +51,26 @@ jobs:
     - name: Run Frontend Tests (Vitest)
       working-directory: ./frontend
       run: npm run test
+
+    - name: Run Python Security Scan (Bandit)
+      run: |
+        pip install bandit
+        bandit -r app/ -ll -q
+
+    - name: Run npm audit
+      working-directory: ./frontend
+      run: npm audit --audit-level=high || true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'

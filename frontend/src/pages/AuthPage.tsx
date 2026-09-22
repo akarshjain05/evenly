@@ -96,7 +96,7 @@ export default function AuthPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-paper text-ink rounded-[14px] p-[22px] flex flex-col gap-[14px] border border-line-dark shadow-sm">
-        {error && <div className="text-[#c81e1e] text-[13px] text-center font-medium">{error}</div>}
+        {error && <div id="auth-error" role="alert" className="text-[#c81e1e] text-[13px] text-center font-medium">{error}</div>}
         
         {!isLogin && (
           <div className="flex flex-col gap-1.5">
@@ -109,6 +109,7 @@ export default function AuthPage() {
               className="input-field"
               placeholder="Alice"
               required={!isLogin}
+              aria-invalid={!!error} aria-describedby={error ? "auth-error" : undefined}
             />
           </div>
         )}
@@ -123,6 +124,7 @@ export default function AuthPage() {
             className="input-field"
             placeholder="you@example.com"
             required
+            aria-invalid={!!error} aria-describedby={error ? "auth-error" : undefined}
           />
         </div>
 
@@ -138,11 +140,13 @@ export default function AuthPage() {
               placeholder="••••••••"
               required
               minLength={6}
+              aria-invalid={!!error} aria-describedby={error ? "auth-error" : undefined}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink transition-colors focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -162,11 +166,13 @@ export default function AuthPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
+                aria-invalid={!!error} aria-describedby={error ? "auth-error" : undefined}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink transition-colors focus:outline-none"
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -180,7 +186,7 @@ export default function AuthPage() {
       </form>
 
       {isLoading && (
-        <div className="fixed inset-0 bg-bg/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <div role="status" aria-live="polite" className="fixed inset-0 bg-bg/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 rounded-full border-4 border-line-dark border-t-primary animate-spin"></div>
             <div className="text-ink font-medium text-[15px]">Logging you in...</div>

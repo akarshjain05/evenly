@@ -4,6 +4,8 @@ import { apiClient } from '../api/client';
 class SyncEngine {
   private isSyncing = false;
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private onlineHandler: (() => void) | null = null;
+  private syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async pull() {
     const meta = await db.syncMeta.get('last_synced_at');
@@ -12,7 +14,6 @@ class SyncEngine {
     const params = since ? `?since=${encodeURIComponent(since)}` : '';
     const { data } = await apiClient.get(`/sync${params}`);
     
-    // Upsert all received data into local tables
     await db.transaction('rw', [db.groups, db.members, db.expenses, db.expenseSplits, db.settlements, db.syncMeta], async () => {
       if (data.groups?.length) await db.groups.bulkPut(data.groups);
       if (data.members?.length) await db.members.bulkPut(data.members);
@@ -40,9 +41,6 @@ class SyncEngine {
     
     try {
       await apiClient.post('/sync/push', { mutations });
-      // Remove all pending changes that were processed (applied or rejected)
-      
-      // Clear all pending changes that were sent
       const idsToDelete = pending.map(p => p.id).filter((id): id is number => id !== undefined);
       if (idsToDelete.length > 0) {
         await db.pendingChanges.where('id').anyOf(idsToDelete).delete();
@@ -67,7 +65,10 @@ class SyncEngine {
 
   requestSync() {
     // Debounced non-blocking sync trigger
-    setTimeout(() => this.sync(), 100);
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+    }
+    this.syncTimeout = setTimeout(() => this.sync(), 100);
   }
 
   start() {
@@ -76,13 +77,22 @@ class SyncEngine {
     // Periodic sync every 30 seconds
     this.intervalId = setInterval(() => this.sync(), 30000);
     // Sync on reconnect
-    window.addEventListener('online', () => this.sync());
+    this.onlineHandler = () => this.sync();
+    window.addEventListener('online', this.onlineHandler);
   }
 
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = null;
+    }
+    if (this.onlineHandler) {
+      window.removeEventListener('online', this.onlineHandler);
+      this.onlineHandler = null;
     }
   }
 

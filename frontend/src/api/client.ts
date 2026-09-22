@@ -64,21 +64,23 @@ apiClient.interceptors.response.use(
 
       setAuthStatus(false);
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:logout'));
       }
     }
 
     // Generic error message sanitizer for UI consumption (preventing internal code leaks)
+    let sanitizedData = error.response?.data || {};
+    
     if (error.response?.data?.detail) {
       const d = error.response.data.detail;
       const status = error.response.status;
       if (typeof d === 'string') {
         if (status >= 500) {
-          error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
+          sanitizedData = { ...sanitizedData, userMessage: "Our servers are experiencing a temporary issue. Please try again later." };
         } else if (status === 422) {
-          error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+          sanitizedData = { ...sanitizedData, userMessage: "Invalid data provided. Please check your inputs." };
         } else {
-          error.response.data.userMessage = d;
+          sanitizedData = { ...sanitizedData, userMessage: d };
         }
       } else if (Array.isArray(d) && d.length > 0) {
         try {
@@ -87,30 +89,29 @@ apiClient.interceptors.response.use(
           const msg = first.msg;
           if (field && msg) {
             const cleanField = String(field).charAt(0).toUpperCase() + String(field).slice(1).replace(/_/g, ' ');
-            error.response.data.userMessage = `${cleanField}: ${msg}`;
+            sanitizedData = { ...sanitizedData, userMessage: `${cleanField}: ${msg}` };
           } else if (msg) {
-            error.response.data.userMessage = msg;
+            sanitizedData = { ...sanitizedData, userMessage: msg };
           } else {
-            error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+            sanitizedData = { ...sanitizedData, userMessage: "Invalid data provided. Please check your inputs." };
           }
         } catch(e) {
-          error.response.data.userMessage = "Invalid data provided. Please check your inputs.";
+          sanitizedData = { ...sanitizedData, userMessage: "Invalid data provided. Please check your inputs." };
         }
       }
     } else if (error.message === "Network Error" || !error.response) {
-       error.response = { 
-           ...(error.response || {}), 
-           data: { detail: error.response?.data?.detail, userMessage: "Unable to reach the server. Please check your internet connection." } 
-       };
-    } else if (error.response.status >= 500) {
-       // Catch 502 Bad Gateway or 500 Internal Server Error HTML pages from Vercel crashes
+       sanitizedData = { detail: error.response?.data?.detail, userMessage: "Unable to reach the server. Please check your internet connection." };
+    } else if (error.response?.status >= 500) {
+       sanitizedData = { ...sanitizedData, userMessage: "Our servers are experiencing a temporary issue. Please try again later." };
        if (typeof error.response.data !== 'object') {
-           error.response.data = {};
+           sanitizedData = { userMessage: "Our servers are experiencing a temporary issue. Please try again later." };
        }
-       error.response.data.userMessage = "Our servers are experiencing a temporary issue. Please try again later.";
     }
 
-    return Promise.reject(error);
+    const customError = new Error(error.message) as any;
+    Object.assign(customError, error);
+    customError.response = { ...(error.response || {}), data: sanitizedData };
+    return Promise.reject(customError);
 
   }
 );

@@ -15,8 +15,8 @@ def gen_id() -> str:
 
 
 def gen_invite_code() -> str:
-    # 10 hex characters, e.g. "a1b2c3" - short enough to read over text/WhatsApp
-    return secrets.token_hex(5)
+    # 6-digit numeric code
+    return "".join(secrets.choice("0123456789") for _ in range(6))
 
 
 class SplitType(str, enum.Enum):

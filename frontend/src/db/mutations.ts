@@ -66,7 +66,7 @@ export async function addExpense(groupId: string, expense: ExpenseCreate, userId
       action: 'create',
       entity_id: expenseId,
       group_id: groupId,
-      data: expense as any,
+      data: expense as unknown as Record<string, unknown>,
       created_at: now
     });
   });
@@ -145,7 +145,7 @@ export async function editExpense(groupId: string, expenseId: string, expense: E
       action: 'update',
       entity_id: expenseId,
       group_id: groupId,
-      data: expense as any,
+      data: expense as unknown as Record<string, unknown>,
       created_at: now
     });
   });
@@ -223,7 +223,7 @@ export async function addSettlement(groupId: string, settlement: SettlementCreat
       action: 'create',
       entity_id: settlementId,
       group_id: groupId,
-      data: settlement as any,
+      data: settlement as unknown as Record<string, unknown>,
       created_at: now
     });
   });
@@ -271,7 +271,7 @@ export async function editSettlement(groupId: string, settlementId: string, sett
       action: 'update',
       entity_id: settlementId,
       group_id: groupId,
-      data: settlement as any,
+      data: settlement as unknown as Record<string, unknown>,
       created_at: now
     });
   });

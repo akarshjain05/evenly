@@ -88,3 +88,34 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
             )
 
     return items
+
+
+async def stream_activities_for_export(db: AsyncSession, group_id: str):
+    from sqlalchemy import select, literal_column
+    from sqlalchemy.orm import selectinload
+    from app import models
+    from sqlalchemy import union_all, cast, String
+
+    expenses = select(
+        models.Expense.created_at.label("created_at"),
+        literal_column("'Expense'").label("type"),
+        models.Expense.category.label("category"),
+        models.Expense.description.label("description"),
+        models.Expense.amount.label("amount"),
+        models.Expense.paid_by.label("paid_by"),
+        cast(models.Expense.split_type, String).label("extra")
+    ).where(models.Expense.group_id == group_id, models.Expense.is_deleted == False)
+
+    settlements = select(
+        models.Settlement.created_at.label("created_at"),
+        literal_column("'Settlement'").label("type"),
+        literal_column("NULL").label("category"),
+        literal_column("NULL").label("description"),
+        models.Settlement.amount.label("amount"),
+        models.Settlement.from_member.label("paid_by"),
+        models.Settlement.to_member.label("extra")
+    ).where(models.Settlement.group_id == group_id, models.Settlement.is_deleted == False)
+
+    query = union_all(expenses, settlements).order_by("created_at")
+    
+    return await db.stream(query.execution_options(yield_per=1000))

@@ -35,28 +35,33 @@ WINDOW_SECONDS = _settings.rate_limit_window_seconds
 _redis_client = None
 
 
-def _get_redis():
+async def _get_redis():
     """Lazy-init a Redis connection from REDIS_URL."""
     global _redis_client
     if _redis_client is None:
-        import redis
+        import redis.asyncio as redis
         _redis_client = redis.from_url(
             os.environ.get("REDIS_URL") or os.environ.get("KV_URL"), decode_responses=True
         )
     return _redis_client
 
 
-def _check_redis(client_ip: str, limit_type: str = "auth") -> None:
-    r = _get_redis()
-    key = f"rate_limit:{limit_type}:{client_ip}"
-    current = r.incr(key)
-    if current == 1:
-        r.expire(key, WINDOW_SECONDS)
-    if current > MAX_ATTEMPTS:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many attempts. Please wait a minute.",
-        )
+async def _check_redis(client_ip: str, limit_type: str = "auth") -> None:
+    try:
+        r = await _get_redis()
+        key = f"rate_limit:{limit_type}:{client_ip}"
+        current = await r.incr(key)
+        if current == 1:
+            await r.expire(key, WINDOW_SECONDS)
+        if current > MAX_ATTEMPTS:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many attempts. Please wait a minute.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error("Redis rate limiter failure", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +120,7 @@ if not _use_redis and os.getenv("VERCEL") == "1":
     )
 
 
-def rate_limit_auth(request: Request) -> None:
+async def rate_limit_auth(request: Request) -> None:
     """FastAPI dependency — call as Depends(rate_limit_auth)."""
     if _settings.disable_rate_limiting == "1":
         return
@@ -123,27 +128,27 @@ def rate_limit_auth(request: Request) -> None:
     path_suffix = request.url.path.strip('/').split('/')[-1]
     limit_key = f"auth_{path_suffix}"
     if _use_redis:
-        _check_redis(client_ip, limit_key)
+        await _check_redis(client_ip, limit_key)
     else:
         _check_memory(f"{limit_key}:{client_ip}", "auth")
 
-def rate_limit_invite(request: Request) -> None:
+async def rate_limit_invite(request: Request) -> None:
     if _settings.disable_rate_limiting == "1":
         return
         
     client_ip = _get_client_ip(request)
     if _use_redis:
-        _check_redis(client_ip, "invite")
+        await _check_redis(client_ip, "invite")
     else:
         _check_memory(client_ip, "invite")
 
 
-def rate_limit_export(request: Request) -> None:
+async def rate_limit_export(request: Request) -> None:
     if _settings.disable_rate_limiting == "1":
         return
         
     client_ip = _get_client_ip(request)
     if _use_redis:
-        _check_redis(client_ip, "export")
+        await _check_redis(client_ip, "export")
     else:
         _check_memory(client_ip, "export")

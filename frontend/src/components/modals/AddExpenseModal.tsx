@@ -66,11 +66,11 @@ export default function AddExpenseModal({
   if (!isAddExpenseOpen) return null;
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div role="dialog" aria-modal="true" aria-labelledby="add-expense-title" className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-paper text-ink rounded-[20px] shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-5 border-b border-line-dark">
-          <h2 className="font-display text-[20px] font-medium m-0">Add an expense</h2>
-          <button onClick={closeAddExpense} className="text-on-dark-soft hover:bg-paper-dim p-1.5 rounded-full transition-colors"><X size={20}/></button>
+          <h2 id="add-expense-title" className="font-display text-[20px] font-medium m-0">Add an expense</h2>
+          <button onClick={closeAddExpense} aria-label="Close" className="text-on-dark-soft hover:bg-paper-dim p-1.5 rounded-full transition-colors"><X size={20}/></button>
         </div>
         
         <form onSubmit={(e) => { 
@@ -79,12 +79,12 @@ export default function AddExpenseModal({
         }} className="p-5 space-y-4">
           {error && <div className="text-[#c81e1e] text-[13px] font-medium">{error}</div>}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] text-ink-soft">Description</label>
-            <input type="text" required value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Dinner at Joe's" />
+            <label htmlFor="expense-description" className="text-[13px] text-ink-soft">Description</label>
+            <input id="expense-description" type="text" required value={description} onChange={e => setDescription(e.target.value)} className="input-field" aria-invalid={!!error} aria-describedby={error ? "add-expense-error" : undefined} placeholder="Dinner at Joe's" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] text-ink-soft">Amount</label>
-            <input type="number" required step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input-field font-mono" placeholder="0.00" />
+            <label htmlFor="expense-amount" className="text-[13px] text-ink-soft">Amount</label>
+            <input id="expense-amount" type="number" required step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input-field font-mono" placeholder="0.00" />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] text-ink-soft">Paid by</label>
@@ -102,7 +102,7 @@ export default function AddExpenseModal({
                 <label key={m.id} className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-full border transition-colors ${participants.includes(m.id) ? 'bg-primary border-primary text-white' : 'bg-bg border-line-dark text-ink hover:border-primary/50'}`}>
                   <input
                     type="checkbox"
-                    className="hidden"
+                    className="sr-only"
                     checked={participants.includes(m.id)}
                     onChange={(e) => {
                       if (e.target.checked) setParticipants([...participants, m.id]);

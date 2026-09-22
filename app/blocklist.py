@@ -17,27 +17,27 @@ if not _use_redis and os.getenv("VERCEL") == "1":
     )
 
 
-def block_token(jti: str, exp: int):
+async def block_token(jti: str, exp: int):
     """Add a token JTI to the blocklist until it naturally expires."""
     if _use_redis:
         try:
-            r = _get_redis()
+            r = await _get_redis()
             ttl = max(1, exp - int(time.time()))
-            r.setex(f"blocklist:{jti}", ttl, "1")
+            await r.setex(f"blocklist:{jti}", ttl, "1")
         except Exception:
             logger.error("Redis blocklist failure", exc_info=True)
     else:
         _memory_blocklist[jti] = exp
 
-def is_token_blocked(jti: str) -> bool:
+async def is_token_blocked(jti: str) -> bool:
     """Check if a token JTI is blocked."""
     if not jti:
         return False
         
     if _use_redis:
         try:
-            r = _get_redis()
-            return r.exists(f"blocklist:{jti}") > 0
+            r = await _get_redis()
+            return await r.exists(f"blocklist:{jti}") > 0
         except Exception:
             logger.error("Redis blocklist read failure — failing closed (token treated as blocked)", exc_info=True)
             return True
