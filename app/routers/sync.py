@@ -38,18 +38,25 @@ def serialize_row(row) -> Dict[str, Any]:
             result[column.name] = val
     return result
 
+@router.post("/run-migration")
+async def explicit_migration(db: AsyncSession = Depends(get_db)):
+    from app.migrations.add_sync_columns import run_migration
+    try:
+        await run_migration(db)
+        await db.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
 @router.get("")
 async def get_sync(
     since: Optional[str] = None,
     user: models.User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    from app.migrations.add_sync_columns import run_migration
-    try:
-        await run_migration(db)
-        await db.commit()
-    except Exception as e:
-        print(f"Migration failed lazily: {e}")
+    # Lazy migration removed. We will run it via a dedicated endpoint.
 
     result = await db.execute(
         select(models.Member.group_id).where(models.Member.user_id == user.id)
