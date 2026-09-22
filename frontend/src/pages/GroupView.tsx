@@ -173,6 +173,7 @@ const expenses = useMemo(() => activities?.filter(a => a.type === 'expense') || 
   const settlements = useMemo(() => activities?.filter(a => a.type === 'settlement') || [], [activities]);
 
   const activeItems = activeActivityTab === 'expenses' ? expenses : settlements;
+  const currentMember = useMemo(() => group?.members.find(m => m.user_id === user?.id), [group, user]);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [parentOffset, setParentOffset] = useState(0);
@@ -195,7 +196,7 @@ const expenses = useMemo(() => activities?.filter(a => a.type === 'expense') || 
 
 
 
-    const currentMember = React.useMemo(() => group?.members.find(m => m.user_id === user?.id), [group, user]);
+  
   
   const canEditItem = (item: ActivityResponse) => {
     if (!currentMember) return false;
