@@ -9,28 +9,35 @@ async def get_activity_list(group_id: str, limit: int, last_seen: str | None, db
     members = result.scalars().all()
     name_lookup = {m.id: m.name for m in members}
 
-    cursor_where = ""
-    params: Dict[str, Any] = {"group_id": group_id, "limit": limit}
 
+
+    from sqlalchemy import union_all, literal_column
+    
+    # Base queries
+    exp_q = select(
+        literal_column("'expense'").label("type"),
+        models.Expense.id,
+        models.Expense.created_at
+    ).where(models.Expense.group_id == group_id, models.Expense.is_deleted == False)
+    
+    set_q = select(
+        literal_column("'settlement'").label("type"),
+        models.Settlement.id,
+        models.Settlement.created_at
+    ).where(models.Settlement.group_id == group_id, models.Settlement.is_deleted == False)
+    
     if last_seen and '|' in last_seen:
         last_seen_time, last_seen_id = last_seen.split('|', 1)
-        cursor_where = "AND (created_at < :last_seen_time OR (created_at = :last_seen_time AND id < :last_seen_id))"
-        params["last_seen_time"] = last_seen_time
-        params["last_seen_id"] = last_seen_id
+        # Apply cursor
+        exp_q = exp_q.where((models.Expense.created_at < last_seen_time) | ((models.Expense.created_at == last_seen_time) & (models.Expense.id < last_seen_id)))
+        set_q = set_q.where((models.Settlement.created_at < last_seen_time) | ((models.Settlement.created_at == last_seen_time) & (models.Settlement.id < last_seen_id)))
     elif last_seen:
-        cursor_where = "AND created_at < :last_seen"
-        params["last_seen"] = last_seen
-
-    query = text(f'''
-        SELECT * FROM (
-            SELECT 'expense' as type, id, created_at FROM expenses WHERE group_id = :group_id AND is_deleted = false {cursor_where}
-            UNION ALL
-            SELECT 'settlement' as type, id, created_at FROM settlements WHERE group_id = :group_id AND is_deleted = false {cursor_where}
-        ) AS sub
-        ORDER BY created_at DESC, id DESC
-        LIMIT :limit
-    ''')
-    results = (await db.execute(query, params)).fetchall()
+        exp_q = exp_q.where(models.Expense.created_at < last_seen)
+        set_q = set_q.where(models.Settlement.created_at < last_seen)
+        
+    query = union_all(exp_q, set_q).order_by(text("created_at DESC"), text("id DESC")).limit(limit)
+    
+    results = (await db.execute(query)).fetchall()
 
     expense_ids = [r.id for r in results if r.type == 'expense']
     settlement_ids = [r.id for r in results if r.type == 'settlement']

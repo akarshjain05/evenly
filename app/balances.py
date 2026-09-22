@@ -165,22 +165,40 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
         return
         
     true_balances = {m.id: Decimal('0.00') for m in members}
-    from sqlalchemy import text
-    query = text('''
-        SELECT member_id, SUM(amount) as net_balance FROM (
-            SELECT paid_by as member_id, amount FROM expenses WHERE group_id = :group_id AND is_deleted = false
-            UNION ALL
-            SELECT s.member_id, -s.share_amount as amount FROM expense_splits s 
-            JOIN expenses e ON e.id = s.expense_id WHERE e.group_id = :group_id AND e.is_deleted = false
-            UNION ALL
-            SELECT from_member as member_id, amount FROM settlements WHERE group_id = :group_id AND is_deleted = false
-            UNION ALL
-            SELECT to_member as member_id, -amount FROM settlements WHERE group_id = :group_id AND is_deleted = false
-        ) as ledger
-        WHERE member_id IS NOT NULL
-        GROUP BY member_id
-    ''')
-    result = await db.execute(query, {"group_id": group_id})
+
+    from sqlalchemy import union_all, literal_column, select
+    
+    q1 = select(
+        models.Expense.paid_by.label("member_id"), 
+        models.Expense.amount.label("amount")
+    ).where(models.Expense.group_id == group_id, models.Expense.is_deleted == False)
+    
+    q2 = select(
+        models.ExpenseSplit.member_id.label("member_id"),
+        (-models.ExpenseSplit.share_amount).label("amount")
+    ).select_from(models.ExpenseSplit).join(
+        models.Expense, models.Expense.id == models.ExpenseSplit.expense_id
+    ).where(models.Expense.group_id == group_id, models.Expense.is_deleted == False)
+    
+    q3 = select(
+        models.Settlement.from_member.label("member_id"),
+        models.Settlement.amount.label("amount")
+    ).where(models.Settlement.group_id == group_id, models.Settlement.is_deleted == False)
+    
+    q4 = select(
+        models.Settlement.to_member.label("member_id"),
+        (-models.Settlement.amount).label("amount")
+    ).where(models.Settlement.group_id == group_id, models.Settlement.is_deleted == False)
+    
+    subq = union_all(q1, q2, q3, q4).subquery("ledger")
+    
+    query = select(
+        subq.c.member_id,
+        func.sum(subq.c.amount).label("net_balance")
+    ).where(subq.c.member_id.isnot(None)).group_by(subq.c.member_id)
+    
+    result = await db.execute(query)
+    
     for row in result.all():
         if row.member_id in true_balances and row.net_balance is not None:
             true_balances[row.member_id] = Decimal(str(row.net_balance))
@@ -193,5 +211,5 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
             
     if updates:
         from sqlalchemy import bindparam
-        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance', updated_at=func.now()))
+        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance'), updated_at=func.now())
         await db.execute(stmt, [{'b_id': u['id'], 'b_balance': u['balance']} for u in updates])
