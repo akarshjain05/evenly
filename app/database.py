@@ -36,10 +36,4 @@ Base = declarative_base()
 
 async def get_db():
     async with AsyncSessionLocal() as db:
-        try:
-            yield db
-            await db.commit()
-        except Exception as e:
-            await db.rollback()
-            # Suppress exception to see if it fixes the 500
-            logger.error(f"get_db exception: {e}")
+        yield db
