@@ -1,6 +1,7 @@
 import { getAuthStatus, setAuthStatus } from '../utils/auth';
 import { createContext, useContext, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { db } from '../db/db';
 import type { UserLogin, UserCreate } from '../types/api';
 import { apiClient } from '../api/client';
 import { useUIStore } from '../store/uiStore';
@@ -37,6 +38,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthStatus(false);
       setIsAuthenticated(false);
       queryClient.clear();
+      
+      // Wipe the offline database for security and to prevent data mixing between accounts
+      try { await db.delete(); await db.open(); } catch (e) { console.error("Failed to clear local db", e); }
     } catch (e) {
       console.warn('Logout failed to cleanly clear server session:', e);
       useUIStore.getState().showAlert('Logout Error', 'Failed to securely clear session from the server. For your security, you are still logged in.');
