@@ -6,6 +6,7 @@ import { apiClient } from '../api/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { PlusCircle, Users } from 'lucide-react';
 import { syncEngine } from '../db/syncEngine';
+import { db } from '../db/db';
 
 
 
@@ -104,13 +105,17 @@ export default function Dashboard() {
       }
     },
     onSuccess: async (res) => {
-      // Trigger a sync so the new group is pulled into local Dexie DB
-      await syncEngine.sync();
-      
       const groupId = res.data.group?.id || res.data.group_id;
       if (groupId) {
+        if (res.data.group && res.data.member) {
+          await db.transaction('rw', [db.groups, db.members], async () => {
+            await db.groups.put({ ...res.data.group, updated_at: new Date().toISOString() });
+            await db.members.put({ ...res.data.member, updated_at: new Date().toISOString() });
+          }).catch(console.error);
+        }
         navigate(`/group/${groupId}`);
       }
+      syncEngine.sync();
     },
     onError: (err: any) => {
       const detail = err.response?.data?.userMessage || err.response?.data?.detail;
