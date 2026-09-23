@@ -42,7 +42,7 @@ export default function JoinGroupPage() {
       } catch (err: unknown) {
         const error = err as any;
         if (error.response?.status === 404) {
-          setError("This invite link is invalid or has expired.");
+          setError("This invite code is invalid or has expired.");
         } else {
           setError(getErrorMessage(err));
         }
