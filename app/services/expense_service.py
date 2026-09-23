@@ -29,13 +29,10 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
     await balances.process_expense_splits(db, group_id, expense, payload, valid_ids=member_ids)
     await db.flush()
     await balances.apply_expense(db, expense)
+    await db.flush()
     
-    member_name = member.name
-    message = f"{member_name} added a new expense: {payload.description}"
-    await db.commit()
-
     if other_user_ids and group_name:
-        background_tasks.add_task(send_web_push, other_user_ids, group_name, message)
+        background_tasks.add_task(send_web_push, other_user_ids, group_name, f"{member_name} added a new expense: {payload.description}")
 
 async def process_and_update_expense(group_id: str, expense_id: str, payload: schemas.ExpenseCreate, db: AsyncSession, member: models.Member):
     member_id = member.id
@@ -66,9 +63,12 @@ async def process_and_update_expense(group_id: str, expense_id: str, payload: sc
     await balances.process_expense_splits(db, group_id, expense, payload, valid_ids=member_ids)
     await db.flush()
     await balances.apply_expense(db, expense)
-    await db.commit()
+    await db.flush()
 
 async def process_and_delete_expense(group_id: str, expense_id: str, db: AsyncSession, member: models.Member):
+    member_id = member.id
+    member_is_admin = member.is_admin
+    member_user_id = member.user_id
     await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     
     result = await db.execute(select(models.Expense).filter(models.Expense.id == expense_id, models.Expense.group_id == group_id).with_for_update())
@@ -82,4 +82,4 @@ async def process_and_delete_expense(group_id: str, expense_id: str, db: AsyncSe
     expense.is_deleted = True
     from datetime import datetime, timezone
     expense.updated_at = datetime.now(timezone.utc)
-    await db.commit()
+    await db.flush()
