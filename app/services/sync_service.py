@@ -34,7 +34,7 @@ async def process_sync_mutations(
         try:
             client_updated_at = dateutil.parser.isoparse(client_updated_at_str) if client_updated_at_str else datetime.now(timezone.utc)
             
-            group_id = data.get("group_id")
+            group_id = data.get("group_id") or mutation.get("group_id")
             if not group_id and action != "create":
                 if table == "expenses":
                     model = models.Expense
