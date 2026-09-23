@@ -41,7 +41,7 @@ async def join_group_transaction(invite_code: str, payload: schemas.JoinRequest,
     result = await db.execute(select(models.Group).filter(models.Group.invite_code == invite_code).with_for_update())
     group = result.scalars().first()
     if not group:
-        raise HTTPException(status_code=404, detail="Invalid invite link")
+        raise HTTPException(status_code=404, detail="Invalid invite code")
 
     res = await db.execute(select(models.Member).filter(models.Member.group_id == group.id, models.Member.user_id == user.id))
     existing = res.scalars().first()
