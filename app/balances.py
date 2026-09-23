@@ -211,5 +211,5 @@ async def recompute_balances_from_ledger(db: AsyncSession, group_id: str) -> Non
             
     if updates:
         from sqlalchemy import bindparam
-        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance'), updated_at=func.now())
+        stmt = update(models.Member).where(models.Member.id == bindparam('b_id')).values(balance=bindparam('b_balance'), updated_at=func.now()).execution_options(synchronize_session=False)
         await db.execute(stmt, [{'b_id': u['id'], 'b_balance': u['balance']} for u in updates])

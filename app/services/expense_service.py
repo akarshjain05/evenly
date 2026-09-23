@@ -5,9 +5,12 @@ from app import models, schemas, balances
 from app.services.notification_service import send_web_push
 
 async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
+    user_id = user.id
+    member_id = member.id
+    member_name = member.name
     members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     members = members_res.scalars().all()
-    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member_id]
     group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
     
     expense = models.Expense(
@@ -18,7 +21,7 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
         paid_by=payload.paid_by,
         category=payload.category,
         split_type=models.SplitType(payload.split_type),
-        created_by_user_id=user.id
+        created_by_user_id=user_id
     )
     db.add(expense)
     await db.flush()
@@ -35,6 +38,9 @@ async def process_and_add_expense(payload: schemas.ExpenseCreate, group_id: str,
         background_tasks.add_task(send_web_push, other_user_ids, group_name, message)
 
 async def process_and_update_expense(group_id: str, expense_id: str, payload: schemas.ExpenseCreate, db: AsyncSession, member: models.Member):
+    member_id = member.id
+    member_is_admin = member.is_admin
+    member_user_id = member.user_id
     members_res = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     members = members_res.scalars().all()
     
@@ -42,7 +48,7 @@ async def process_and_update_expense(group_id: str, expense_id: str, payload: sc
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    if not member.is_admin and expense.created_by_user_id != member.user_id and expense.paid_by != member.id:
+    if not member_is_admin and expense.created_by_user_id != member_user_id and expense.paid_by != member_id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
 
     await balances.revert_expense(db, expense)
@@ -69,7 +75,7 @@ async def process_and_delete_expense(group_id: str, expense_id: str, db: AsyncSe
     expense = result.scalars().first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    if not member.is_admin and expense.created_by_user_id != member.user_id and expense.paid_by != member.id:
+    if not member_is_admin and expense.created_by_user_id != member_user_id and expense.paid_by != member_id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this expense")
     
     await balances.revert_expense(db, expense)

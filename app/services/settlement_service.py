@@ -5,18 +5,21 @@ from app import models, schemas, balances
 from app.services.notification_service import send_web_push
 
 async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id: str, user: models.User, member: models.Member, db: AsyncSession, background_tasks):
+    user_id = user.id
+    member_id = member_id
+    member_name = member.name
     result = await db.execute(select(models.Member).filter(models.Member.group_id == group_id).with_for_update())
     members = result.scalars().all()
     valid_ids = {m.id for m in members}
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
         
-    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
+    if not member_is_admin and member_id not in (payload.from_member, payload.to_member):
         raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
 
     group_name = await db.scalar(select(models.Group.name).filter(models.Group.id == group_id))
     member_name = member.name
-    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member.id]
+    other_user_ids = [m.user_id for m in members if m.user_id and m.id != member_id]
 
     settlement = models.Settlement(
         id=payload.id if getattr(payload, "id", None) else models.gen_id(),
@@ -24,7 +27,7 @@ async def process_and_add_settlement(payload: schemas.SettlementCreate, group_id
         from_member=payload.from_member, 
         to_member=payload.to_member, 
         amount=payload.amount,
-        created_by_user_id=user.id
+        created_by_user_id=user_id
     )
     db.add(settlement)
     await balances.apply_settlement(db, settlement)
@@ -41,13 +44,13 @@ async def process_and_update_settlement(group_id: str, settlement_id: str, paylo
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
-    if member and not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
+    if member and not member.is_admin and settlement.created_by_user_id != user_id and settlement.from_member != member_id and settlement.to_member != member_id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
         
     if payload.from_member not in valid_ids or payload.to_member not in valid_ids:
         raise HTTPException(status_code=400, detail="Both people must be in this tab")
         
-    if not member.is_admin and member.id not in (payload.from_member, payload.to_member):
+    if not member_is_admin and member_id not in (payload.from_member, payload.to_member):
         raise HTTPException(status_code=403, detail="You can only record settlements you are part of")
         
     await balances.revert_settlement(db, settlement)
@@ -65,7 +68,7 @@ async def process_and_delete_settlement(group_id: str, settlement_id: str, db: A
     settlement = result.scalars().first()
     if not settlement:
         raise HTTPException(status_code=404, detail="Settlement not found")
-    if not member.is_admin and settlement.created_by_user_id != member.user_id and settlement.from_member != member.id and settlement.to_member != member.id:
+    if not member_is_admin and settlement.created_by_user_id != member_user_id and settlement.from_member != member_id and settlement.to_member != member_id:
         raise HTTPException(status_code=403, detail="You do not have permission to modify this settlement")
     await balances.revert_settlement(db, settlement)
     settlement.is_deleted = True
