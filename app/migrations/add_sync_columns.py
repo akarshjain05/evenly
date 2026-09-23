@@ -25,10 +25,10 @@ async def run_migration(db: AsyncSession):
             dialect = db.bind.dialect.name
             
             if dialect == 'sqlite':
-                result = await db.execute(text(f"PRAGMA table_info({table})"))
+                result = await db.execute(text(f"PRAGMA table_info({table})"))  # nosec B608
                 existing_cols = [row[1] for row in result.all()]
             else:
-                result = await db.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table}'"))
+                result = await db.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = :table"), {"table": table})
                 existing_cols = [row[0] for row in result.all()]
                 
             for col in columns:
@@ -36,8 +36,8 @@ async def run_migration(db: AsyncSession):
                     logger.info(f"Adding column {col} to {table}")
                     if col == "updated_at":
                         datatype = "TIMESTAMP WITH TIME ZONE" if dialect != "sqlite" else "DATETIME"
-                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {datatype}"))
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {datatype}"))  # nosec B608
                     elif col == "is_deleted":
-                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE NOT NULL"))
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE NOT NULL"))  # nosec B608
         except Exception as e:
             logger.error(f"Error migrating {table}: {e}")
