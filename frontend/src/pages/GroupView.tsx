@@ -313,6 +313,7 @@ const expenses = useMemo(() => activities?.filter(a => a.type === 'expense') || 
                             left: 0,
                             width: '100%',
                             transform: `translateY(${virtualRow.start - parentOffset}px)`,
+                            zIndex: openMenuId === item.id ? 50 : 1,
                           }}
                         >
                           {renderActivityItem(item)}
