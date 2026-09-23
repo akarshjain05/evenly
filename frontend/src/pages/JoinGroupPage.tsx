@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { Loader2 } from 'lucide-react';
+import { db } from '../db/db';
+import { syncEngine } from '../db/syncEngine';
 import { getErrorMessage } from '../utils/errors';
 
 export default function JoinGroupPage() {
@@ -28,9 +30,21 @@ export default function JoinGroupPage() {
         const groupId = previewRes.data.id;
 
         try {
-          await apiClient.post(`/groups/by-code/${code}/join`, {});
+          const res = await apiClient.post(`/groups/by-code/${code}/join`, {});
+          
+          // Clear sync meta so we fetch the full history of the new group
+          await db.syncMeta.delete('last_synced_at');
+          
+          if (res.data?.group && res.data?.member) {
+            await db.transaction('rw', [db.groups, db.members], async () => {
+              await db.groups.put({ ...res.data.group, updated_at: new Date().toISOString() });
+              await db.members.put({ ...res.data.member, updated_at: new Date().toISOString() });
+            }).catch(console.error);
+          }
+          
           queryClient.invalidateQueries({ queryKey: ['groups'] });
           navigate(`/group/${groupId}`, { replace: true });
+          syncEngine.sync();
         } catch (joinErr: any) {
           if (joinErr.response?.status === 400 && joinErr.response?.data?.detail === 'You are already in this tab') {
             // They are already in it, just redirect them silently

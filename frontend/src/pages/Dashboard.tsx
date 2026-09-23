@@ -106,6 +106,13 @@ export default function Dashboard() {
     },
     onSuccess: async (res) => {
       const groupId = res.data.group?.id || res.data.group_id;
+      
+      // If we joined an existing group, we need to clear our global sync cursor 
+      // so we fetch all of the group's historical data!
+      if (isJoin) {
+        await db.syncMeta.delete('last_synced_at');
+      }
+
       if (groupId) {
         if (res.data.group && res.data.member) {
           await db.transaction('rw', [db.groups, db.members], async () => {
