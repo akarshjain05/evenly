@@ -68,7 +68,7 @@ function OtpInput({ length, onComplete, code, setCode }: { length: number, onCom
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}
-          ref={el => inputs.current[i] = el}
+          ref={el => { inputs.current[i] = el; }}
           type="text"
           inputMode="text"
           maxLength={6}
