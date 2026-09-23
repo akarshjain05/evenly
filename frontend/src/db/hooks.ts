@@ -15,8 +15,9 @@ export function useLocalGroups(userId: string | undefined): MembershipResponse[]
     const memberships: MembershipResponse[] = [];
     
     for (const member of userMemberships) {
+      if (!member.group_id) continue;
       const group = await db.groups.get(member.group_id);
-      if (group && !group.is_deleted === true) {
+      if (group && group.is_deleted !== true) {
         memberships.push({
           group: {
             id: group.id,

@@ -1,4 +1,4 @@
-import { getAuthStatus } from './utils/auth';
+import { getAuthStatus, setAuthStatus } from './utils/auth';
 import DialogModal from "./components/modals/DialogModal";
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Layout from './components/Layout'
@@ -42,19 +42,17 @@ class RouteErrorBoundary extends Component<{ children: React.ReactNode }, { hasE
   static getDerivedStateFromError() {
     return { hasError: true };
   }
+  componentDidCatch() {
+    // If the error boundary fires while the user is supposedly logged in,
+    // it's almost certainly because their session expired and the local DB
+    // is empty/corrupt.  Clear the stale auth flag so ProtectedRoute will
+    // redirect to /login on the next render.
+    setAuthStatus(false);
+  }
   render() {
     if (this.state.hasError) {
-      return (
-        <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-ink-soft text-lg mb-4">Something went wrong loading this page.</p>
-          <button
-            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      );
+      // After clearing auth, redirect to login
+      return <Navigate to="/login" replace />;
     }
     return this.props.children;
   }
