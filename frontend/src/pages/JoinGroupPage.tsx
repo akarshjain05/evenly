@@ -38,7 +38,7 @@ export default function JoinGroupPage() {
           if (res.data?.group && res.data?.member) {
             await db.transaction('rw', [db.groups, db.members], async () => {
               await db.groups.put({ ...res.data.group, updated_at: new Date().toISOString() });
-              await db.members.put({ ...res.data.member, updated_at: new Date().toISOString() });
+              await db.members.put({ ...res.data.member, is_deleted: false, updated_at: new Date().toISOString() });
             }).catch(console.error);
           }
           

@@ -9,14 +9,14 @@ export function useLocalGroups(userId: string | undefined): MembershipResponse[]
     
     // Get all user memberships that are not deleted
     const userMemberships = await db.members
-      .filter(m => m.user_id === userId && m.is_deleted === false)
+      .filter(m => m.user_id === userId && m.is_deleted !== true)
       .toArray();
 
     const memberships: MembershipResponse[] = [];
     
     for (const member of userMemberships) {
       const group = await db.groups.get(member.group_id);
-      if (group && !group.is_deleted) {
+      if (group && !group.is_deleted === true) {
         memberships.push({
           group: {
             id: group.id,
@@ -43,10 +43,10 @@ export function useLocalGroup(groupId: string | undefined): GroupDetailResponse 
     if (!groupId) return undefined;
     
     const group = await db.groups.get(groupId);
-    if (!group || group.is_deleted) return undefined;
+    if (!group || group.is_deleted === true) return undefined;
     
     const groupMembers = await db.members
-      .filter(m => m.group_id === groupId && m.is_deleted === false)
+      .filter(m => m.group_id === groupId && m.is_deleted !== true)
       .toArray();
       
     const membersList = groupMembers.map(m => ({
@@ -75,11 +75,11 @@ export function useLocalActivity(groupId: string | undefined): ActivityResponse[
     if (!groupId) return [];
     
     const expenses = await db.expenses
-      .filter(e => e.group_id === groupId && e.is_deleted === false)
+      .filter(e => e.group_id === groupId && e.is_deleted !== true)
       .toArray();
       
     const settlements = await db.settlements
-      .filter(s => s.group_id === groupId && s.is_deleted === false)
+      .filter(s => s.group_id === groupId && s.is_deleted !== true)
       .toArray();
       
     const allMembers = await db.members

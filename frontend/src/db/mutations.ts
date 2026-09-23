@@ -15,7 +15,7 @@ export async function addExpense(groupId: string, expense: ExpenseCreate, userId
     // 1. Determine participants and splits
     let participantIds = expense.participant_ids || [];
     if (!participantIds.length) {
-      const allMembers = await db.members.filter(m => m.group_id === groupId && m.is_deleted === false).toArray();
+      const allMembers = await db.members.filter(m => m.group_id === groupId && m.is_deleted !== true).toArray();
       participantIds = allMembers.map(m => m.id);
     }
 
@@ -101,7 +101,7 @@ export async function editExpense(groupId: string, expenseId: string, expense: E
     // Determine new participants and splits
     let participantIds = expense.participant_ids || [];
     if (!participantIds.length) {
-      const allMembers = await db.members.filter(m => m.group_id === groupId && m.is_deleted === false).toArray();
+      const allMembers = await db.members.filter(m => m.group_id === groupId && m.is_deleted !== true).toArray();
       participantIds = allMembers.map(m => m.id);
     }
     
